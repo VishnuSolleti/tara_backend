@@ -735,6 +735,7 @@ class FirmKYCView(APIView):
         Delete FirmKYC details for the authenticated user.
         """
         try:
+            print("*************")
             firm_kyc = request.user.firmkyc
             firm_kyc.delete()
             return Response({"detail": "FirmKYC details deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
