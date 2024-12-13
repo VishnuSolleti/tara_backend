@@ -1336,8 +1336,64 @@ class VisaApplicationDetailAPIView(APIView):
     )
     def get(self, request, pk):
         try:
-            visa_application = VisaApplications.objects.get(pk=pk)
-            serializer = VisaApplicationsGetSerializer(visa_application)
+            # visa_application = VisaApplications.objects.get(user_id=pk)
+            # serializer = VisaApplicationsGetSerializer(visa_application)
+            visa_applications = VisaApplications.objects.filter(user_id=pk)
+            serializer = VisaClientUserListSerializer(visa_applications, many=True)
+            response_data = []
+            user_data_map = {}
+
+            for visa_app in serializer.data:  # Use serializer.data to get the serialized data
+                user = visa_app['email']
+
+                if user not in user_data_map:
+                    # Add user data to the map if not already added
+                    user_data_map[user] = {
+                        "email": visa_app['email'],
+                        "mobile_number": visa_app['mobile_number'],
+                        "first_name": visa_app['first_name'],
+                        "last_name": visa_app['last_name'],
+                        "services": [],
+                        "user": visa_app['user'],
+                    }
+
+                # Check if services list is empty
+                services = visa_app['services']
+                if len(services) > 0:
+                    for service in services:
+                        user_data_map[user]["services"].append({
+                            "id": service['id'],
+                            "service_type": service['service_type'],
+                            "service_name": service['service_name'],
+                            "date": service['date'],
+                            "status": service['status'],
+                            "comments": service['comments'],
+                            "quantity": service['quantity'],
+                            "visa_application": visa_app['id'],
+                            "last_updated_date": service['last_updated_date'],
+                            "passport_number": visa_app['passport_number'],
+                            "purpose": visa_app['purpose'],
+                            "visa_type": visa_app['visa_type'],
+                            "destination_country": visa_app['destination_country'],
+                            'user_id': visa_app['user']
+                        })
+                else:
+                    # If no services, add specific fields directly to user data
+                    user_data_map[user].update({
+                        "passport_number": visa_app['passport_number'],
+                        "purpose": visa_app['purpose'],
+                        "visa_type": visa_app['visa_type'],
+                        "destination_country": visa_app['destination_country'],
+                        'user_id': visa_app['user']
+                    })
+
+            # Convert the user data map to a list
+            response_data = user_data_map[user]
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except User.DoesNotExist:
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except VisaApplications.DoesNotExist:
             return Response({"error": "Visa application not found"}, status=status.HTTP_404_NOT_FOUND)
