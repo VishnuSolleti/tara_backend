@@ -53,10 +53,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             user_name = user_kyc_instance.name
             if user_kyc_instance.is_completed:  # Assuming `is_completed` indicates KYC completion
                 user_kyc = True
-        elif hasattr(user, 'visa_applications'):
-            user_visa_applicants = user.visa_applications.first()
-            if user_visa_applicants:
-               user_name = user_visa_applicants.first_name + ' ' + user_visa_applicants.last_name
 
         # Extract the date from created_on
         created_on_date = user.date_joined.date()
