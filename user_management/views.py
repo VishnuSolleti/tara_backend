@@ -1933,6 +1933,7 @@ class ServiceDetailsAPIView(APIView):
     )
     def get(self, request, pk):
         """Retrieve a specific ServiceDetails instance by ID."""
+        print("****")
         if not self.has_permission(request.user):
             return Response(
                 {"error": "You do not have permission to perform this action."},
