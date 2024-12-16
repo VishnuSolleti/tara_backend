@@ -205,7 +205,7 @@ class ServicesMasterData(models.Model):
 
 class ServiceDetails(models.Model):
     STATUS_CHOICES = [
-        ('in_progress', 'In Progress'),
+        ('in progress', 'In Progress'),
         ('created', 'Created'),
         ('completed', 'Completed'),
         ('pending', 'Pending'),
