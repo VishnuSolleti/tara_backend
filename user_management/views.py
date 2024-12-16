@@ -1794,7 +1794,7 @@ def service_status(request):
                     if service['status'] == 'pending':
                         counts['pending'] += 1
                         counts['pending_data'].append(service_data)
-                    elif service['status'] == 'in_progress':
+                    elif service['status'] == 'in progress':
                         counts['in_progress'] += 1
                         counts['in_progress_data'].append(service_data)
                     elif service['status'] == 'completed':
@@ -2049,7 +2049,7 @@ class ServiceDetailsAPIView(APIView):
                 {"error": "You do not have permission to perform this action."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        service = get_object_or_404(ServiceDetails, pk=pk)
+        # service = get_object_or_404(ServiceDetails, pk=pk)
         service = ServiceDetails.objects.get(id=pk)
 
         visa_data = request.data.get('visa_application', {})
