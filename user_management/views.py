@@ -415,7 +415,7 @@ def visa_users_creation(request):
 
             # Step 2: Create visa application details
             visa_applications_data = {
-                'passport_number': request.data.get('passport_number'),
+                'passport_number': request.data.get('passport_number', ''),
                 'purpose': request.data.get('purpose'),
                 'visa_type': request.data.get('visa_type'),
                 'destination_country': request.data.get('destination_country'),
@@ -2055,13 +2055,12 @@ class ServiceDetailsAPIView(APIView):
         visa_data = request.data.get('visa_application', {})
         # Check if the VisaApplication exists
         user_id = visa_data.get('user')
-        passport_number= visa_data.get('passport_number')
+        passport_number= visa_data.get('passport_number', '')
         purpose= visa_data.get('purpose')
         visa_type = visa_data.get('visa_type')
         destination_country = visa_data.get('destination_country')
         visa_application = VisaApplications.objects.filter(
             user_id=visa_data.get('user'),
-            passport_number=visa_data.get('passport_number'),
             purpose=visa_data.get('purpose'),
             visa_type=visa_data.get('visa_type'),
             destination_country=visa_data.get('destination_country')
@@ -2071,6 +2070,7 @@ class ServiceDetailsAPIView(APIView):
             service_data = request.data.get('service', {})
             service_data['visa_application'] = visa_application.id  # Set the existing visa application ID
         else:
+            visa_data['passport_number'] = passport_number
             visa_application_serializer = VisaApplicationsSerializer(data=visa_data)
             if visa_application_serializer.is_valid():
                 visa_application_ = visa_application_serializer.save()
