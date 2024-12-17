@@ -122,6 +122,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField(max_length=40, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
+    user_kyc = models.BooleanField(default=False)
     otp = models.IntegerField(null=True)
     user_type = models.CharField(
         max_length=40,

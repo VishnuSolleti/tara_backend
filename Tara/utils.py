@@ -52,6 +52,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             user_kyc_instance = user.userkyc
             user_name = user_kyc_instance.name
             if user_kyc_instance.is_completed:  # Assuming `is_completed` indicates KYC completion
+                user.user_kyc = True  # Update the `user_kyc` field in the User model
+                user.save(update_fields=['user_kyc'])  # Save only the `user_kyc` field
                 user_kyc = True
 
         # Extract the date from created_on
@@ -66,7 +68,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'created_on': created_on_date,
             'user_type': user.user_type,
             'user_role': user.user_role,
-            'user_kyc': user_kyc,
+            'user_kyc': user.user_kyc,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }
