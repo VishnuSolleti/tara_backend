@@ -1551,24 +1551,23 @@ def manage_visa_applications(request):
 
         # Extract required fields from request data
         user_id = request.data.get('user_id')
-        passport_number = request.data.get('passport_number')
+        passport_number = request.data.get('passport_number', '')
         purpose = request.data.get('purpose')
         visa_type = request.data.get('visa_type')
         destination_country = request.data.get('destination_country')
 
 
         # Validate required fields
-        if not all([user_id, passport_number, purpose, visa_type, destination_country]):
+        if not all([user_id, purpose, visa_type, destination_country]):
             return Response(
-                {"error": "Missing required fields. Provide 'user_id', 'passport_number', "
+                {"error": "Missing required fields. Provide 'user_id', "
                           "'purpose', 'visa_type', and 'destination_country'."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         # Check if the visa application already exists
         visa_applications = VisaApplications.objects.filter(
-            visa_type=visa_type, user_id=user_id, purpose=purpose, destination_country=destination_country,
-            passport_number=passport_number
+            visa_type=visa_type, user_id=user_id, purpose=purpose, destination_country=destination_country
         )
         if visa_applications.exists():
             visa_application = visa_applications.first()
