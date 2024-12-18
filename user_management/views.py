@@ -1831,25 +1831,27 @@ def parse_last_updated_date(last_updated):
         return ''
 
 
-def collect_service_data(serializer_data):
+def collect_service_data(serializer_data, user_role):
     """
     Helper function to collect and format service data.
     """
     all_services = []
     for item in serializer_data:
-        if not item['services']:
-            service_data = {
-                'email': item.get('email'),
-                'mobile_number': item.get('mobile_number'),
-                'passport_number': item.get('passport_number'),
-                'visa_type': item.get('visa_type'),
-                'destination_country': item.get('destination_country'),
-                'purpose': item.get('purpose'),
-                'first_name': item['first_name'],
-                'last_name': item['last_name'],
-                'user': item.get('user')
-            }
-            all_services=service_data
+        if user_role == 'Individual_User':
+            if not item['services']:
+                service_data = {
+                    'email': item.get('email'),
+                    'mobile_number': item.get('mobile_number'),
+                    'passport_number': item.get('passport_number'),
+                    'visa_type': item.get('visa_type'),
+                    'destination_country': item.get('destination_country'),
+                    'purpose': item.get('purpose'),
+                    'first_name': item['first_name'],
+                    'last_name': item['last_name'],
+                    'user': item.get('user')
+                }
+                all_services = service_data
+
         for service in item['services']:
             try:
                 last_updated_date = parse_last_updated_date(service.get('last_updated'))
@@ -1955,7 +1957,7 @@ def all_service_data(request):
         serializer = VisaClientUserListSerializer(visa_applications, many=True)
 
         # Collect and format all services data
-        all_services, success = collect_service_data(serializer.data)
+        all_services, success = collect_service_data(serializer.data, user_role)
         if not success:
             return Response(all_services, status=status.HTTP_400_BAD_REQUEST)
 
