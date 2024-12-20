@@ -31,6 +31,9 @@ urlpatterns = [
     path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
     # Include user management URLs
     path('user_management/', include('user_management.urls')),
+    # Include Invoicing URLs
+    path('invoicing/', include('invoicing.urls')),
+
     # Token authentication URL
     path('token_auth/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

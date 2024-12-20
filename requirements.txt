@@ -24,7 +24,7 @@ idna==3.2
 jmespath==0.10.0
 jsonfield==3.1.0
 Markdown==3.3.4
-numpy==1.26.4
+numpy==1.24.4
 openpyxl==3.0.9
 PyJWT==2.3.0
 pymongo==3.12.0
@@ -57,7 +57,7 @@ weasyprint==61.2
 python-dotenv
 whitenoise
 drf-yasg
-
+num2words==0.5.13
 
 
 

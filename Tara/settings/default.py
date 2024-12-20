@@ -57,7 +57,8 @@ INSTALLED_APPS = [
     'user_management',
     'drf_yasg',
     'rest_framework_simplejwt',
-    'corsheaders'
+    'corsheaders',
+    'invoicing',
 ]
 
 MIDDLEWARE = [

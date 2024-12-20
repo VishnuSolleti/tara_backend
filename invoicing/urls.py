@@ -1,0 +1,34 @@
+from django.urls import path
+from . import views
+from .views import *
+
+urlpatterns = [
+    path('invoicing-profiles/', views.get_invoicing_profile, name='get-invoicing-profile'),
+    path('invoicing-profiles/create/', views.create_invoicing_profile, name='create-invoicing-profile'),
+    path('invoicing-profiles/<int:pk>/update/', views.update_invoicing_profile, name='update-invoicing-profile'),
+    path('invoicing-profiles/delete/', views.delete_invoicing_profile, name='delete-invoicing-profile'),
+    path('customer_profiles/create/', create_customer_profile, name='create-customer-profile'),
+    path('customer_profiles/', get_customer_profile, name='get-customer-profile'),
+    path('invoicing/customer_profiles/update/<int:id>/', update_customer_profile, name='update_customer_profile'),
+    path('customer_profiles/delete/', delete_customer_profile, name='delete-customer-profile'),
+    path('api/v1/goods-services/create/', create_goods_service, name='create-goods-service'),
+
+    # Retrieve a specific goods or service entry
+    path('goods-services/', retrieve_goods_service, name='retrieve-goods-service'),
+
+    # Update an existing goods or service entry
+    path('goods-services/<int:id>/update/', update_goods_service, name='update-goods-service'),
+
+    # Delete an existing goods or service entry
+    path('goods-services/<int:id>/delete/', remove_goods_service, name='remove-goods-service'),
+
+    path('invoice-create', create_invoice, name='create_invoice'),
+
+    path('invoice-retrieve', retrieve_invoices, name='retrieve_invoices'),
+
+    path('invoice-update/<int:invoice_id>/', update_invoice, name='update_invoice'),
+
+    path('invoice-delete/<int:invoice_id>/', delete_invoice, name='delete_invoice'),
+
+]
+
