@@ -1169,7 +1169,7 @@ def update_invoice(request, invoice_id):
 @permission_classes([IsAuthenticated])
 def delete_invoice(request, invoice_id):
     """
-    Delete an existing invoice by ID.
+    Delete an existing invoice by ID. Tobe tested
     """
     try:
         invoice = Invoice.objects.filter(id=invoice_id).first()
