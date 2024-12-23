@@ -1633,7 +1633,7 @@ def manage_visa_applications(request):
 def get_visa_clients_users_list(request):
     try:
         # Check if the user is a ServiceProvider_Admin with the correct type
-        print("********%%%%%")
+        print("********")
         if request.user.user_role == "ServiceProvider_Admin" and request.user.user_type == "ServiceProvider":
             # Get all users created by the current ServiceProviderAdmin
             created_by_id = request.user.id
