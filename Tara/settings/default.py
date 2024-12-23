@@ -25,7 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-+9)9852a8&af5dmne4@fgjxcn8q7)65losj40_3&hy^d1+x2ku'
+
+# SECRET_KEY = os.getenv('SECRET_KEY')
+# print(SECRET_KEY)
+
+SECRET_KEY = 'l$03&@y2zwp$uf3xj14=5whvkl6t)j2#9-=7l73x6t0@x3#=s%'
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG')
@@ -302,17 +307,22 @@ AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 
 
+# database connections
+userName = os.getenv('database_username')
+password = os.getenv('password')
+print(userName, password, "*******")
+
 DATABASES = {
         'default': {
             'ENGINE': 'djongo',
-            'NAME': 'development',
+            'NAME': 'testing',
             'ENFORCE_SCHEMA': False,
             'CLIENT': {
-                'host': 'mongodb+srv://Development:jJ649y2MEH99Ykdu@cluster0.xozfe.mongodb.net/development'
+                'host': f'mongodb+srv://{userName}:{password}@cluster0.4vvpp.mongodb.net/Testing'
                         '?tls=true&tlsAllowInvalidCertificates=true',
                 'port': 27017,
-                'username': 'Development',
-                'password': 'jJ649y2MEH99Ykdu',
+                'username': f'{userName}',
+                'password': f'{password}',
                 'authSource': 'admin',
                 'authMechanism': 'SCRAM-SHA-1',
                 'tls': True,
@@ -320,6 +330,13 @@ DATABASES = {
             },
             'CONN_MAX_AGE': None
         }
+}
+
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
 }
 
 
