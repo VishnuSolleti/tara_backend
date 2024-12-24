@@ -525,16 +525,17 @@ def update_customer_profile(request, id):
 )
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
-def delete_customer_profile(request):
+def delete_customer_profile(request, id):
     """
-    Delete the customer profile of the logged-in user.
+    Delete the customer profile by its ID.
     """
     try:
-        customer_profile = CustomerProfile.objects.get(invoicing_profile__business=request.user)
+        # Get the customer profile with the given ID
+        customer_profile = CustomerProfile.objects.get(id=customer_profile_id)
         customer_profile.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    except ObjectDoesNotExist:
-        logger.warning(f"User {request.user.id} tried to delete a non-existent customer profile.")
+        return Response({"message": "Customer profile deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+    except CustomerProfile.DoesNotExist:
+        logger.warning(f"Attempt to delete a non-existent customer profile with ID {customer_profile_id}.")
         return Response({"message": "Customer profile not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(f"Unexpected error in delete_customer_profile: {e}")
@@ -542,7 +543,6 @@ def delete_customer_profile(request):
             {"error": f"An unexpected error occurred: {e}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
 
 @swagger_auto_schema(
     method='post',
