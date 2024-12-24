@@ -429,12 +429,15 @@ def get_customer_profile(request):
             'pan_number': openapi.Schema(type=openapi.TYPE_STRING, description="PAN number"),
             'country': openapi.Schema(type=openapi.TYPE_STRING, description="Country"),
             'address_line1': openapi.Schema(type=openapi.TYPE_STRING, description="Address line 1"),
+            'address_line2': openapi.Schema(type=openapi.TYPE_STRING, description="Address line 2"),
             'state': openapi.Schema(type=openapi.TYPE_STRING, description="State"),
             'postal_code': openapi.Schema(type=openapi.TYPE_STRING, description="Postal code"),
             'gst_registered': openapi.Schema(type=openapi.TYPE_STRING, description="GST registered status"),
             'gstin': openapi.Schema(type=openapi.TYPE_STRING, description="GSTIN"),
             'email': openapi.Schema(type=openapi.TYPE_STRING, description="Email address"),
             'mobile_number': openapi.Schema(type=openapi.TYPE_STRING, description="Mobile number"),
+            "opening_balance": openapi.Schema(type=openapi.TYPE_STRING, description="Opening Balance"),
+            "gst_type": openapi.Schema(type=openapi.TYPE_STRING, description="Gst Type")
         }
     ),
     responses={
@@ -448,12 +451,15 @@ def get_customer_profile(request):
                     "pan_number": "ABCDE1234F",
                     "country": "USA",
                     "address_line1": "123 Main St",
+                    "address_line2": "123 Main St",
                     "state": "California",
                     "postal_code": "12345",
                     "gst_registered": "Yes",
                     "gstin": "GSTIN12345",
                     "email": "johndoe@example.com",
-                    "mobile_number": "1234567890"
+                    "mobile_number": "1234567890",
+                    "opening_balance": 97000,
+                    "gst_type": "Anything"
                 }
             }
         ),
