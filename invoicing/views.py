@@ -535,7 +535,7 @@ def delete_customer_profile(request, id):
         customer_profile.delete()
         return Response({"message": "Customer profile deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
     except CustomerProfile.DoesNotExist:
-        logger.warning(f"Attempt to delete a non-existent customer profile with ID {customer_profile_id}.")
+        logger.warning(f"Attempt to delete a non-existent customer profile with ID {id}.")
         return Response({"message": "Customer profile not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         logger.error(f"Unexpected error in delete_customer_profile: {e}")
