@@ -10,7 +10,7 @@ class CustomerProfileSerializers(serializers.Serializer):
     pan_number = serializers.CharField(max_length=10, allow_null=True, allow_blank=True)
     country = serializers.CharField(max_length=10, allow_null=True, allow_blank=True)
     address_line1 = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
-    address_line2  = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
+    address_line2 = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
     state = serializers.CharField(max_length=30, allow_null=True, allow_blank=True)
     postal_code = serializers.CharField(max_length=10, allow_null=True, allow_blank=True)
     gst_registered = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)

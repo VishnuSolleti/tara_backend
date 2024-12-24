@@ -310,12 +310,14 @@ def delete_invoicing_profile(request):
                     "pan_number": "ABCDE1234F",
                     "country": "USA",
                     "address_line1": "123 Main St",
+                    "address_line2": "XYZ Buddy",
                     "state": "California",
                     "postal_code": "12345",
                     "gst_registered": "Yes",
                     "gstin": "GSTIN12345",
                     "email": "johndoe@example.com",
-                    "mobile_number": "1234567890"
+                    "mobile_number": "1234567890",
+                    "opening_balance": 97000
                 }
             }
         ),
