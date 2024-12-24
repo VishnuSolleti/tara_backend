@@ -407,7 +407,7 @@ def get_customer_profile(request):
             return Response({"message": "No invoicing profiles found."}, status=status.HTTP_404_NOT_FOUND)
 
         # Serialize the data
-        serializer = InvoicingProfileSerializer(invoicing_profiles, many=True)
+        serializer = InvoicingProfileSerializers(invoicing_profiles, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except Exception as e:
