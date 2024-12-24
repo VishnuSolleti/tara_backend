@@ -8,7 +8,7 @@ from drf_yasg import openapi
 from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
                           GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
-                          InvoicingProfileSerializers)
+                          InvoicingProfileSerializers, InvoicingProfileCustomersSerializer)
 from django.http import QueryDict
 import logging
 from django.core.exceptions import ObjectDoesNotExist
@@ -396,19 +396,19 @@ def create_customer_profile(request):
 @permission_classes([IsAuthenticated])
 def get_customer_profile(request):
     """
-    Retrieve all invoicing profiles along with their associated customer profiles for the logged-in user.
+    Retrieve the invoicing profile along with its associated customer profiles for the logged-in user.
     """
     try:
-        # Get all invoicing profiles associated with the user's business
-        invoicing_profiles = InvoicingProfile.objects.filter(business=request.user)
-
-        if not invoicing_profiles.exists():
-            logger.warning(f"User {request.user.id} tried to access invoicing profiles, but none exist.")
-            return Response({"message": "No invoicing profiles found."}, status=status.HTTP_404_NOT_FOUND)
+        # Get the invoicing profile associated with the user's business
+        invoicing_profile = InvoicingProfile.objects.get(business=request.user)
 
         # Serialize the data
-        serializer = InvoicingProfileSerializers(invoicing_profiles, many=True)
+        serializer = InvoicingProfileCustomersSerializer(invoicing_profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except InvoicingProfile.DoesNotExist:
+        logger.warning(f"User {request.user.id} tried to access an invoicing profile, but none exist.")
+        return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
     except Exception as e:
         logger.error(f"Unexpected error in get_customer_profiles: {e}")
@@ -416,7 +416,6 @@ def get_customer_profile(request):
             {"error": f"An unexpected error occurred: {e}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
-
 
 @swagger_auto_schema(
     method='put',

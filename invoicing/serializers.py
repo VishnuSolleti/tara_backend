@@ -232,6 +232,16 @@ class InvoicingProfileSerializers(serializers.ModelSerializer):
             'swift_code',
             'customer_profiles',  # Nested customer profiles included
         ]
+class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
+    customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
+
+    class Meta:
+        model = InvoicingProfile
+        fields = [
+            'id',
+            'business',
+            'customer_profiles',  # Nested customer profiles included
+        ]
 
 class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
     goods_and_services = GoodsAndServicesSerializer(many=True)
