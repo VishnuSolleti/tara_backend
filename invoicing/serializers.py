@@ -226,6 +226,12 @@ class InvoicingProfileSerializers(serializers.ModelSerializer):
         fields = [
             'id',
             'business',
+            'pan_number',
+            'bank_name',
+            'business',
+            'account_number',
+            'ifsc_code',
+            'swift_code'
             'customer_profiles',  # Nested customer profiles
         ]
 
