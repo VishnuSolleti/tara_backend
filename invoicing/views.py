@@ -317,7 +317,8 @@ def delete_invoicing_profile(request):
                     "gstin": "GSTIN12345",
                     "email": "johndoe@example.com",
                     "mobile_number": "1234567890",
-                    "opening_balance": 97000
+                    "opening_balance": 97000,
+                    "gst_type": "Anything"
                 }
             }
         ),
