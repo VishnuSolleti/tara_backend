@@ -531,7 +531,7 @@ def delete_customer_profile(request, id):
     """
     try:
         # Get the customer profile with the given ID
-        customer_profile = CustomerProfile.objects.get(id=customer_profile_id)
+        customer_profile = CustomerProfile.objects.get(id=id)
         customer_profile.delete()
         return Response({"message": "Customer profile deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
     except CustomerProfile.DoesNotExist:
