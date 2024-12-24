@@ -291,7 +291,7 @@ def delete_invoicing_profile(request):
             'pan_number': openapi.Schema(type=openapi.TYPE_STRING, description="PAN number"),
             'country': openapi.Schema(type=openapi.TYPE_STRING, description="Country"),
             'address_line1': openapi.Schema(type=openapi.TYPE_STRING, description="Address line 1"),
-            'address_line1': openapi.Schema(type=openapi.TYPE_STRING, description="Address line 2"),
+            'address_line2': openapi.Schema(type=openapi.TYPE_STRING, description="Address line 2"),
             'state': openapi.Schema(type=openapi.TYPE_STRING, description="State"),
             'postal_code': openapi.Schema(type=openapi.TYPE_STRING, description="Postal code"),
             'gst_registered': openapi.Schema(type=openapi.TYPE_STRING, description="GST registered status"),
