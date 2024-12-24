@@ -9,6 +9,7 @@ from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
                           GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
                           InvoicingProfileSerializers)
+from django.http import QueryDict
 import logging
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -213,25 +214,16 @@ def update_invoicing_profile(request, pk):
 
     # Parse file uploads
     parser_classes = (MultiPartParser, FormParser)
-    request.data._mutable = True  # To allow modifications to the data
-    if 'signature' in request.FILES:
-        request.data['signature'] = request.FILES['signature']
 
-    serializer = InvoicingProfileSerializer(invoicing_profile, data=request.data, partial=True)
+    # Convert request.data to a mutable dictionary
+    data = request.data.dict() if isinstance(request.data, QueryDict) else request.data
+
+    if 'signature' in request.FILES:
+        data['signature'] = request.FILES['signature']
+
+    serializer = InvoicingProfileSerializer(invoicing_profile, data=data, partial=True)
 
     if serializer.is_valid():
-        try:
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Unexpected error in update_invoicing_profile: {e}")
-            return Response(
-                {"error": f"An unexpected error occurred: {e}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-    # Check if only the signature was uploaded
-    if 'signature' in request.FILES and not serializer.errors:
         try:
             serializer.save()
             return Response(serializer.data, status=status.HTTP_200_OK)
