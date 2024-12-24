@@ -218,7 +218,7 @@ class CustomerProfileGetSerializers(serializers.ModelSerializer):
         exclude = ['invoicing_profile']
     
     
-class InvoicingProfileSerializer(serializers.ModelSerializer):
+class InvoicingProfileSerializers(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
 
     class Meta:

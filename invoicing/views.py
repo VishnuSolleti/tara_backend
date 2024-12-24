@@ -7,7 +7,8 @@ from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
-                          GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer)
+                          GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
+                          InvoicingProfileSerializers)
 import logging
 from django.core.exceptions import ObjectDoesNotExist
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -61,7 +62,7 @@ def get_invoicing_profile(request):
         user = request.user
         invoicing_profile = InvoicingProfile.objects.get(business=user)
 
-        serializer = InvoicingProfileSerializer(invoicing_profile)
+        serializer = InvoicingProfileSerializers(invoicing_profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except InvoicingProfile.DoesNotExist:
