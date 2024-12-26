@@ -30,5 +30,7 @@ urlpatterns = [
 
     path('invoice-delete/<int:invoice_id>/', delete_invoice, name='delete_invoice'),
 
+    path('create-pdf/<int:id>/',views.createDocument),
+
 ]
 
