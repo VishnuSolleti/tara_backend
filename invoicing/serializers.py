@@ -219,7 +219,7 @@ class CustomerProfileGetSerializers(serializers.ModelSerializer):
 
 class InvoicingProfileSerializers(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
-
+    invoice_format = serializers.JSONField()
     class Meta:
         model = InvoicingProfile
         fields = [
