@@ -260,3 +260,21 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
             'business',
             'goods_and_services',  # Nested goods and services
         ]
+
+
+class InvoicesSerializer(serializers.ModelSerializer):
+    billing_address = serializers.JSONField()  # Properly serialize as JSON
+    shipping_address = serializers.JSONField()
+    item_details = DetailedItemSerializer(many=True, required=False)
+
+    class Meta:
+        model = Invoice
+        exclude = ['invoicing_profile']  # Ensuring all fields from the Invoice model are serialized
+
+# InvoicingProfile Serializer
+class InvoicingProfileInvoices(serializers.ModelSerializer):
+    invoices = InvoicesSerializer(many=True)  # Nested serializer for invoices
+
+    class Meta:
+        model = InvoicingProfile
+        fields = ['id', 'business', 'invoices']

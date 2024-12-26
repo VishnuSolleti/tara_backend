@@ -8,7 +8,7 @@ from drf_yasg import openapi
 from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
                           GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
-                          InvoicingProfileSerializers, InvoicingProfileCustomersSerializer)
+                          InvoicingProfileSerializers, InvoicingProfileCustomersSerializer, InvoicingProfileInvoices)
 from django.http import QueryDict
 import logging
 from django.core.exceptions import ObjectDoesNotExist
@@ -1080,24 +1080,29 @@ def create_invoice(request):
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def retrieve_invoices(request):
+def retrieve_invoices(request, pk):
     """
     Retrieve all invoices.
     """
     try:
-        invoices = Invoice.objects.all()
-        if not invoices.exists():
-            logger.warning("No invoices found.")
-            return Response({"message": "No invoices found."}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = InvoiceSerializer(invoices, many=True)
+        # Retrieve a single invoicing profile by ID
+        invoicing_profile = InvoicingProfile.objects.get(id=pk)
+        print(invoicing_profile.invoices.all())
+        serializer = InvoicingProfileInvoices(invoicing_profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except InvoicingProfile.DoesNotExist:
+        logger.warning(
+            f"User {request.user.id} tried to access an invoicing profile with ID {pk}, but it does not exist.")
+        return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
+
     except Exception as e:
-        logger.error(f"Unexpected error in retrieve_invoices: {e}")
+        logger.error(f"Unexpected error in retrieve_goods_service: {e}")
         return Response(
             {"error": f"An unexpected error occurred: {e}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
 
 
 @swagger_auto_schema(

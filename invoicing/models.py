@@ -103,7 +103,7 @@ class GoodsAndServices(models.Model):
 
 
 class Invoice(models.Model):
-    invoicing_profile = models.ForeignKey(InvoicingProfile, on_delete=models.CASCADE, null=True)
+    invoicing_profile = models.ForeignKey(InvoicingProfile, on_delete=models.CASCADE, null=True, related_name='invoices')
     customer = models.CharField(max_length=200, null=False, blank=False)
     terms = models.CharField(max_length=500, null=False, blank=False)
     financial_year = models.CharField(max_length=50, null=False, blank=False)

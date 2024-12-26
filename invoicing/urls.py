@@ -24,7 +24,7 @@ urlpatterns = [
 
     path('invoice-create', create_invoice, name='create_invoice'),
 
-    path('invoice-retrieve', retrieve_invoices, name='retrieve_invoices'),
+    path('invoice-retrieve/<int:pk>', retrieve_invoices, name='retrieve_invoices'),
 
     path('invoice-update/<int:invoice_id>/', update_invoice, name='update_invoice'),
 
