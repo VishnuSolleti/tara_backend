@@ -1325,7 +1325,7 @@ def createDocument(request, id):
             'due_date': due_date_str,
             'financial_year': getattr(invoice, 'financial_year', ''),
             'invoice_number': getattr(invoice, 'invoice_number', ''),
-            'invoice_date': formatStringDate(getattr(invoice, 'invoice_date', None)) if invoice else '',
+            'invoice_date': "12/12/2024",
             'place_of_supply': getattr(invoice, 'place_of_supply', ''),
 
             # Bill To address fields
