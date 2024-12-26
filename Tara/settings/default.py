@@ -173,7 +173,7 @@ MIGRATION_MODULES = {
 }
 
 
-FRONTEND_URL = 'http://tara-first.s3-website.ap-south-1.amazonaws.com/'
+FRONTEND_URL = 'http://localhost:3000/'
 
 
 REST_FRAMEWORK = {
