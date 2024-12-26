@@ -243,8 +243,15 @@ class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
             'customer_profiles',  # Nested customer profiles included
         ]
 
+
+class GoodsAndServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GoodsAndServices
+        exclude = ['invoicing_profile']  # Exclude the 'invoicing_profile' field
+
+
 class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
-    goods_and_services = GoodsAndServicesSerializer(many=True)
+    goods_and_services = GoodsAndServiceSerializer(many=True)
 
     class Meta:
         model = InvoicingProfile
