@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 import json, base64
 from num2words import num2words
 from django.template.loader import render_to_string
-# from weasyprint import HTML
+from weasyprint import HTML
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
