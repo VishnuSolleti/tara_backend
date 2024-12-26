@@ -231,6 +231,7 @@ class InvoicingProfileSerializers(serializers.ModelSerializer):
             'ifsc_code',
             'swift_code',
             'customer_profiles',  # Nested customer profiles included
+            'invoice_format'
         ]
 class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
