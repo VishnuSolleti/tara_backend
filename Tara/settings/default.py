@@ -173,7 +173,7 @@ MIGRATION_MODULES = {
 }
 
 
-FRONTEND_URL = 'http://localhost:3000/'
+FRONTEND_URL = 'http://dev.tarafirst.com/'
 
 
 REST_FRAMEWORK = {
