@@ -1231,10 +1231,10 @@ def formatStringDate(date):
 
 
 class DocumentGenerator:
-    def __init__(self, request, invoicing_profile, contexts):
+    def __init__(self, request, invoicing_profile, context):
         self.request = request
         self.invoicing_profile = invoicing_profile
-        self.contexts = contexts
+        self.context = context
 
     def generate_document(self, template_name):
         try:
@@ -1364,10 +1364,8 @@ def createDocument(request, id):
             'adjust_layout': adjust_layout
         }
 
-        contexts.append(context)
-
         # Assuming you have a DocumentGenerator class that generates the PDF
-        document_generator = DocumentGenerator(request, invoice, contexts)
+        document_generator = DocumentGenerator(request, invoice, context)
 
         # Assuming `template_name` is the path to your HTML template
         template_name = "invoice.html"

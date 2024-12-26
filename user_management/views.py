@@ -32,6 +32,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import NotFound
 from django.contrib.auth.password_validation import validate_password
+from django.http import Http404
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -121,7 +122,7 @@ def user_registration(request):
                 if email:
                     token = default_token_generator.make_token(user)
                     uid = urlsafe_base64_encode(str(user.pk).encode())
-                    activation_link = f"{FRONTEND_URL}/activate/{uid}/{token}/"
+                    activation_link = f"{FRONTEND_URL}/activation/?uid={uid}&token={token}"
                     ses_client = boto3.client(
                         'ses',
                         region_name=AWS_REGION,
@@ -508,12 +509,8 @@ class ActivateUserView(APIView):
 
     @swagger_auto_schema(
         manual_parameters=[
-            openapi.Parameter(
-                'uid', openapi.IN_PATH, description="User ID (Base64 encoded)", type=openapi.TYPE_STRING
-            ),
-            openapi.Parameter(
-                'token', openapi.IN_PATH, description="Activation token", type=openapi.TYPE_STRING
-            )
+            openapi.Parameter('uid', openapi.IN_QUERY, description="User ID (Base64 encoded)", type=openapi.TYPE_STRING),
+            openapi.Parameter('token', openapi.IN_QUERY, description="Activation token", type=openapi.TYPE_STRING)
         ],
         responses={
             200: openapi.Response("Account activated successfully"),
@@ -521,11 +518,18 @@ class ActivateUserView(APIView):
         },
         operation_description="Activate user account using UID and token."
     )
-    def get(self, request, uid, token):
+    def get(self, request, *args, **kwargs):
         """
-        Handle user account activation.
+        Handle user account activation using query parameters (uid and token).
         """
         logger.info("Starting user account activation process.")
+
+        # Get 'uid' and 'token' from query parameters
+        uid = request.query_params.get('uid')
+        token = request.query_params.get('token')
+
+        if not uid or not token:
+            raise Http404("UID or token is missing from the request.")
 
         try:
             uid = urlsafe_base64_decode(uid).decode()
