@@ -213,7 +213,7 @@ def update_invoicing_profile(request, pk):
     Update the existing invoicing profile for the logged-in user.
     """
     try:
-        invoicing_profile = InvoicingProfile.objects.get(id=id)
+        invoicing_profile = InvoicingProfile.objects.get(id=pk)
     except InvoicingProfile.DoesNotExist:
         return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
