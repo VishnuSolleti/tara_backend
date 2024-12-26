@@ -31,6 +31,7 @@ from datetime import datetime
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import NotFound
+from django.contrib.auth.password_validation import validate_password
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -542,6 +543,61 @@ class ActivateUserView(APIView):
 
         logger.warning(f"Activation token for user with UID {uid} is invalid or expired.")
         return Response({"message": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'old_password': openapi.Schema(type=openapi.TYPE_STRING, description="Current password"),
+                'new_password': openapi.Schema(type=openapi.TYPE_STRING, description="New password"),
+            },
+            required=['old_password', 'new_password']
+        ),
+        responses={
+            200: openapi.Response("Password changed successfully"),
+            400: openapi.Response("Invalid input or validation failed"),
+            401: openapi.Response("Authentication required")
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                'Authorization',
+                openapi.IN_HEADER,
+                description="Bearer <JWT Token>",
+                type=openapi.TYPE_STRING
+            ),
+        ],
+        operation_description="Change the password for the authenticated user."
+    )
+    def put(self, request, *args, **kwargs):
+        """
+        Allow the authenticated user to change their password.
+        """
+        user = request.user
+        old_password = request.data.get("old_password")
+        new_password = request.data.get("new_password")
+
+        if not old_password or not new_password:
+            raise ValidationError({"detail": "Both 'old_password' and 'new_password' are required."})
+
+        # Check if the old password is correct
+        if not user.check_password(old_password):
+            raise ValidationError({"old_password": "Old password is incorrect."})
+
+        # Validate the new password
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as e:
+            return Response({"new_password": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Set the new password
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)
 
 
 # Test Protected API
