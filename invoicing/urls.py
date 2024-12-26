@@ -14,7 +14,7 @@ urlpatterns = [
     path('api/v1/goods-services/create/', create_goods_service, name='create-goods-service'),
 
     # Retrieve a specific goods or service entry
-    path('goods-services/', retrieve_goods_service, name='retrieve-goods-service'),
+    path('goods-services/<int:pk>', retrieve_goods_service, name='retrieve-goods-service'),
 
     # Update an existing goods or service entry
     path('goods-services/<int:id>/update/', update_goods_service, name='update-goods-service'),

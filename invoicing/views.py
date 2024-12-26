@@ -889,13 +889,13 @@ def create_goods_service(request):
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def retrieve_goods_service(request):
+def retrieve_goods_service(request, id):
     """
     Retrieve a goods or service entry by ID.
     """
     try:
         # Get all invoicing profiles associated with the user's business
-        invoicing_profiles = InvoicingProfile.objects.filter(business=request.user)
+        invoicing_profiles = InvoicingProfile.objects.get(id=id)
 
         if not invoicing_profiles.exists():
             logger.warning(f"User {request.user.id} tried to access invoicing profiles, but none exist.")
