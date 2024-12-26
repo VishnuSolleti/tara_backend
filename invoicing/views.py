@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 import json, base64
 from num2words import num2words
 from django.template.loader import render_to_string
-from weasyprint import HTML
+# from weasyprint import HTML
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -1239,7 +1239,7 @@ class DocumentGenerator:
     def generate_document(self, template_name):
         try:
             # Render the HTML template with the context data
-            html_content = render_to_string(template_name, {'contexts': self.contexts})
+            html_content = render_to_string(template_name, self.context)
             html = HTML(string=html_content)
             pdf = html.write_pdf()
 
