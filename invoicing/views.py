@@ -1240,10 +1240,9 @@ class DocumentGenerator:
         try:
             # Render the HTML template with the context data
             html_content = render_to_string(template_name, self.context)
-            print(html_content)  # Debugging line to check the HTML content
 
             # Create the PDF from HTML content
-            html = HTML(string=html_content)
+            html = HTML(string=html_content)  # Correct initialization
             pdf = html.write_pdf()
 
             # Return the generated PDF as an HTTP response
