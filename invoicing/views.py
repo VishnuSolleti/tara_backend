@@ -1240,7 +1240,7 @@ class DocumentGenerator:
     def generate_document(self, template_name):
         try:
             # Render the HTML template with the context data
-            html_content = render_to_string(template_name, self.context)
+            html_content = render_to_string(template_name, {'contexts': self.context})
             print(f"Generated HTML content: {html_content[:200]}")  # Log the first 200 characters of the HTML content
 
             # Create the HTML object from the string content
