@@ -1240,12 +1240,18 @@ class DocumentGenerator:
         try:
             # Render the HTML template with the context data
             html_content = render_to_string(template_name, self.context)
+            print(html_content)  # Debugging line to check the HTML content
+
+            # Create the PDF from HTML content
             html = HTML(string=html_content)
             pdf = html.write_pdf()
 
             # Return the generated PDF as an HTTP response
-            return HttpResponse(pdf, content_type='application/pdf')
+            response = HttpResponse(pdf, content_type='application/pdf')
+            response['Content-Disposition'] = 'inline; filename="invoice.pdf"'
+            return response
         except Exception as e:
+            print(f"Error generating document: {e}")
             raise
 
 
