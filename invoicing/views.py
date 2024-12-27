@@ -1370,10 +1370,9 @@ def createDocument(request, id):
             'account_name': business_name,
             'adjust_layout': adjust_layout
         }
-        contexts.append(context)
 
         # Assuming you have a DocumentGenerator class that generates the PDF
-        document_generator = DocumentGenerator(request, invoice, contexts)
+        document_generator = DocumentGenerator(request, invoice, context)
 
         # Assuming `template_name` is the path to your HTML template
         template_name = "invoice.html"
