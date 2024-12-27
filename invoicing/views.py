@@ -1278,9 +1278,9 @@ def createDocument(request, id):
         invoice = Invoice.objects.get(id=id)
 
         signature_base64 = ''
-        if invoice.invoicing_profile.signature:
-            with open(invoice.invoicing_profile.signature.path, "rb") as image_file:
-                signature_base64 = base64.b64encode(image_file.read()).decode('utf-8')
+        # if invoice.invoicing_profile.signature:
+        #     with open(invoice.invoicing_profile.signature.path, "rb") as image_file:
+        #         signature_base64 = base64.b64encode(image_file.read()).decode('utf-8')
 
         if not invoice:
             return Response({'error': 'Invoicing profile not found'}, status=404)
