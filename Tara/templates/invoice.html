@@ -1,299 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Template</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
 
-<!DOCTYPE  html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title></title><style type="text/css"> * {margin:0; padding:0; text-indent:0; }
- .s1 { color: black; font-family:"Arial Black", sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 12.5pt; }
- p { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 11pt; margin:0pt; }
- a { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 12pt; }
- .s2 { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 22pt; }
- .s3 { color: #333; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 8.5pt; }
- .s4 { color: black; font-family:Arial, sans-serif; font-style: italic; font-weight: normal; text-decoration: none; font-size: 8.5pt; }
- .s5 { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 10.5pt; }
- .s6 { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 6pt; }
- .s7 { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 10pt; }
- .s8 { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 6.5pt; vertical-align: 3pt; }
- .s9 { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 10pt; vertical-align: -4pt; }
- .s10 { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 8.5pt; vertical-align: -4pt; }
- .s11 { color: black; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 8.5pt; }
- .s12 { color: #FF6464; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 8.5pt; }
- .s15 { color: #4B526B; font-family:Arial, sans-serif; font-style: normal; font-weight: normal; text-decoration: none; font-size: 9.5pt; vertical-align: 1pt; }
-      .invoice-items {
-        margin: 0 auto;
-        overflow-x: auto; /* Adds horizontal scroll if needed */
-        max-width: 100%; /* Prevents overflow beyond the container */
-         box-sizing: border-box;
-    }
+        .invoice {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border: 2px solid #333;
+        }
 
-    .invoice-items table {
-        /* margin-right: 10pt; */
-        width: 95%;
-        border-collapse: collapse;
-        table-layout: fixed; /* Ensures columns are fixed to set widths */
-    }
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+        }
 
-    .invoice-items th, .invoice-items td {
-        border: 1px solid #000;
-        padding: 4px; /* Adjust padding */
-        text-align: center;
-        font-size: 10px; /* Adjust font size */
-        word-wrap: break-word; /* Wraps text within cells */
-        overflow: hidden; /* Hides overflow content */
-    }
+        .invoice-header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
 
-    .invoice-items th {
-        background-color: #f2f2f2;
-    }
+        .invoice-header img {
+            max-width: 150px;
+        }
 
-    .invoice-items th:nth-child(1) { width: 5%; }
-    .invoice-items th:nth-child(2) { width: 30%; }
-    .invoice-items th:nth-child(3) { width: 15%; }
-    .invoice-items th:nth-child(4) { width: 10%; }
-    .invoice-items th:nth-child(5) { width: 10%; }
-    .invoice-items th:nth-child(6) { width: 12%; }
-    .invoice-items th:nth-child(7) { width: 12%; }
-    .invoice-items th:nth-child(8) { width: 12%; }
-    .invoice-items th:nth-child(9) { width: 12%; }
+        .invoice-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
 
-     @media print {
-        .invoice-items {
+        .invoice-details .info {
+            width: 48%;
+            border: 1px solid #333;
+            padding: 10px;
+        }
+
+        .invoice-details .info h3 {
+            margin-top: 0;
+        }
+
+        .invoice-table {
             width: 100%;
-            overflow: hidden; /* Hide overflow */
+            border-collapse: collapse;
+            margin-bottom: 20px;
         }
 
-        .invoice-items table {
-            table-layout: auto; /* Adjust layout for printing */
+        .invoice-table th, .invoice-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
         }
 
-        .invoice-items th, .invoice-items td {
-            padding: 0.1px; /* Reduce padding for print */
-            font-size: 12px; /* Adjust font size for print if needed */
+        .invoice-table th {
+            background: #f4f4f4;
         }
-        tr {
-        height: 20px; /* Set a specific height for the rows if needed */
+
+        .invoice-total {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
         }
-    }
-    .custom-hr {
-    border: 1px solid #000; /* Sets the border color and thickness */
-    width: 50%; /* Adjusts the width of the <hr> */
-    margin: 5px auto; /* Centers the <hr> and sets margin above and below */
-    border-style: solid; /* Ensures the border is solid */
-    }
 
-    .signature-image {
-        width: 150px;
-        height: auto;
-    }
-    .address-container {
-    display: flex;
-    justify-content: space-between; /* Ensure sections are spaced out */
-    align-items: flex-start; /* Align the sections at the top */
-    padding: 9pt;
-    gap: 20pt; /* Space between the two sections */
-    }
+        .invoice-total div {
+            margin-left: 20px;
+        }
 
-    .address-section {
-        flex: 1; /* Allows sections to take up equal width */
-        margin: 0; /* Reset margin */
-        line-height: 12pt;
-    }
-
-    .address-section .label {
-        font-weight: bold;
-        margin-bottom: 4pt; /* Space between label and content */
-    }
-
-    .address-section .address,
-    .address-section .state,
-    .address-section .country,
-    .address-section .pincode {
-        margin: 0;
-        padding: 0;
-        line-height: 8pt; /* Line height for address details */
-    }
-
-    .address-section .address {
-        margin-bottom: 2pt; /* Space between address lines */
-    }
-
-    .address-section .state,
-    .address-section .country,
-    .address-section .pincode {
-        margin-bottom: 2pt; /* Space between other lines */
-    }
-</style></head>
+        .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            margin-top: 40px;
+        }
+    </style>
+</head>
 <body>
-<div style="border: 1px solid black;">
-   <p class="s1" style="padding-top: 0pt;padding-left: 12pt;text-indent: 0pt;text-align: left;font-weight: bold;">{{contexts.0.company_name}}</p>
-   <p style="padding-top: 1pt;padding-left: 12pt;text-indent: 0pt;text-align: left;padding-top:2pt;">{{contexts.0.state}}</p>
-   <p style="padding-top: 1pt;padding-left: 12pt;text-indent: 0pt;text-align: left;padding-top:2pt">{{contexts.0.country}}</p>
-   <p style="padding-left: 12pt;text-indent: 0pt;line-height: 8pt;text-align: left;padding-top:2pt">{{contexts.0.gstin}}</p>
-   <p style="padding-left: 12pt; text-indent: 0pt; line-height: 9pt; text-align: left; padding-top: 2pt"><a href="mailto:{{ contexts.0.email }}">{{ contexts.0.email }}</a></p>
-   <p class="s2" style="padding-left:4.6in;text-indent: 0pt;text-align: left;margin-top:-30pt;">TAX INVOICE</p>
-   <hr style="border: 1px thin #000; margin-top: 12pt; margin-bottom: 0px;">
-
-  <div style="display: flex; justify-content: space-between; padding-top: 6pt;">
-    {% for ctx in contexts %}
-        <p style="padding-left: 9pt; text-indent: 0pt; line-height: 50%; text-align: left;">
-                Invoice No.<span style="padding-left: 80pt;">: {{ ctx.invoice_number }}</span>
-        </p>
-        <p style="padding-left:9pt; text-indent: 0pt; text-align: left;">
-            Place of supply<span style="padding-right:45pt;">: {{ contexts.0.state }}</span>
-          </p>
+<div class="invoice">
+    <div class="invoice-header">
+        <div>
+            <h1>Invoice</h1>
+            <p><strong>Invoice No:</strong> {{ invoice_number }}</p>
+            <p><strong>Date:</strong> {{ invoice_date }}</p>
         </div>
-
-        <p style="padding-top: 2pt;padding-left: 9pt;text-indent: 0pt;line-height: 106%;text-align: left;">Invoice Date<span style="padding-left: 75pt;">: {{ ctx.invoice_date }}</span></p>
-        <p style="padding-top: 2pt;padding-left: 9pt;text-indent: 0pt;line-height: 106%;text-align: left;">Terms<span style="padding-left: 108pt;">: {{ ctx.terms }}</span></p>
-        <p style="padding-top: 2pt;padding-left: 9pt;text-indent: 0pt;line-height: 106%;text-align: left;">Due Date<span style="padding-left: 90pt;">: {{ ctx.due_date }}</span></p>
-            <div style="border-left: 1px solid #000; height: 120px; margin: 0 10px;margin-left:4in;margin-top: -60pt;"></div>
-    {% endfor %}
-   <!-- <p style="text-indent: 0pt;text-align: left;"><br/></p> -->
-   <hr style="border: 1px solid #000; margin-top: 1pt; margin-bottom: 5px;">
-
-   <p style="margin-top: -5pt;padding-left: 9pt;text-indent: 0pt;text-align: left; background-color: #f2f2f2;"><b>Bill To:</b><b style="padding-left: 3.6in;">Ship To</b>:</p>
-   {% for ctx in contexts %}
-        <p style="padding-left: 9pt; margin-bottom: -10pt; line-height: 12pt;">
-            <span style="display: inline-block; width: 4in;">{{ ctx.customer_name }}</span>
-            <span>{{ ctx.customer_name }}</span>
-        </p>
-        <div style="padding-left: 9pt; display: flex; margin-top: -6pt; line-height: 12pt;">
-             <!-- Bill To Address -->
-            <div style="flex: 1; margin-right: 10pt;">
-                <p style="margin-top: 13pt; word-wrap: break-word;">
-                    {{ ctx.bill_to_address }}
-                </p>
-            </div>
-
-            <!-- Ship To Address -->
-            <div style="padding-left: 55pt; flex: 1;">
-                <p style="margin-top: 13pt; word-wrap: break-word;">
-                    {{ ctx.ship_to_address }}
-                </p>
-            </div>
+        <!-- You can include an image/logo here -->
+        <div>
+            <img src="{{ logo_url }}" alt="Company Logo">
         </div>
-        <p style="padding-left: 9pt; margin-top: 1pt; line-height: 8pt;">
-            <span style="display: inline-block; margin-top: 3pt; width: 4in;">{{ ctx.bill_to_state }}</span>
-            <span>{{ ctx.ship_to_state }}</span>
-        </p>
-        <p style="padding-left: 9pt; margin-top: 3pt; line-height: 8pt;">
-            <span style="display: inline-block; margin-top: 3pt; width: 4in;">{{ ctx.bill_to_country }}</span>
-            <span>{{ ctx.ship_to_country }}</span>
-        </p>
-        <p style="padding-left: 9pt; margin-top: 3pt; line-height: 8pt;">
-            <span style="display: inline-block; margin-top: 3pt; width: 4in;">{{ ctx.gstin }}</span>
-            <span>{{ ctx.gstin }}</span>
-        </p>
+    </div>
 
-        <div style="border-left: 1px solid #000; height: 150px; margin: 0 10px;margin-left:4in;margin-top: -110pt;position: relative;"></div>
-        <!-- <div style="border-left: 1px solid #000; height: 100px; margin-left:4in; margin-top: -170px; position: relative;"></div> -->
-
-        <hr style="border: 2px thin #000; margin-top: 0pt; margin-bottom: 5px;">
-
-        <div class="invoice-items" style="margin-left: 10pt;">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Sno</th>
-                        <th>Item & Description</th>
-                        <th>HSN/SAC</th>
-                        <th>Qty</th>
-                        <th>Rate</th>
-                        <th >CGST</th>
-                        <th >SGST</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in ctx.item_details %}
-                    <tr>
-                        <td>{{ item.sno }}</td>
-                        <td>{{ item.item }}</td>
-                        <td>{{ item.hsn_sac }}</td>
-                        <td>{{ item.quantity }}</td>
-                        <td>{{ item.unit_price }}</td>
-                        <td>{{ item.cgst }}</td>
-                        <td>{{ item.sgst }}</td>
-                        <td>{{ item.amount }}</td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="10">No items found</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+    <div class="invoice-details">
+        <div class="info">
+            <h3>Bill To:</h3>
+            <p>{{ bill_to.name }}</p>
+            <p>{{ bill_to_address }}</p>
+            <p>{{ bill_to_state }}</p>
+            <p>{{ bill_to_country }}</p>
+            <p>{{ bill_to_pincode }}</p>
         </div>
-    {% endfor %}
+        <div class="info">
+            <h3>Ship To:</h3>
+            <p>{{ ship_to_name }}</p>
+            <p>{{ ship_to_address }}</p>
+            <p>{{ ship_to_state }}</p>
+            <p>{{ ship_to_country }}</p>
+            <p>{{ ship_to_pincode }}</p>
+        </div>
+    </div>
 
-    {% for ctx in contexts %}
-        <div class="container">
-            <div class="left-column">
-                <p style="text-indent: 0pt;text-align: left;"><br/></p>
-                <p style="padding-left: 10pt;text-indent: 0pt;line-height: 9pt;text-align: left;">Total In Words</p>
-                <!-- <p style="padding-left: 10pt;margin-top: 10pt; text-indent: 0pt;line-height: 9pt;text-align: left;"><b>{{ ctx.total_in_words|safe }}</b></p> -->
-                <p style="padding-left: 10pt; margin-top: 10pt; text-indent: 0pt; line-height: 11pt; text-align: left; max-width: 50%; word-wrap: break-word;">
-                    <b>{{ ctx.total_in_words|safe }}</b>
-                </p>
-                <p style="padding-top: 3pt;text-indent: 0pt;text-align: left;"><br/></p>
-                <p style="padding-left: 10pt;text-indent: 0pt;line-height: 9pt;text-align: left;">Bank Details</p>
-                <p style="padding-left: 10pt; margin-top: 2pt; text-indent: 0pt;line-height: 88%;text-align: left;">Account Name : {{ ctx.account_name|safe }}</p>
-                <p style="padding-left: 10pt; margin-top: 4pt; text-indent: 0pt;line-height: 88%;text-align: left;">Account Number : {{contexts.0.account_number}}</p>
-                <p style="padding-left: 10pt;margin-top: 4pt; text-indent: 0pt;line-height: 8pt;text-align: left;">IFSC Code : {{contexts.0.ifsc_code}}</p>
-                <p style="padding-left: 10pt;margin-top: 3pt; text-indent: 0pt;line-height: 9pt;text-align: left;">GST Number : {{contexts.0.gstin}}.</p>
-            </div>
-            {% if ctx.adjust_layout %}
-                <!-- If business name is >26 characters -->
-                <div style="border-left: 1px solid #000; height: 205px; margin: 0 20px;margin-left:3.5in;margin-top:-137pt;"></div>
-                <div class="right-column" style="margin-top: 5pt;">
-                    <p style=" margin-top: -155pt;margin-right: 40pt;padding-left:280pt;">Sub Total: <span style="padding-left: 45pt;"> {{ ctx.subtotal }}</span></p>
-                </div>
-            {% else %}
-                <!-- If business name is <=26 characters -->
-                <div style="border-left: 1px solid #000; height: 210px; margin: 0 20px;margin-left:3.5in;margin-top:-128pt;"></div>
-                <div class="right-column" style="margin-top: 5pt;">
-                    <p style=" margin-top: -155pt;margin-right: 40pt;padding-left:280pt;">Sub Total: <span style="padding-left: 45pt;"> {{ ctx.subtotal }}</span></p>
-                </div>
-            {% endif %}
-                {% if ctx.cgst < 10000 %}
-                    <p style="padding-left:280pt;margin-right: 40pt;">
-                        CGST (%)
-                        <span style="padding-left: 60pt;">{{ ctx.cgst_amt }}</span>
-                    </p>
-                {% else %}
-                    <p style="padding-left:280pt;margin-right: 40pt;">
-                        CGST (%)
-                        <span style="padding-left: 55pt;">{{ ctx.cgst_amt }}</span>
-                    </p>
-                {% endif %}
-                <!-- <p style="padding-left:280pt;margin-right: 40pt;">SGST9 (%) <span style="padding-left: 50pt;">{{ ctx.sgst_amt }}</span></p> -->
-                {% if ctx.sgst < 10000 %}
-                    <p style="padding-left:280pt;margin-right: 40pt;">
-                        SGST (%)
-                        <span style="padding-left: 60pt;">{{ ctx.sgst_amt }}</span>
-                    </p>
-                {% else %}
-                    <p style="padding-left:280pt;margin-right: 40pt;">
-                        SGST (%)
-                        <span style="padding-left: 55pt;">{{ ctx.sgst_amt }}</span>
-                    </p>
-                {% endif %}
-            <p style="padding-left:280pt;margin-right: 40pt;"><b>Total</b> <b style="padding-left: 70pt;"></b>{{ ctx.total }}</p>
-                <p style="text-indent: 0pt;text-align: left;"><br/></p>
-                <!-- <p style="text-indent: 0pt;text-align: left;"><br/></p> -->
-                <hr style="border: 1px thin #000; margin-top: 3pt; margin-bottom: 10px; width: 47%;margin-left:253pt;">
+    <table class="invoice-table">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Description</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in item_details %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ item.unit_price }}</td>
+                <td>${{ item.total }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 
-                <p style="padding-left: 230pt; margin-top: 5pt; text-indent: 90pt; line-height: 60pt; text-align: left;">
-                    <img src="data:image/jpeg;base64,{{ contexts.0.signature }}" class="signature-image"
-                         style="height: 50px; width: auto; vertical-align: middle;" alt="Signature Image">
-                </p>
-                <p style="padding-left: 320pt; vertical-align: middle;">
-                    <b>Authorized Signature</b>
-                </p>
+    <div class="invoice-total">
+        <div>
+            <strong>Subtotal:</strong>
+            <p>${{ subtotal }}</p>
+        </div>
+        <div>
+            <strong>CGST:</strong>
+            <p>${{ cgst_amt }}</p>
+        </div>
+        <div>
+            <strong>SGST:</strong>
+            <p>${{ sgst_amt }}</p>
+        </div>
+        <div>
+            <strong>Total:</strong>
+            <p>${{ total }}</p>
+        </div>
+    </div>
 
-            </div>
-    {% endfor %}
-
+    <div class="footer">
+        <p>Thank you for your business!</p>
+        <p>If you have any questions, contact us at <a href="mailto:support@example.com">support@example.com</a></p>
     </div>
 </div>
-
-   <p style="text-indent: 0pt;text-align: left;">
 </body>
 </html>

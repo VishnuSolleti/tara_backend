@@ -150,7 +150,7 @@ class InvoiceSerializer(serializers.Serializer):
     place_of_supply = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
     billing_address = serializers.JSONField(required=False, default={})
     shipping_address = serializers.JSONField(required=False, default={})
-    item_details = DetailedItemSerializer(many=True, required=False)
+    item_details = DetailedItemSerializer(many=True, required=False, default=[])
     total_amount = serializers.FloatField(allow_null=True)
     subtotal_amount = serializers.FloatField(allow_null=True)
     shipping_amount = serializers.FloatField(allow_null=True)
@@ -266,7 +266,7 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
 class InvoicesSerializer(serializers.ModelSerializer):
     billing_address = serializers.JSONField()  # Properly serialize as JSON
     shipping_address = serializers.JSONField()
-    item_details = DetailedItemSerializer(many=True, required=False)
+    item_details = DetailedItemSerializer(many=True, required=False, default=[])
 
     class Meta:
         model = Invoice
