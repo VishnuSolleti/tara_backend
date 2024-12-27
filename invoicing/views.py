@@ -1230,23 +1230,29 @@ def formatStringDate(date):
             return ''  # Handle invalid date formats as needed
     return ''  # Handle cases where date is None or an empty string
 
-
 class DocumentGenerator:
-    def __init__(self, request, invoicing_profile, contexts):
+    def __init__(self, request, invoicing_profile, context):
         self.request = request
         self.invoicing_profile = invoicing_profile
-        self.contexts = contexts
+        self.context = context
 
     def generate_document(self, template_name):
         try:
             # Render the HTML template with the context data
-            html_content = render_to_string(template_name, {'contexts': self.contexts})
+            html_content = render_to_string(template_name, self.context)
+
+            # Create the HTML object from the string content
             html = HTML(string=html_content)
+
+            # Generate the PDF from the HTML object
             pdf = html.write_pdf()
 
             # Return the generated PDF as an HTTP response
-            return HttpResponse(pdf, content_type='application/pdf')
+            response = HttpResponse(pdf, content_type='application/pdf')
+            response['Content-Disposition'] = 'inline; filename="invoice.pdf"'
+            return response
         except Exception as e:
+            print(f"Error generating document: {e}")
             raise
 
 
