@@ -17,8 +17,9 @@ from django.http.response import JsonResponse,HttpResponse
 from datetime import datetime, timedelta
 import json, base64
 from num2words import num2words
-from django.template.loader import render_to_string
 from weasyprint import HTML
+from django.template.loader import render_to_string
+from django.http import HttpResponse
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -1240,9 +1241,12 @@ class DocumentGenerator:
         try:
             # Render the HTML template with the context data
             html_content = render_to_string(template_name, self.context)
+            print(f"Generated HTML content: {html_content[:200]}")  # Log the first 200 characters of the HTML content
 
-            # Create the PDF from HTML content
-            html = HTML(string=html_content)  # Correct initialization
+            # Create the HTML object from the string content
+            html = HTML(string=html_content)
+
+            # Generate the PDF from the HTML object
             pdf = html.write_pdf()
 
             # Return the generated PDF as an HTTP response
