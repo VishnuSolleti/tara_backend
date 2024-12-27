@@ -595,7 +595,10 @@ class ChangePasswordView(APIView):
         try:
             validate_password(new_password, user=user)
         except ValidationError as e:
-            return Response({"new_password": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+            # Catch the ValidationError and return a 400 Bad Request with the error message
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         # Set the new password
         user.set_password(new_password)
