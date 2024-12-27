@@ -1232,21 +1232,21 @@ def formatStringDate(date):
 
 
 class DocumentGenerator:
-    def __init__(self, request, invoicing_profile, context):
+    def __init__(self, request, invoicing_profile, contexts):
         self.request = request
         self.invoicing_profile = invoicing_profile
-        self.context = context
+        self.contexts = contexts
 
     def generate_document(self, template_name):
         try:
-            html_content = render_to_string(template_name, {'contexts': self.context})
+            # Render the HTML template with the context data
+            html_content = render_to_string(template_name, {'contexts': self.contexts})
             html = HTML(string=html_content)
             pdf = html.write_pdf()
-            response = HttpResponse(pdf, content_type='application/pdf')
-            response['Content-Disposition'] = 'inline; filename="invoice.pdf"'
-            return response
+
+            # Return the generated PDF as an HTTP response
+            return HttpResponse(pdf, content_type='application/pdf')
         except Exception as e:
-            print(f"Error generating document: {e}")
             raise
 
 
