@@ -14,6 +14,9 @@ echo "Updating package list"
 sudo apt-get update
 sudo apt-get upgrade
 
+echo "Installing wkhtmltopdf"
+sudo apt-get install -y wkhtmltopdf
+
 sudo apt install -y python3-pip
 sudo apt install -y nginx
 sudo apt install -y virtualenv
