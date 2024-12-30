@@ -17,9 +17,10 @@ from django.http.response import JsonResponse,HttpResponse
 from datetime import datetime, timedelta
 import json, base64
 from num2words import num2words
-from weasyprint import HTML
+# from weasyprint import HTML
 from django.template.loader import render_to_string
 from django.http import HttpResponse
+import pdfkit
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -1241,15 +1242,18 @@ class DocumentGenerator:
             # Render the HTML template with the context data
             html_content = render_to_string(template_name, self.context)
 
-            # Create the HTML object from the string content
-            html = HTML(string=html_content)
-
-            # Generate the PDF from the HTML object
-            pdf = html.write_pdf()
+            # Generate the PDF from the HTML content using pdfkit
+            try:
+                pdf = pdfkit.from_string(html_content, False)  # False to get the PDF as a byte string
+                print("PDF generation successful.")
+            except Exception as pdf_error:
+                print(f"Error in generating PDF: {pdf_error}")
+                raise
 
             # Return the generated PDF as an HTTP response
             response = HttpResponse(pdf, content_type='application/pdf')
             response['Content-Disposition'] = 'inline; filename="invoice.pdf"'
+            print(response)
             return response
         except Exception as e:
             print(f"Error generating document: {e}")
@@ -1288,12 +1292,14 @@ def createDocument(request, id):
         total_str = f"{total:.2f}"
         total_in_words = num2words(total)
         total_in_words = total_in_words.capitalize()
-        half_length = len(total_in_words) // 2
-        space_index = total_in_words.rfind(' ', 0, half_length)
-        if space_index != -1:
-            total_in_words = total_in_words[:space_index] + '<br/>' + total_in_words[space_index + 1:]
-        else:
-            total_in_words = total_in_words[:half_length] + '<br/>' + total_in_words[half_length:]
+        # half_length = len(total_in_words) // 2
+        # space_index = total_in_words.rfind(' ', 0, half_length)
+        # if space_index != -1:
+        #     total_in_words = total_in_words[:space_index] + '<br/>' + total_in_words[space_index + 1:]
+        # else:
+        #     total_in_words = total_in_words[:half_length] + '<br/>' + total_in_words[half_length:]
+        total_in_words = total_in_words.replace("<br/>", ' ')
+        total_in_words = total_in_words + ' ' + 'Rupees Only'
 
         invoice_date = invoice.invoice_date
         terms = int(invoice.terms) if invoice else 0
@@ -1357,6 +1363,7 @@ def createDocument(request, id):
             'item_details': getattr(invoice, 'item_details', []),
             'total': getattr(invoice, 'total_amount', 0),
             'subtotal': f"{round(float(getattr(invoice, 'subtotal_amount', 0)), 2):.2f}",
+            'shipping': f"{round(float(getattr(invoice, 'shipping_amount', 0)), 2):.2f}",
             'cgst_amt': f"{round(float(getattr(invoice, 'cgst_amount', 0)), 2):.2f}",
             'sgst_amt': f"{round(float(getattr(invoice, 'sgst_amount', 0)), 2):.2f}",
             'total': total_str,
