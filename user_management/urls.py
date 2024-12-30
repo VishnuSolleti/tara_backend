@@ -8,7 +8,7 @@ urlpatterns = [
     path('users/', users_creation, name='users_creation'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('visa-users/', visa_users_creation, name='visa_users_creation'),
-    path('activate/', ActivateUserView.as_view(), name='activate'),
+    path('activate', ActivateUserView.as_view(), name='activate'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('protected/', TestProtectedAPIView.as_view(), name='test_protected'),
     # Forgot password view
