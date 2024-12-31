@@ -77,7 +77,7 @@ class CustomerProfile(models.Model):
     city = models.CharField(max_length=30, null=True, blank=True)
     gst_registered = models.CharField(max_length=100, null=True, blank=True)
     gstin = models.CharField(max_length=100, null=True, blank=True)
-    gst_type = models.CharField(max_length=20, null=True, blank=True)
+    gst_type = models.CharField(max_length=60, null=True, blank=True)
     email = models.CharField(max_length=100, null=True, blank=True)
     mobile_number = models.CharField(max_length=15, null=True, blank=True)
     opening_balance = models.IntegerField(null=True)
@@ -94,7 +94,7 @@ class GoodsAndServices(models.Model):
     units = models.CharField(max_length=100, null=True, blank=True)
     hsn_sac = models.CharField(max_length=500, null=True, blank=True)
     gst_rate = models.CharField(max_length=10, null=True, blank=True)
-    tax_preference = models.IntegerField(null=True)
+    tax_preference = models.CharField(max_length=60, null=True, blank=True)
     selling_price = models.IntegerField(null=True)
     description = models.CharField(max_length=200, null=True, blank=True)
 

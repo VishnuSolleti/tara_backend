@@ -15,7 +15,7 @@ class CustomerProfileSerializers(serializers.Serializer):
     postal_code = serializers.CharField(max_length=10, allow_null=True, allow_blank=True)
     gst_registered = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
     gstin = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
-    gst_type = serializers.CharField(max_length=20, allow_null=True, allow_blank=True)
+    gst_type = serializers.CharField(max_length=60, allow_null=True, allow_blank=True)
     email = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
     mobile_number = serializers.CharField(max_length=15, allow_null=True, allow_blank=True)
     opening_balance = serializers.IntegerField(allow_null=True)
@@ -51,7 +51,7 @@ class GoodsAndServicesSerializer(serializers.Serializer):
     # categoryasGST = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
     hsn_sac = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
     gst_rate = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
-    tax_preference = serializers.IntegerField(allow_null=True)
+    tax_preference = serializers.CharField(max_length=60, allow_null=True, allow_blank=True)
     selling_price = serializers.IntegerField(allow_null=True)
     description = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
 
