@@ -109,9 +109,11 @@ class Invoice(models.Model):
     financial_year = models.CharField(max_length=50, null=False, blank=False)
     invoice_number = models.CharField(max_length=50, null=False, blank=False)
     invoice_date = models.DateField(null=False, blank=False)
+    due_date = models.DateField(null=False, blank=False)
+    month = models.IntegerField(null=False, blank=False)
     place_of_supply = models.CharField(max_length=500, null=False, blank=False)
-    billing_address = EmbeddedField(model_container=Address, default=dict)
-    shipping_address = EmbeddedField(model_container=Address, default=dict)
+    billing_address = models.JSONField(default=dict, null=True, blank=True)
+    shipping_address = models.JSONField(default=dict, null=True, blank=True)
     item_details = JSONField(
         default=list,
         blank=True

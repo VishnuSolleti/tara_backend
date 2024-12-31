@@ -17,7 +17,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <title>Invoice</title>
   </head>
 
   <body style="margin: 0 !important; line-height: inherit">
@@ -36,82 +36,51 @@
           >
             <tbody>
               <tr>
-                <td style="width: 100%; vertical-align: top">
-                  <div>
-                    <img
-                      src=""
-                      style="height: 3rem; display: block"
-                    />
+                <td style="width: 50%; vertical-align: top">
+                  <div style="font-size: 0.875rem; line-height: 1.25rem">
+                    <h2
+                      style="
+                        margin: 0 0 5px 0;
+                        white-space: nowrap;
+                        color: #5c6ac4;
+                      "
+                    >
+                      {{company_name}}
+                    </h2>
+                    <p style="margin: 0">Telangana</p>
+                    <p style="margin: 0">{{gstin}}</p>
+                    <p style="margin: 0">{{email}}</p>
+                    <p style="margin: 0">Invoice No. : {{invoice_number}}</p>
+                    <p style="margin: 0">Invoice Date : {{invoice_date}}</p>
+                    <p style="margin: 0">Terms : {{terms}}</p>
+                    <p style="margin: 0">Due Date : {{due_date}}</p>
+                    <div>
+                      <img src="" style="height: 3rem; display: block" />
+                    </div>
                   </div>
                 </td>
 
-                <td style="vertical-align: top">
+                <td style="width: 50%; vertical-align: top">
                   <div style="font-size: 0.875rem; line-height: 1.25rem">
-                    <table style="border-collapse: collapse; border-spacing: 0">
-                      <tbody>
-                        <tr>
-                          <td
-                            style="border-right-width: 1px; padding-right: 1rem"
-                          >
-                            <div>
-                              <p
-                                style="
-                                  margin: 0;
-                                  white-space: nowrap;
-                                  color: #94a3b8;
-                                  text-align: right;
-                                "
-                              >
-                                Date
-                              </p>
-                              <p
-                                style="
-                                  margin: 0;
-                                  white-space: nowrap;
-                                  font-weight: 700;
-                                  color: #5c6ac4;
-                                  text-align: right;
-                                "
-                              >
-                              {{ invoice_date }}
-                              </p>
-                            </div>
-                          </td>
-                          <td style="padding-left: 1rem">
-                            <div>
-                              <p
-                                style="
-                                  margin: 0;
-                                  white-space: nowrap;
-                                  color: #94a3b8;
-                                  text-align: right;
-                                "
-                              >
-                                Invoice #
-                              </p>
-                              <p
-                                style="
-                                  margin: 0;
-                                  white-space: nowrap;
-                                  font-weight: 700;
-                                  color: #5c6ac4;
-                                  text-align: right;
-                                "
-                              >
-                              {{ invoice_number }}
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    <h1
+                      style="
+                        margin: 0;
+                        white-space: nowrap;
+                        color: #5c6ac4;
+                        text-align: right;
+                      "
+                    >
+                      Tax Invoice
+                    </h1>
+                    <p style="white-space: nowrap; text-align: right">
+                      Place of supply: {{place_of_supply}}
+                    </p>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
-
         <div
           style="
             background-color: #f1f5f9;
@@ -137,6 +106,7 @@
                     "
                   >
                     <p style="font-weight: 700; margin: 0">Bill to</p>
+                    <p style="margin: 0">{{ customer_name }}</p>
                     <p style="margin: 0">{{ bill_to_address }}</p>
                     <p style="margin: 0">{{ bill_to_state }}</p>
                     <p style="margin: 0">{{ bill_to_country }}</p>
@@ -177,70 +147,211 @@
           <table
             style="width: 100%; border-collapse: collapse; border-spacing: 0"
           >
-              <thead>
-                <tr style="border-bottom: 2px solid #5c6ac4">
-                  <td style="border-bottom-width: 2px; border-color: #5c6ac4; padding-bottom: 0.75rem; padding-left: 0.75rem; font-weight: 700; color: #5c6ac4;">
-                    Sno
-                  </td>
-                  <td style="border-bottom-width: 2px; border-color: #5c6ac4; padding-bottom: 0.75rem; padding-left: 0.5rem; font-weight: 700; color: #5c6ac4;">
-                    Item & Description
-                  </td>
-                  <td style="border-bottom-width: 2px; border-color: #5c6ac4; padding-bottom: 0.75rem; padding-left: 0.5rem; text-align: right; font-weight: 700; color: #5c6ac4;">
-                    Qty.
-                  </td>
-                  <td style="border-bottom-width: 2px; border-color: #5c6ac4; padding-bottom: 0.75rem; padding-left: 0.5rem; text-align: center; font-weight: 700; color: #5c6ac4;">
-                    Rate
-                  </td>
-                  <td style="border-bottom-width: 2px; border-color: #5c6ac4; padding-bottom: 0.75rem; padding-left: 0.5rem; text-align: center; font-weight: 700; color: #5c6ac4;">
-                    Discount
-                  </td>
-                  <td style="border-bottom-width: 2px; border-color: #5c6ac4; padding-bottom: 0.75rem; padding-left: 0.5rem; text-align: right; font-weight: 700; color: #5c6ac4;">
-                    Amount
-                  </td>
-                  <td style="border-bottom-width: 2px; border-color: #5c6ac4; padding-bottom: 0.75rem; padding-left: 0.5rem; text-align: right; font-weight: 700; color: #5c6ac4;">
-                    TaxAmount
-                  </td>
-                  <td style="border-bottom-width: 2px; border-color: #5c6ac4; padding-bottom: 0.75rem; padding-left: 0.5rem; text-align: right; font-weight: 700; color: #5c6ac4;">
-                    Tax
-                  </td>
-                  <td style="border-bottom-width: 2px; border-color: #5c6ac4; padding-bottom: 0.75rem; padding-left: 0.5rem; padding-right: 0.75rem; text-align: right; font-weight: 700; color: #5c6ac4;">
-                    TotalAmount
-                  </td>
-                </tr>
-              </thead>
+            <thead>
+              <tr style="border-bottom: 2px solid #5c6ac4">
+                <td
+                  style="
+                    border-bottom-width: 2px;
+                    border-color: #5c6ac4;
+                    padding-bottom: 0.75rem;
+                    padding-left: 0.75rem;
+                    font-weight: 700;
+                    color: #5c6ac4;
+                  "
+                >
+                  Sno
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 2px;
+                    border-color: #5c6ac4;
+                    padding-bottom: 0.75rem;
+                    padding-left: 0.5rem;
+                    font-weight: 700;
+                    color: #5c6ac4;
+                  "
+                >
+                  Item & Description
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 2px;
+                    border-color: #5c6ac4;
+                    padding-bottom: 0.75rem;
+                    padding-left: 0.5rem;
+                    text-align: right;
+                    font-weight: 700;
+                    color: #5c6ac4;
+                  "
+                >
+                  Qty.
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 2px;
+                    border-color: #5c6ac4;
+                    padding-bottom: 0.75rem;
+                    padding-left: 0.5rem;
+                    text-align: center;
+                    font-weight: 700;
+                    color: #5c6ac4;
+                  "
+                >
+                  Rate
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 2px;
+                    border-color: #5c6ac4;
+                    padding-bottom: 0.75rem;
+                    padding-left: 0.5rem;
+                    text-align: center;
+                    font-weight: 700;
+                    color: #5c6ac4;
+                  "
+                >
+                  Discount
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 2px;
+                    border-color: #5c6ac4;
+                    padding-bottom: 0.75rem;
+                    padding-left: 0.5rem;
+                    text-align: right;
+                    font-weight: 700;
+                    color: #5c6ac4;
+                  "
+                >
+                  Amount
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 2px;
+                    border-color: #5c6ac4;
+                    padding-bottom: 0.75rem;
+                    padding-left: 0.5rem;
+                    text-align: right;
+                    font-weight: 700;
+                    color: #5c6ac4;
+                  "
+                >
+                  TaxAmount
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 2px;
+                    border-color: #5c6ac4;
+                    padding-bottom: 0.75rem;
+                    padding-left: 0.5rem;
+                    text-align: right;
+                    font-weight: 700;
+                    color: #5c6ac4;
+                  "
+                >
+                  Tax
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 2px;
+                    border-color: #5c6ac4;
+                    padding-bottom: 0.75rem;
+                    padding-left: 0.5rem;
+                    padding-right: 0.75rem;
+                    text-align: right;
+                    font-weight: 700;
+                    color: #5c6ac4;
+                  "
+                >
+                  TotalAmount
+                </td>
+              </tr>
+            </thead>
 
-              <tbody>
-                {% for item in item_details %}
-                <tr style="border-bottom: 2px solid #e2e2e2">
-                  <td style="border-bottom-width: 1px; padding: 0.75rem 0 0.75rem 0.75rem;">
-                    {{ forloop.counter }}
-                  </td>
-                  <td style="border-bottom-width: 1px; padding: 0.75rem 0 0.75rem 0.5rem;">
-                    {{ item.item }}
-                  </td>
-                  <td style="border-bottom-width: 1px; padding: 0.75rem 0 0.75rem 0.5rem; text-align: center;">
-                    {{ item.quantity }}
-                  </td>
-                  <td style="border-bottom-width: 1px; padding: 0.75rem 0 0.75rem 0.5rem; text-align: center;">
-                    {{ item.rate }}
-                  </td>
-                  <td style="border-bottom-width: 1px; padding: 0.75rem 0 0.75rem 0.5rem; text-align: right;">
-                    {{ item.discount }}
-                  </td>
-                  <td style="border-bottom-width: 1px; padding: 0.75rem 0.75rem 0.75rem 0.5rem; text-align: right;">
-                    {{ item.amount }}
-                  </td>
-                  <td style="border-bottom-width: 1px; padding: 0.75rem 0.75rem 0.75rem 0.5rem; text-align: right;">
-                    {{ item.taxamount }}
-                  </td>
-                  <td style="border-bottom-width: 1px; padding: 0.75rem 0.75rem 0.75rem 0.5rem; text-align: right;">
-                    {{ item.tax }}
-                  </td>
-                  <td style="border-bottom-width: 1px; padding: 0.75rem 0.75rem 0.75rem 0.5rem; text-align: right;">
-                    {{ item.total_amount }}
-                  </td>
-                </tr>
-                {% endfor %}
+            <tbody>
+              {% for item in item_details %}
+              <tr style="border-bottom: 2px solid #e2e2e2">
+                <td
+                  style="
+                    border-bottom-width: 1px;
+                    padding: 0.75rem 0 0.75rem 0.75rem;
+                  "
+                >
+                  {{ forloop.counter }}
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 1px;
+                    padding: 0.75rem 0 0.75rem 0.5rem;
+                  "
+                >
+                  {{ item.item }}
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 1px;
+                    padding: 0.75rem 0 0.75rem 0.5rem;
+                    text-align: center;
+                  "
+                >
+                  {{ item.quantity }}
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 1px;
+                    padding: 0.75rem 0 0.75rem 0.5rem;
+                    text-align: center;
+                  "
+                >
+                  {{ item.rate }}
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 1px;
+                    padding: 0.75rem 0 0.75rem 0.5rem;
+                    text-align: right;
+                  "
+                >
+                  {{ item.discount }}
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 1px;
+                    padding: 0.75rem 0.75rem 0.75rem 0.5rem;
+                    text-align: right;
+                  "
+                >
+                  {{ item.amount }}
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 1px;
+                    padding: 0.75rem 0.75rem 0.75rem 0.5rem;
+                    text-align: right;
+                  "
+                >
+                  {{ item.taxamount }}
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 1px;
+                    padding: 0.75rem 0.75rem 0.75rem 0.5rem;
+                    text-align: right;
+                  "
+                >
+                  {{ item.tax }}
+                </td>
+                <td
+                  style="
+                    border-bottom-width: 1px;
+                    padding: 0.75rem 0.75rem 0.75rem 0.5rem;
+                    text-align: right;
+                  "
+                >
+                  {{ item.total_amount }}
+                </td>
+              </tr>
+              {% endfor %}
               <tr>
                 <td colspan="2">
                   <h3 style="margin: 0">Total In Words :</h3>
@@ -266,7 +377,7 @@
                             "
                           >
                             <tbody>
-                            <tr>
+                              <tr>
                                 <td
                                   style="
                                     border-bottom-width: 1px;
@@ -328,7 +439,7 @@
                                   </div>
                                 </td>
                               </tr>
-                            <tr>
+                              <tr>
                                 <td style="padding: 0.75rem">
                                   <div
                                     style="white-space: nowrap; color: #94a3b8"
@@ -370,13 +481,32 @@
                               </tr>
                               {% if igst_amt %}
                               <tr>
-                                <td style="border-bottom-width: 1px; padding: 0.75rem;">
-                                  <div style="white-space: nowrap; color: #94a3b8;">
+                                <td
+                                  style="
+                                    border-bottom-width: 1px;
+                                    padding: 0.75rem;
+                                  "
+                                >
+                                  <div
+                                    style="white-space: nowrap; color: #94a3b8"
+                                  >
                                     IGST Amount (%):
                                   </div>
                                 </td>
-                                <td style="border-bottom-width: 1px; padding: 0.75rem; text-align: right;">
-                                  <div style="white-space: nowrap; font-weight: 700; color: #5c6ac4;">
+                                <td
+                                  style="
+                                    border-bottom-width: 1px;
+                                    padding: 0.75rem;
+                                    text-align: right;
+                                  "
+                                >
+                                  <div
+                                    style="
+                                      white-space: nowrap;
+                                      font-weight: 700;
+                                      color: #5c6ac4;
+                                    "
+                                  >
                                     {{ igst_amt }}
                                   </div>
                                 </td>
@@ -429,28 +559,65 @@
             </tbody>
           </table>
         </div>
-<div style="display: grid; grid-template-columns: 1fr 1fr; width: 100%; gap: 2rem;">
-  <div style="padding-left: 3.5rem; padding-right: 3.5rem; font-size: 0.875rem; line-height: 1.25rem; color: #404040;">
-    <p style="color: #5c6ac4; font-weight: 700">PAYMENT DETAILS</p>
-    <p style="margin: 0">Bank Name: {{bank_name}}</p>
-    <p style="margin: 0">Account Number: {{account_number}}</p>
-    <p style="margin: 0">IFSC Code: {{ifsc_code}}</p>
-    <p style="margin: 0">Swift Code: {{swift_code}}</p>
-  </div>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            width: 100%;
+            gap: 2rem;
+          "
+        >
+          <div
+            style="
+              padding-left: 3.5rem;
+              padding-right: 3.5rem;
+              font-size: 0.875rem;
+              line-height: 1.25rem;
+              color: #404040;
+            "
+          >
+            <p style="color: #5c6ac4; font-weight: 700">PAYMENT DETAILS</p>
+            <p style="margin: 0">Bank Name: {{bank_name}}</p>
+            <p style="margin: 0">Account Number: {{account_number}}</p>
+            <p style="margin: 0">IFSC Code: {{ifsc_code}}</p>
+            <p style="margin: 0">Swift Code: {{swift_code}}</p>
+          </div>
 
-  <div style="padding-left: 3.5rem; padding-right: 3.5rem; font-size: 0.875rem; line-height: 1.25rem; color: #404040; text-align: right;">
-    {% if image_url %}
-      <img src="{{ image_url }}" alt="Placeholder image" style="width: 150px; height: 100px; padding-right: 25px" />
-    {% endif %}
-    <p style="color: #5c6ac4; font-weight: 700">Authorized Signature</p>
-  </div>
-</div>
-<div style="padding-left: 3.5rem; padding-right: 3.5rem; padding-top: 2.5rem; padding-bottom: 2.5rem; font-size: 0.875rem; line-height: 1.25rem; color: #404040; text-align: center;">
-  <p style="margin: 0; color: #5c6ac4; font-weight: 700;">{{note}}</p>
-  <p style="margin: 0; font-style: italic;">
-    {{terms_and_conditions}}
-  </p>
-</div>
+          <div
+            style="
+              padding-left: 3.5rem;
+              padding-right: 3.5rem;
+              font-size: 0.875rem;
+              line-height: 1.25rem;
+              color: #404040;
+              text-align: right;
+            "
+          >
+            {% if image_url %}
+            <img
+              src="{{ image_url }}"
+              alt="Placeholder image"
+              style="width: 150px; height: 100px; padding-right: 25px"
+            />
+            {% endif %}
+            <p style="color: #5c6ac4; font-weight: 700">Authorized Signature</p>
+          </div>
+        </div>
+        <div
+          style="
+            padding-left: 3.5rem;
+            padding-right: 3.5rem;
+            padding-top: 2.5rem;
+            padding-bottom: 2.5rem;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            color: #404040;
+            text-align: center;
+          "
+        >
+          <p style="margin: 0; color: #5c6ac4; font-weight: 700">{{note}}</p>
+          <p style="margin: 0; font-style: italic">{{terms_and_conditions}}</p>
+        </div>
 
         <footer
           style="

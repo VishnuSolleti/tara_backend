@@ -147,6 +147,8 @@ class InvoiceSerializer(serializers.Serializer):
     financial_year = serializers.CharField(max_length=50, allow_null=True, allow_blank=True)
     invoice_number = serializers.CharField(max_length=50, allow_null=True, allow_blank=True)
     invoice_date = serializers.DateField(allow_null=True)
+    due_date = serializers.DateField(allow_null=False)
+    month = serializers.IntegerField(allow_null=False)
     place_of_supply = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
     billing_address = serializers.JSONField(required=False, default={})
     shipping_address = serializers.JSONField(required=False, default={})

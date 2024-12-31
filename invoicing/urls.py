@@ -32,5 +32,9 @@ urlpatterns = [
 
     path('create-pdf/<int:id>/',views.createDocument),
 
+    path('invoice-stats/<int:invoicing_profile_id>/', get_invoice_stats, name='invoice-stats'),
+
+
+
 ]
 

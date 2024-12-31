@@ -21,6 +21,7 @@ from num2words import num2words
 from django.template.loader import render_to_string
 from django.http import HttpResponse
 import pdfkit
+from calendar import isleap, monthrange
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -1017,12 +1018,29 @@ def create_invoice(request):
     Create a new invoice.
     """
     try:
+        # Extract the invoice_date from request.data
+        invoice_date = request.data.get("invoice_date")
+        if invoice_date:
+            try:
+                # Convert the string to a date object and extract the month
+                invoice_date_obj = datetime.strptime(invoice_date, "%Y-%m-%d").date()  # Convert to a date object
+                request.data["month"] = invoice_date_obj.month
+            except ValueError as e:
+                logger.warning(f"Invalid invoice_date format: {e}")
+                return Response(
+                    {"error": "Invalid invoice_date format. Expected format: YYYY-MM-DD"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Serialize and save the data
         serializer = InvoiceSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
         logger.warning(f"Validation error: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
     except Exception as e:
         logger.error(f"Unexpected error in create_invoice: {e}")
         return Response(
@@ -1277,6 +1295,7 @@ def split_address(address):
 @api_view(["GET"])
 def createDocument(request, id):
     try:
+        # Fetch the invoice object
         invoice = Invoice.objects.get(id=id)
 
         signature_base64 = ''
@@ -1284,20 +1303,13 @@ def createDocument(request, id):
         #     with open(invoice.invoicing_profile.signature.path, "rb") as image_file:
         #         signature_base64 = base64.b64encode(image_file.read()).decode('utf-8')
 
-        if not invoice:
-            return Response({'error': 'Invoicing profile not found'}, status=404)
+        # No need to check 'if not invoice' since it's already guaranteed to be set by .get()
         contexts = []
 
         total = invoice.total_amount
         total_str = f"{total:.2f}"
         total_in_words = num2words(total)
         total_in_words = total_in_words.capitalize()
-        # half_length = len(total_in_words) // 2
-        # space_index = total_in_words.rfind(' ', 0, half_length)
-        # if space_index != -1:
-        #     total_in_words = total_in_words[:space_index] + '<br/>' + total_in_words[space_index + 1:]
-        # else:
-        #     total_in_words = total_in_words[:half_length] + '<br/>' + total_in_words[half_length:]
         total_in_words = total_in_words.replace("<br/>", ' ')
         total_in_words = total_in_words + ' ' + 'Rupees Only'
 
@@ -1390,7 +1402,130 @@ def createDocument(request, id):
         # Return the PDF response
         return pdf_response
 
-    except invoice.DoesNotExist:
+    except Invoice.DoesNotExist:
         return Response({'error': 'Invoicing profile not found'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
+
+from django.db.models import Sum
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+
+
+def get_financial_year():
+    current_date = datetime.today()
+    current_year = current_date.year
+    current_month = current_date.month
+
+    if current_month < 4:  # January, February, March
+        financial_year = f"{current_year - 1}-{str(current_year)[-2:]}"
+    else:  # April to December
+        financial_year = f"{current_year}-{str(current_year + 1)[-2:]}"
+
+    return financial_year
+
+def calculate_revenue_last_month(invoicing_profile_id, financial_year, last_month):
+    """
+    Calculate the revenue for the last month, adjusting the financial year if necessary.
+    """
+    # Filter invoices for the last month with adjusted financial year and invoicing_profile_id
+    invoices = Invoice.objects.filter(
+        invoicing_profile_id=invoicing_profile_id,
+        financial_year=financial_year,
+        month=last_month
+    )
+
+    # Calculate the total revenue for the last month
+    revenue_last_month = invoices.aggregate(total=Sum('total_amount'))['total'] or 0
+
+    return revenue_last_month
+
+
+# Calculate the total number of days in the financial year
+def get_days_in_financial_year(financial_year):
+    start_year = int(financial_year.split("-")[0])
+    end_year = start_year + 1
+    # Leap year check for both years
+    days_in_start_year = 366 if isleap(start_year) else 365
+    days_in_end_year = 366 if isleap(end_year) else 365
+    # Financial year is always 365 or 366 days
+    return 365 if days_in_start_year == 365 and days_in_end_year == 365 else 366
+
+# Get the number of days in the current month
+def get_days_in_current_month(current_year, current_month):
+    return monthrange(current_year, current_month)[1]
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_invoice_stats(request, invoicing_profile_id):
+    try:
+        # Get the financial year
+        financial_year = get_financial_year()
+
+        # Filter invoices based on invoicing_profile_id and financial_year
+        invoices = Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id, financial_year=financial_year)
+
+        # Calculate total revenue
+        total_revenue = invoices.aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # Calculate today's revenue
+        today_revenue = invoices.filter(invoice_date=datetime.today()).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # Calculate revenue for this month
+        current_month = datetime.today().month
+        revenue_this_month = invoices.filter(month=current_month).aggregate(total=Sum('total_amount'))['total'] or 0
+
+        # Calculate revenue for last month
+        last_month = current_month - 1 if current_month > 1 else 12
+        if current_month == 4:  # April, so last month is March
+            start_year, end_year = map(int, financial_year.split('-'))
+            financial_year = f"{start_year - 1}-{str(start_year)[-2:]}"
+
+        # Calculate revenue for the last month
+        revenue_last_month = calculate_revenue_last_month(invoicing_profile_id, financial_year, last_month)
+        # Calculate average revenue per day
+        days_in_financial_year = get_days_in_financial_year(financial_year)
+        current_year = datetime.now().year
+        current_month = datetime.now().month
+
+        # Days in the current month
+        days_in_current_month = get_days_in_current_month(current_year, current_month)
+
+        # Average revenue per day based on total revenue
+        average_revenue_per_day_on_total_revenue = total_revenue / days_in_financial_year
+
+        # Average revenue per day for the current month
+        average_revenue_per_day_on_current_month = revenue_this_month / days_in_current_month
+
+        # Calculate overdues
+        over_dues = invoices.filter(payment_status="Unpaid").aggregate(total=Sum('pending_amount'))['total'] or 0
+
+        # Calculate dues for today
+        due_today = invoices.filter(payment_status="Unpaid", invoice_date=datetime.today()).aggregate(total=Sum('pending_amount'))['total'] or 0
+
+        # Calculate dues within the next 30 days
+        due_within_30_days = invoices.filter(payment_status="Unpaid", invoice_date__lte=datetime.today().date() + timedelta(days=30)).aggregate(total=Sum('pending_amount'))['total'] or 0
+
+        # Calculate total receivables
+        total_recievables = invoices.filter(payment_status="Unpaid").aggregate(total=Sum('amount_invoiced'))['total'] or 0
+
+        # Prepare the response data
+        response_data = {
+            "Total_Revenue": total_revenue,
+            "Today_revenue": today_revenue,
+            "revenue_this_month": revenue_this_month,
+            "revenue_last_month": revenue_last_month,
+            "average_revenue_per_day": average_revenue_per_day_on_total_revenue,
+            "over_dues": over_dues,
+            "due_today": due_today,
+            "due_within_30_days": due_within_30_days,
+            "total_recievables": total_recievables,
+        }
+
+        return Response(response_data)
+
+    except Exception as e:
+        # Return a response with the error message and status code 500 if something goes wrong
+        error_message = str(e)
+        return Response({"error": f"An error occurred: {error_message}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
