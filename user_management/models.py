@@ -5,9 +5,11 @@ from cryptography.fernet import Fernet
 from django.db import models
 from djongo.models import ArrayField, EmbeddedField
 from Tara.settings.default import *
+import json
 
 
-KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='
+KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='  # Fernet key
+
 class EncryptedField(models.Field):
     def __init__(self, *args, **kwargs):
         self.cipher = Fernet(KEY)
@@ -17,25 +19,25 @@ class EncryptedField(models.Field):
         """Override to encrypt data before saving to the database"""
         if value is None:
             return None
-        return self.cipher.encrypt(value.encode()).decode()
+        try:
+            # Encrypt and decode to ensure it's a string
+            encrypted_value = self.cipher.encrypt(value.encode()).decode()
+            return encrypted_value
+        except Exception as e:
+            print(f"Encryption failed with error: {str(e)}")
+            return None
 
     def from_db_value(self, value, expression, connection):
         """Override to decrypt data when retrieving from the database"""
         if value is None:
             return None
-        return self.cipher.decrypt(value.encode()).decode()
-
-    def to_python(self, value):
-        """Override to decrypt data when deserializing from the database"""
-        if value is None:
-            return None
         try:
+            # Decrypt the value before returning it
             decrypted_value = self.cipher.decrypt(value.encode()).decode()
             return decrypted_value
         except Exception as e:
             print(f"Decryption failed with error: {str(e)}")
             return None
-
 
 class CustomAccountManager(BaseUserManager):
     def create_user(self, email=None, password=None, mobile_number=None, created_by=None, **extra_fields):
@@ -156,28 +158,28 @@ class User(AbstractBaseUser, PermissionsMixin):
 
 
 class UserKYC(models.Model):
-
-    user = models.OneToOneField(User, on_delete=models.CASCADE)  # ForeignKey to User
-    # Encrypted Fields for sensitive data
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='userkyc')  # Added `related_name='userkyc'`
     name = models.CharField(max_length=40, blank=False, null=False)
-    pan_number = EncryptedField(max_length=20, blank=True, null=True)  # Encrypted PAN
-    aadhaar_number = EncryptedField(max_length=20, blank=True, null=True)  # Encrypted Aadhaar
+    pan_number = EncryptedField(max_length=20, blank=True, null=True)
+    aadhaar_number = EncryptedField(max_length=20, blank=True, null=True)
     date = models.DateField(null=True, blank=True)
-    # Fields specific to CA Firm
-    icai_number = models.CharField(max_length=15, blank=True, null=True)  # Only for CA Firm
-    address = EmbeddedField(model_container=AddressModel, default={})
+    icai_number = models.CharField(max_length=15, blank=True, null=True)
+    address = models.JSONField(default=dict, null=True, blank=True)
     have_firm = models.BooleanField(default=False)
 
     @property
     def is_completed(self):
-        """
-        Check if all mandatory KYC fields are filled for completion.
-        """
         required_fields = [self.name, self.pan_number, self.aadhaar_number, self.date]
+
         if self.have_firm:
             required_fields.append(self.icai_number)
 
-        # Return True if all required fields are filled
+        if self.address:
+            required_address_fields = ['address_line1', 'address_line2', 'state', 'city', 'country']
+            for field in required_address_fields:
+                if not self.address.get(field):
+                    return False  # If any required address field is missing or empty, return False
+
         return all(field is not None and field != "" for field in required_fields)
 
     def __str__(self):
@@ -191,7 +193,7 @@ class FirmKYC(models.Model):
     firm_email = models.EmailField(unique=True, null=True, blank=True)
     firm_mobile_number = models.CharField(max_length=40, blank=True, null=True)
     number_of_firm_partners = models.IntegerField()
-    address = EmbeddedField(model_container=AddressModel, default={})
+    address = models.JSONField(default=dict, null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.email} - {self.firm_registration_number}"
