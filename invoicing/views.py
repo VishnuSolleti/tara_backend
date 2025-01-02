@@ -22,6 +22,9 @@ from django.template.loader import render_to_string
 from django.http import HttpResponse
 import pdfkit
 from calendar import isleap, monthrange
+from django.db.models import Sum
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -1163,6 +1166,11 @@ def update_invoice(request, invoice_id):
             logger.warning(f"Invoice with ID {invoice_id} not found.")
             return Response({"message": "Invoice not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        # Ensure that the shipping_address is correctly formatted as a dictionary
+        if 'shipping_address' in request.data:
+            if not isinstance(request.data['shipping_address'], dict):
+                return Response({"message": "shipping_address must be a valid JSON object."}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = InvoiceSerializer(invoice, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -1177,6 +1185,7 @@ def update_invoice(request, invoice_id):
             {"error": f"An unexpected error occurred: {e}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
 
 
 @swagger_auto_schema(
@@ -1291,7 +1300,40 @@ def split_address(address):
 
     return first_half + '<br/>' + second_half
 
-
+@swagger_auto_schema(
+    method='get',
+    operation_description="Generate a PDF document for the specified invoice.",
+    tags=["Invoices"],
+    responses={
+        200: openapi.Response(
+            "PDF document generated successfully",
+            openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'file': openapi.Schema(type=openapi.TYPE_FILE, description="Generated PDF file"),
+                }
+            ),
+        ),
+        404: openapi.Response("Invoice not found"),
+        500: openapi.Response("Internal server error"),
+    },
+    manual_parameters=[
+        openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            description="Bearer <JWT Token>",
+            type=openapi.TYPE_STRING,
+            required=True
+        ),
+        openapi.Parameter(
+            'id',
+            openapi.IN_PATH,
+            description="The ID of the invoice to generate the document for.",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+    ]
+)
 @api_view(["GET"])
 def createDocument(request, id):
     try:
@@ -1363,13 +1405,10 @@ def createDocument(request, id):
                                                                                          'billing_address') else '',
 
             # Ship To address fields
-            'ship_to_address': invoice.shipping_address.get('address_line1', '') if hasattr(invoice,
-                                                                                            'shipping_address') else '',
-            'ship_to_state': invoice.shipping_address.get('state', '') if hasattr(invoice, 'shipping_address') else '',
-            'ship_to_country': invoice.shipping_address.get('country', '') if hasattr(invoice,
-                                                                                      'shipping_address') else '',
-            'ship_to_pincode': invoice.shipping_address.get('postal_code', '') if hasattr(invoice,
-                                                                                          'shipping_address') else '',
+            'ship_to_address': invoice.shipping_address.get('address_line1', '') if invoice.shipping_address else None,
+            'ship_to_state': invoice.shipping_address.get('state', '') if invoice.shipping_address else None,
+            'ship_to_country': invoice.shipping_address.get('country', '') if invoice.shipping_address else None,
+            'ship_to_pincode': invoice.shipping_address.get('postal_code', '') if invoice.shipping_address else None,
 
             # Item Details
             'item_details': getattr(invoice, 'item_details', []),
@@ -1406,10 +1445,6 @@ def createDocument(request, id):
         return Response({'error': 'Invoicing profile not found'}, status=404)
     except Exception as e:
         return Response({'error': str(e)}, status=500)
-
-from django.db.models import Sum
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
 
 
 def get_financial_year():
@@ -1455,13 +1490,58 @@ def get_days_in_financial_year(financial_year):
 def get_days_in_current_month(current_year, current_month):
     return monthrange(current_year, current_month)[1]
 
-
+@swagger_auto_schema(
+    method='get',
+    operation_description="Retrieve invoice statistics for the given invoicing profile and financial year.",
+    tags=["Invoices"],
+    responses={
+        200: openapi.Response(
+            "Invoice statistics retrieved successfully.",
+            openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'Total_Revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'Today_revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'revenue_this_month': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'revenue_last_month': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'average_revenue_per_day': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'over_dues': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'due_today': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'due_within_30_days': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'total_recievables': openapi.Schema(type=openapi.TYPE_NUMBER),
+                }
+            )
+        ),
+        400: openapi.Response("Invalid parameters or missing invoicing profile ID."),
+        500: openapi.Response("An unexpected error occurred."),
+    },
+    manual_parameters=[
+        openapi.Parameter(
+            'invoicing_profile_id',
+            openapi.IN_QUERY,
+            description="The invoicing profile ID to filter the invoices.",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'financial_year',
+            openapi.IN_QUERY,
+            description="The financial year for filtering invoices. "
+                        "If not provided, the current financial year will be used.",
+            type=openapi.TYPE_STRING,
+            required=False
+        ),
+    ]
+)
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def get_invoice_stats(request, invoicing_profile_id):
+def get_invoice_stats(request):
     try:
         # Get the financial year
-        financial_year = get_financial_year()
+        invoicing_profile_id = request.query_params.get('invoicing_profile_id')
+        financial_year = request.query_params.get('financial_year')
+        if financial_year is None:
+            financial_year = get_financial_year()
 
         # Filter invoices based on invoicing_profile_id and financial_year
         invoices = Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id, financial_year=financial_year)
@@ -1478,7 +1558,7 @@ def get_invoice_stats(request, invoicing_profile_id):
 
         # Calculate revenue for last month
         last_month = current_month - 1 if current_month > 1 else 12
-        if current_month == 4:  # April, so last month is March
+        if current_month == 5:  # April, so last month is March
             start_year, end_year = map(int, financial_year.split('-'))
             financial_year = f"{start_year - 1}-{str(start_year)[-2:]}"
 
@@ -1499,14 +1579,28 @@ def get_invoice_stats(request, invoicing_profile_id):
         average_revenue_per_day_on_current_month = revenue_this_month / days_in_current_month
 
         # Calculate overdues
-        over_dues = invoices.filter(payment_status="Unpaid").aggregate(total=Sum('pending_amount'))['total'] or 0
+
+        over_dues = Invoice.objects.filter(
+            invoicing_profile_id=invoicing_profile_id,
+            payment_status="Unpaid",
+            due_date__lt=datetime.today().date()  # Filter invoices with due_date before today's date
+        ).aggregate(
+            total_due=Sum('pending_amount')
+        ).get('total_due', 0)
 
         # Calculate dues for today
-        due_today = invoices.filter(payment_status="Unpaid", invoice_date=datetime.today()).aggregate(total=Sum('pending_amount'))['total'] or 0
+        due_today = Invoice.objects.filter(
+            invoicing_profile_id=invoicing_profile_id,
+            payment_status="Unpaid",
+            due_date=datetime.today()
+        ).aggregate(total=Sum('pending_amount'))['total'] or 0
 
         # Calculate dues within the next 30 days
-        due_within_30_days = invoices.filter(payment_status="Unpaid", invoice_date__lte=datetime.today().date() + timedelta(days=30)).aggregate(total=Sum('pending_amount'))['total'] or 0
-
+        due_within_30_days = Invoice.objects.filter(
+            invoicing_profile_id=invoicing_profile_id,
+            payment_status="Unpaid",
+            invoice_date__lte=datetime.today().date() + timedelta(days=30)
+        ).aggregate(total=Sum('pending_amount'))['total'] or 0
         # Calculate total receivables
         total_recievables = invoices.filter(payment_status="Unpaid").aggregate(total=Sum('amount_invoiced'))['total'] or 0
 
@@ -1529,3 +1623,153 @@ def get_invoice_stats(request, invoicing_profile_id):
         # Return a response with the error message and status code 500 if something goes wrong
         error_message = str(e)
         return Response({"error": f"An error occurred: {error_message}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Retrieve invoices based on the provided invoicing profile and filter type.",
+    tags=["Invoices"],
+    responses={
+        200: openapi.Response(
+            "Invoices retrieved successfully.",
+            openapi.Schema(
+                type=openapi.TYPE_ARRAY,
+                items=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'invoice_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'invoice_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
+                        'invoice_number': openapi.Schema(type=openapi.TYPE_STRING),
+                        'customer_name': openapi.Schema(type=openapi.TYPE_STRING),
+                        'total_amount': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        'pending_amount': openapi.Schema(type=openapi.TYPE_NUMBER),
+                        'payment_status': openapi.Schema(type=openapi.TYPE_STRING),
+                        'due_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
+                    }
+                )
+            )
+        ),
+        400: openapi.Response("Invalid parameters or missing invoicing profile ID."),
+        500: openapi.Response("An unexpected error occurred."),
+    },
+    manual_parameters=[
+        openapi.Parameter(
+            'invoicing_profile_id',
+            openapi.IN_QUERY,
+            description="The invoicing profile ID to filter the invoices.",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'filter_type',
+            openapi.IN_QUERY,
+            description="The filter type for the invoices. Required to specify the filter criteria.",
+            type=openapi.TYPE_STRING,
+            required=True,
+            enum=["total_revenue", "today_revenue", "this_month_revenue", "last_month_revenue",
+                  "average_revenue_per_day", "over_dues", "due_today", "due_within_30_days",
+                  "total_recievables"]
+        ),
+        openapi.Parameter(
+            'financial_year',
+            openapi.IN_QUERY,
+            description="The financial year for filtering invoices."
+                        " If not provided, the current financial year will be used.",
+            type=openapi.TYPE_STRING,
+            required=False
+        ),
+    ]
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_invoices(request):
+    try:
+        # Get the financial year
+        invoicing_profile_id = request.query_params.get('invoicing_profile_id')
+        filter_type = request.query_params.get('filter_type')
+        financial_year = request.query_params.get('financial_year')
+
+        if financial_year is None:
+            financial_year = get_financial_year()
+
+        # Base queryset for filtering invoices
+        invoices = Invoice.objects.filter(
+            invoicing_profile_id=invoicing_profile_id,
+            financial_year=financial_year
+        )
+
+        # Apply filter based on the filter_type
+        if filter_type == "total_revenue":
+            # No additional filtering, list all invoices
+            filtered_invoices = invoices
+        elif filter_type == "today_revenue":
+            # Filter invoices for today's date
+            filtered_invoices = invoices.filter(invoice_date=datetime.today().date())
+        elif filter_type == "this_month_revenue":
+            # Filter invoices for the current month
+            filtered_invoices = invoices.filter(invoice_date__month=datetime.today().month)
+        elif filter_type == "last_month_revenue":
+            # Determine last month and filter invoices
+            current_month = datetime.today().month
+            last_month = (current_month - 1) if current_month > 1 else 12
+            year_for_last_month = datetime.today().year if last_month != 12 else datetime.today().year - 1
+            if current_month == 5:  # April, so last month is March
+                start_year, end_year = map(int, financial_year.split('-'))
+                financial_year = f"{start_year - 1}-{str(start_year)[-2:]}"
+            filtered_invoices = Invoice.objects.filter(
+                            invoicing_profile_id=invoicing_profile_id,
+                            financial_year=financial_year,
+                            month=last_month
+                        )
+        elif filter_type == "average_revenue_per_day":
+            # No specific filtering; return all invoices (same as total_revenue)
+            filtered_invoices = invoices
+        elif filter_type == "over_dues":
+            filtered_invoices = Invoice.objects.filter(
+                            invoicing_profile_id=invoicing_profile_id,
+                            payment_status="Unpaid",
+                            due_date__lt=datetime.today().date()
+                        )
+
+        elif filter_type == "due_today":
+            filtered_invoices = Invoice.objects.filter(
+                invoicing_profile_id=invoicing_profile_id,
+                payment_status="Unpaid",
+                due_date=datetime.today()
+            )
+        elif filter_type == "due_within_30_days":
+            filtered_invoices = Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id,
+                                                       payment_status="Unpaid",
+                                                       invoice_date__lte=datetime.today().date() + timedelta(days=30))
+        elif filter_type == "total_recievables":
+            filtered_invoices = Invoice.objects.filter(
+                invoicing_profile_id=invoicing_profile_id,
+                payment_status="Unpaid"
+            )
+
+        else:
+            return Response({"error": "Invalid filter type."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Serialize the invoice data
+        serialized_invoices = [
+            {
+                "invoice_id": invoice.id,
+                "invoice_date": invoice.invoice_date,
+                "invoice_number": invoice.invoice_number,
+                "customer_name": invoice.customer,
+                "total_amount": invoice.total_amount,
+                "pending_amount": invoice.pending_amount,
+                "payment_status": invoice.payment_status,
+                "due_date": invoice.due_date,
+            }
+            for invoice in filtered_invoices
+        ]
+
+        return Response(serialized_invoices, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": f"An error occurred: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+

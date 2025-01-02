@@ -113,6 +113,7 @@
                     <p style="margin: 0">{{ bill_to_pincode }}</p>
                   </div>
                 </td>
+                {% if ship_to_address %}
                 <td style="width: 50%; vertical-align: top; text-align: right">
                   <div
                     style="
@@ -128,6 +129,7 @@
                     <p style="margin: 0">{{ ship_to_pincode }}</p>
                   </div>
                 </td>
+                {% endif %}
               </tr>
             </tbody>
           </table>

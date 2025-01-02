@@ -32,7 +32,9 @@ urlpatterns = [
 
     path('create-pdf/<int:id>/',views.createDocument),
 
-    path('invoice-stats/<int:invoicing_profile_id>/', get_invoice_stats, name='invoice-stats'),
+    path('invoice-stats', get_invoice_stats, name='invoice-stats'),
+
+    path('detail-invoice', get_invoices, name='get_invoices')
 
 
 
