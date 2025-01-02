@@ -1054,11 +1054,11 @@ def create_invoice(request):
 
 @swagger_auto_schema(
     method='get',
-    operation_description="Retrieve all invoices.",
+    operation_description="Retrieve all invoices associated with an invoicing profile.",
     tags=["Invoices"],
     responses={
         200: openapi.Response(
-            description="List of invoices.",
+            description="List of invoices retrieved successfully.",
             examples={
                 "application/json": [
                     {
@@ -1070,8 +1070,18 @@ def create_invoice(request):
                         "invoice_number": "INV-0001",
                         "invoice_date": "2024-12-18T00:00:00Z",
                         "place_of_supply": "California",
-                        "billing_address": {"line1": "123 Main St", "city": "Los Angeles"},
-                        "shipping_address": {"line1": "456 Oak Ave", "city": "San Francisco"},
+                        "billing_address": {
+                            "line1": "123 Main St",
+                            "city": "Los Angeles",
+                            "state": "CA",
+                            "zipcode": "90001"
+                        },
+                        "shipping_address": {
+                            "line1": "456 Oak Ave",
+                            "city": "San Francisco",
+                            "state": "CA",
+                            "zipcode": "94101"
+                        },
                         "item_details": [
                             {"name": "Product A", "price": 100, "quantity": 2},
                             {"name": "Service B", "price": 200, "quantity": 1}
@@ -1092,8 +1102,30 @@ def create_invoice(request):
                 ]
             }
         ),
-        404: openapi.Response("No invoices found."),
-        500: openapi.Response("An unexpected error occurred."),
+        400: openapi.Response(
+            description="Invalid request parameters.",
+            examples={
+                "application/json": {
+                    "error": "Invoicing profile ID is required."
+                }
+            }
+        ),
+        404: openapi.Response(
+            description="No invoices found for the provided invoicing profile.",
+            examples={
+                "application/json": {
+                    "error": "Invoicing profile not found."
+                }
+            }
+        ),
+        500: openapi.Response(
+            description="An unexpected server error occurred.",
+            examples={
+                "application/json": {
+                    "error": "An unexpected error occurred. Please try again later."
+                }
+            }
+        ),
     },
     manual_parameters=[
         openapi.Parameter(
@@ -1102,31 +1134,55 @@ def create_invoice(request):
             description="Bearer <JWT Token>",
             type=openapi.TYPE_STRING,
             required=True
+        ),
+        openapi.Parameter(
+            'invoicing_profile_id',
+            openapi.IN_QUERY,
+            description="ID of the invoicing profile.",
+            type=openapi.TYPE_INTEGER,
+            required=True
+        ),
+        openapi.Parameter(
+            'financial_year',
+            openapi.IN_QUERY,
+            description="Financial year to filter invoices (optional).",
+            type=openapi.TYPE_STRING,
+            required=False
         )
     ]
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def retrieve_invoices(request, pk):
+def retrieve_invoices(request):
     """
-    Retrieve all invoices.
+    Retrieve all invoices for a given invoicing profile.
     """
     try:
-        # Retrieve a single invoicing profile by ID
-        invoicing_profile = InvoicingProfile.objects.get(id=pk)
-        print(invoicing_profile.invoices.all())
-        serializer = InvoicingProfileInvoices(invoicing_profile)
+        # Retrieve query parameters
+        invoicing_profile_id = request.query_params.get('invoicing_profile_id')
+        financial_year = request.query_params.get('financial_year')
+
+        # Validate input
+        invoicing_profile = InvoicingProfile.objects.get(id=invoicing_profile_id)
+
+        # Pass the request context to the serializer
+        serializer = InvoicingProfileInvoices(invoicing_profile, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except InvoicingProfile.DoesNotExist:
         logger.warning(
-            f"User {request.user.id} tried to access an invoicing profile with ID {pk}, but it does not exist.")
-        return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
+            f"User {request.user.id} tried to access an invoicing profile with ID {invoicing_profile_id}, "
+            f"financial year {financial_year}, but it does not exist."
+        )
+        return Response(
+            {"error": "Invoicing profile not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
     except Exception as e:
-        logger.error(f"Unexpected error in retrieve_goods_service: {e}")
+        logger.error(f"Unexpected error in retrieve_invoices: {str(e)}")
         return Response(
-            {"error": f"An unexpected error occurred: {e}"},
+            {"error": "An unexpected error occurred. Please try again later."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

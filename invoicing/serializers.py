@@ -272,7 +272,7 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
 class InvoicesSerializer(serializers.ModelSerializer):
     billing_address = serializers.JSONField()  # Properly serialize as JSON
     shipping_address = serializers.JSONField()
-    item_details = DetailedItemSerializer(many=True, required=False, default=[])
+    item_details = serializers.ListField()
 
     class Meta:
         model = Invoice
@@ -280,8 +280,25 @@ class InvoicesSerializer(serializers.ModelSerializer):
 
 # InvoicingProfile Serializer
 class InvoicingProfileInvoices(serializers.ModelSerializer):
-    invoices = InvoicesSerializer(many=True)  # Nested serializer for invoices
+    invoices = serializers.SerializerMethodField()  # Nested serializer for invoices
 
     class Meta:
         model = InvoicingProfile
         fields = ['id', 'business', 'invoices']
+
+    def get_invoices(self, obj):
+        """
+        Dynamically filters invoices based on the financial_year query parameter.
+        """
+        request = self.context.get('request')
+        financial_year = request.query_params.get('financial_year') if request else None
+
+        # Get all invoices related to the InvoicingProfile instance (obj)
+        invoices = obj.invoices.all()
+
+        # Apply the financial_year filter if provided
+        if financial_year:
+            invoices = invoices.filter(financial_year=financial_year)
+
+        # Serialize the filtered invoices using the InvoicesSerializer
+        return InvoicesSerializer(invoices, many=True).data
