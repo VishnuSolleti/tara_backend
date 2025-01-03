@@ -1641,7 +1641,7 @@ def get_invoice_stats(request):
             payment_status="Unpaid",
             due_date__lt=datetime.today().date()  # Filter invoices with due_date before today's date
         ).aggregate(
-            total_due=Sum('pending_amount')
+            total_due=Sum('total_amount')
         ).get('total_due') or 0
 
         # Calculate dues for today
@@ -1649,16 +1649,16 @@ def get_invoice_stats(request):
             invoicing_profile_id=invoicing_profile_id,
             payment_status="Unpaid",
             due_date=datetime.today()
-        ).aggregate(total=Sum('pending_amount'))['total'] or 0
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         # Calculate dues within the next 30 days
         due_within_30_days = Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
             payment_status="Unpaid",
             invoice_date__lte=datetime.today().date() + timedelta(days=30)
-        ).aggregate(total=Sum('pending_amount'))['total'] or 0
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
         # Calculate total receivables
-        total_recievables = invoices.filter(payment_status="Unpaid").aggregate(total=Sum('amount_invoiced'))['total'] or 0
+        total_recievables = invoices.filter(payment_status="Unpaid").aggregate(total=Sum('total_amount'))['total'] or 0
 
         # Prepare the response data
         response_data = {
