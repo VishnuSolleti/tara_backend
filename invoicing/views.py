@@ -1556,7 +1556,7 @@ def get_days_in_current_month(current_year, current_month):
             openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    'total_Revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'total_revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
                     'today_revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
                     'revenue_this_month': openapi.Schema(type=openapi.TYPE_NUMBER),
                     'revenue_last_month': openapi.Schema(type=openapi.TYPE_NUMBER),
@@ -1662,7 +1662,7 @@ def get_invoice_stats(request):
 
         # Prepare the response data
         response_data = {
-            "total_Revenue": total_revenue,
+            "total_revenue": total_revenue,
             "today_revenue": today_revenue,
             "revenue_this_month": revenue_this_month,
             "revenue_last_month": revenue_last_month,
