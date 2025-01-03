@@ -1629,7 +1629,7 @@ def get_invoice_stats(request):
         days_in_current_month = get_days_in_current_month(current_year, current_month)
 
         # Average revenue per day based on total revenue
-        average_revenue_per_day_on_total_revenue = total_revenue / days_in_financial_year
+        average_revenue_per_day_on_total_revenue = round(total_revenue / days_in_financial_year, 2)
 
         # Average revenue per day for the current month
         average_revenue_per_day_on_current_month = revenue_this_month / days_in_current_month
