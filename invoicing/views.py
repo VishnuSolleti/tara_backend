@@ -1662,8 +1662,8 @@ def get_invoice_stats(request):
 
         # Prepare the response data
         response_data = {
-            "Total_Revenue": total_revenue,
-            "Today_revenue": today_revenue,
+            "total_Revenue": total_revenue,
+            "today_revenue": today_revenue,
             "revenue_this_month": revenue_this_month,
             "revenue_last_month": revenue_last_month,
             "average_revenue_per_day": average_revenue_per_day_on_total_revenue,
