@@ -1642,7 +1642,7 @@ def get_invoice_stats(request):
             due_date__lt=datetime.today().date()  # Filter invoices with due_date before today's date
         ).aggregate(
             total_due=Sum('pending_amount')
-        ).get('total_due', 0)
+        ).get('total_due') or 0
 
         # Calculate dues for today
         due_today = Invoice.objects.filter(
