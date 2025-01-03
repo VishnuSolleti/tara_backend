@@ -1556,8 +1556,8 @@ def get_days_in_current_month(current_year, current_month):
             openapi.Schema(
                 type=openapi.TYPE_OBJECT,
                 properties={
-                    'Total_Revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
-                    'Today_revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'total_Revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
+                    'today_revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
                     'revenue_this_month': openapi.Schema(type=openapi.TYPE_NUMBER),
                     'revenue_last_month': openapi.Schema(type=openapi.TYPE_NUMBER),
                     'average_revenue_per_day': openapi.Schema(type=openapi.TYPE_NUMBER),
@@ -1721,7 +1721,7 @@ def get_invoice_stats(request):
             description="The filter type for the invoices. Required to specify the filter criteria.",
             type=openapi.TYPE_STRING,
             required=True,
-            enum=["total_revenue", "today_revenue", "this_month_revenue", "last_month_revenue",
+            enum=["total_revenue", "today_revenue", "revenue_this_month", "revenue_last_month",
                   "average_revenue_per_day", "over_dues", "due_today", "due_within_30_days",
                   "total_recievables"]
         ),
@@ -1811,7 +1811,7 @@ def get_invoices(request):
                 "invoice_id": invoice.id,
                 "invoice_date": invoice.invoice_date,
                 "invoice_number": invoice.invoice_number,
-                "customer_name": invoice.customer,
+                "customer": invoice.customer,
                 "total_amount": invoice.total_amount,
                 "pending_amount": invoice.pending_amount,
                 "payment_status": invoice.payment_status,
