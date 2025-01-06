@@ -1662,7 +1662,7 @@ def get_invoice_stats(request):
         total_recievables = Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
             payment_status="Unpaid"
-        )(total=Sum('total_amount'))['total'] or 0
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         # Prepare the response data
         response_data = {
