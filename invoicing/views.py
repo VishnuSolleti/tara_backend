@@ -8,7 +8,8 @@ from drf_yasg import openapi
 from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
                           GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
-                          InvoicingProfileSerializers, InvoicingProfileCustomersSerializer, InvoicingProfileInvoices)
+                          InvoicingProfileSerializers, InvoicingProfileCustomersSerializer, InvoicingProfileInvoices,
+                          InvoiceSerializerData)
 from django.http import QueryDict
 import logging
 from django.core.exceptions import ObjectDoesNotExist
@@ -1828,4 +1829,48 @@ def get_invoices(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
+@swagger_auto_schema(
+    method='get',
+    operation_description="Retrieve an invoice by its ID.",
+    tags=["Invoices"],
+    responses={
+        200: openapi.Response(
+            "Invoice retrieved successfully.",
+            openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                    'customer': openapi.Schema(type=openapi.TYPE_STRING),
+                    # Add more fields here based on your serializer
+                }
+            )
+        ),
+        404: openapi.Response("Invoice not found.")
+    },
+    manual_parameters=[
+        openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            description="Bearer <JWT Token>",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ]
+)
+@api_view(['GET'])
+def get_invoice_by_id(request, id):
+    try:
+        invoice = Invoice.objects.get(id=id)
+        serializer = InvoiceSerializerData(invoice)
+        invoice_data = serializer.data
 
+        # Add the address_check field to the response
+        address_check = invoice.billing_address == invoice.shipping_address
+        invoice_data['address_check'] = address_check
+
+        return Response(invoice_data, status=status.HTTP_200_OK)
+    except Invoice.DoesNotExist:
+        return Response(
+            {"error": "Invoice not found"},
+            status=status.HTTP_404_NOT_FOUND
+        )

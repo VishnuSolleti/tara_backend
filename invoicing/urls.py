@@ -34,9 +34,9 @@ urlpatterns = [
 
     path('invoice-stats', get_invoice_stats, name='invoice-stats'),
 
-    path('detail-invoice', get_invoices, name='get_invoices')
+    path('detail-invoice', get_invoices, name='get_invoices'),
 
-
+    path('individual-invoice/<int:id>/', get_invoice_by_id, name='get_invoice_by_id'),
 
 ]
 

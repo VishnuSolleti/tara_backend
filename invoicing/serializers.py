@@ -160,14 +160,17 @@ class InvoiceSerializer(serializers.Serializer):
     total_amount = serializers.FloatField(allow_null=True)
     subtotal_amount = serializers.FloatField(allow_null=True)
     shipping_amount = serializers.FloatField(allow_null=True)
-    cgst_amount = serializers.FloatField(allow_null=True)
-    sgst_amount = serializers.FloatField(allow_null=True)
-    igst_amount = serializers.FloatField(allow_null=True)
+    total_cgst_amount = serializers.FloatField(allow_null=True)
+    total_sgst_amount = serializers.FloatField(allow_null=True)
+    total_igst_amount = serializers.FloatField(allow_null=True)
     pending_amount = serializers.FloatField(allow_null=True)
     amount_invoiced = serializers.FloatField(allow_null=True)
     payment_status = serializers.CharField(max_length=50, allow_null=True, allow_blank=True, default='Unpaid')
     notes = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
     terms_and_conditions = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
+    applied_tax = serializers.BooleanField(default=False)
+    shipping_tax = serializers.FloatField(allow_null=True)
+    selected_gst_rate = serializers.FloatField(allow_null=True)
 
     def create(self, validated_data):
         """
@@ -302,3 +305,10 @@ class InvoicingProfileInvoices(serializers.ModelSerializer):
 
         # Serialize the filtered invoices using the InvoicesSerializer
         return InvoicesSerializer(invoices, many=True).data
+
+
+class InvoiceSerializerData(serializers.ModelSerializer):
+    class Meta:
+        model = Invoice
+        fields = '__all__'
+
