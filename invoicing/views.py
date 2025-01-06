@@ -1659,7 +1659,10 @@ def get_invoice_stats(request):
             invoice_date__lte=datetime.today().date() + timedelta(days=30)
         ).aggregate(total=Sum('total_amount'))['total'] or 0
         # Calculate total receivables
-        total_recievables = invoices.filter(payment_status="Unpaid").aggregate(total=Sum('total_amount'))['total'] or 0
+        total_recievables = Invoice.objects.filter(
+            invoicing_profile_id=invoicing_profile_id,
+            payment_status="Unpaid"
+        )(total=Sum('total_amount'))['total'] or 0
 
         # Prepare the response data
         response_data = {
