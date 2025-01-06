@@ -30,7 +30,7 @@ urlpatterns = [
 
     path('invoice-delete/<int:invoice_id>/', delete_invoice, name='delete_invoice'),
 
-    path('create-pdf/<int:id>/',views.createDocument),
+    path('create-pdf/<int:id>',views.createDocument),
 
     path('invoice-stats', get_invoice_stats, name='invoice-stats'),
 
