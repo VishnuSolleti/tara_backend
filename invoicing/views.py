@@ -1877,3 +1877,56 @@ def get_invoice_by_id(request, id):
             {"error": "Invoice not found"},
             status=status.HTTP_404_NOT_FOUND
         )
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def latest_invoice_id(request, invoicing_profile_id):
+    try:
+        # Fetch the latest invoice for the given invoicing_profile_id
+        latest_invoice = (
+            Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id)
+            .order_by('-id')  # Sort by ID to get the latest
+            .first()
+        )
+
+        if latest_invoice and latest_invoice.invoice_number:
+            try:
+                # Split the invoice_number into prefix, number, and suffix
+                parts = latest_invoice.invoice_number.split('-')
+                if len(parts) == 3:  # Ensure it's in the expected format
+                    prefix, number, suffix = parts
+                    new_number = int(number) + 1  # Increment the numeric part
+                    new_invoice_number = f"{prefix}-{new_number:03d}-{suffix}"
+                else:
+                    # Fallback if the invoice number isn't in the expected format
+                    invoicing_profile = InvoicingProfile.objects.filter(id=invoicing_profile_id).first()
+
+                    if invoicing_profile and invoicing_profile.invoice_format:
+                        prefix = invoicing_profile.invoice_format.get("prefix")
+                        starting_number = invoicing_profile.invoice_format.get("startingNumber")
+                        suffix = invoicing_profile.invoice_format.get("suffix")
+                        new_invoice_number = f'{prefix}-{starting_number}-{suffix}'
+            except ValueError:
+                # Handle invalid number format or splitting issues
+                return JsonResponse(
+                    {
+                        "error": "No existing invoice found. Please provide a format for the invoice number (prefix-number-suffix).",
+                        "suggested_format": "Example: A-001-Z"
+                    },
+                    status=400
+                )
+        else:
+            # If no invoice_number exists, ask the user to create one
+            return JsonResponse(
+                {
+                    "error": "No existing invoice found. Please provide a format for the invoice number (prefix-number-suffix).",
+                    "suggested_format": "Example: A-001-Z"
+                },
+                status=400
+            )
+
+        return JsonResponse({"latest_invoice_number": new_invoice_number})
+
+    except Exception as e:
+        # Return error response if an exception occurs
+        return JsonResponse({"error": str(e)}, status=500)

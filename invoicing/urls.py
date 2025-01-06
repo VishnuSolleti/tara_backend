@@ -38,5 +38,7 @@ urlpatterns = [
 
     path('individual-invoice/<int:id>/', get_invoice_by_id, name='get_invoice_by_id'),
 
+    path('latest/<int:invoicing_profile_id>/', latest_invoice_id, name='latest-invoice-number'),
+
 ]
 
