@@ -121,14 +121,17 @@ class Invoice(models.Model):
     total_amount = models.FloatField(null=True, blank=False)
     subtotal_amount = models.FloatField(null=True, blank=False)
     shipping_amount = models.FloatField(null=True, blank=False)
-    cgst_amount = models.FloatField(null=True, blank=False)
-    sgst_amount = models.FloatField(null=True, blank=False)
-    igst_amount = models.FloatField(null=True, blank=False)
+    total_cgst_amount = models.FloatField(null=True, blank=False)
+    total_sgst_amount = models.FloatField(null=True, blank=False)
+    total_igst_amount = models.FloatField(null=True, blank=False)
     pending_amount = models.FloatField(null=True, blank=False)
     amount_invoiced = models.FloatField(null=True, blank=False)
     payment_status = models.CharField(max_length=50, default="Unpaid", null=True, blank=True)
     notes = models.CharField(max_length=500, null=True, blank=True)
     terms_and_conditions = models.CharField(max_length=500, null=True, blank=True)
+    applied_tax = models.BooleanField(default=False)
+    shipping_tax = models.FloatField(null=True)
+    selected_gst_rate = models.FloatField(null=True)
 
     def __str__(self):
         return f"Invoice: {self.invoice_number}"
