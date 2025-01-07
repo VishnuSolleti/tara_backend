@@ -1766,7 +1766,8 @@ def get_invoices(request):
             filtered_invoices = invoices.filter(invoice_date=datetime.today().date())
         elif filter_type == "revenue_this_month":
             # Filter invoices for the current month
-            filtered_invoices = invoices.filter(invoice_date__month=datetime.today().month)
+            filtered_invoices = invoices.filter(month=datetime.today().month)
+            print(filtered_invoices)
         elif filter_type == "revenue_last_month":
             # Determine last month and filter invoices
             current_month = datetime.today().month
