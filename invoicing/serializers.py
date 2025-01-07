@@ -316,3 +316,9 @@ class InvoiceSerializerData(serializers.ModelSerializer):
         model = Invoice
         fields = '__all__'
 
+
+class InvoiceDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Invoice
+        fields = '__all__'
+

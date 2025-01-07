@@ -9,7 +9,7 @@ from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
                           GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
                           InvoicingProfileSerializers, InvoicingProfileCustomersSerializer, InvoicingProfileInvoices,
-                          InvoiceSerializerData)
+                          InvoiceSerializerData, InvoiceDataSerializer)
 from django.http import QueryDict
 import logging
 from django.core.exceptions import ObjectDoesNotExist
@@ -1696,7 +1696,7 @@ def get_invoice_stats(request):
                 items=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        'invoice_id': openapi.Schema(type=openapi.TYPE_INTEGER),
+                        'id': openapi.Schema(type=openapi.TYPE_INTEGER),
                         'invoice_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
                         'invoice_number': openapi.Schema(type=openapi.TYPE_STRING),
                         'customer_name': openapi.Schema(type=openapi.TYPE_STRING),
@@ -1811,21 +1811,22 @@ def get_invoices(request):
             return Response({"error": "Invalid filter type."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Serialize the invoice data
-        serialized_invoices = [
-            {
-                "invoice_id": invoice.id,
-                "invoice_date": invoice.invoice_date,
-                "invoice_number": invoice.invoice_number,
-                "customer": invoice.customer,
-                "total_amount": invoice.total_amount,
-                "pending_amount": invoice.pending_amount,
-                "payment_status": invoice.payment_status,
-                "due_date": invoice.due_date,
-            }
-            for invoice in filtered_invoices
-        ]
-
+        # serialized_invoices = [
+        #     {
+        #         "id": invoice.id,
+        #         "invoice_date": invoice.invoice_date,
+        #         "invoice_number": invoice.invoice_number,
+        #         "customer": invoice.customer,
+        #         "total_amount": invoice.total_amount,
+        #         "pending_amount": invoice.pending_amount,
+        #         "payment_status": invoice.payment_status,
+        #         "due_date": invoice.due_date,
+        #     }
+        #     for invoice in filtered_invoices
+        # ]
+        serialized_invoices = InvoiceDataSerializer(filtered_invoices, many=True).data
         return Response(serialized_invoices, status=status.HTTP_200_OK)
+
 
     except Exception as e:
         return Response(
@@ -2062,21 +2063,9 @@ def filter_invoices(request):
                                  status=status.HTTP_400_BAD_REQUEST)
 
         # Serialize the filtered invoice data
-        serialized_invoices = [
-            {
-                "invoice_id": invoice.id,
-                "invoice_date": invoice.invoice_date,
-                "invoice_number": invoice.invoice_number,
-                "customer": invoice.customer,
-                "total_amount": invoice.total_amount,
-                "pending_amount": invoice.pending_amount,
-                "payment_status": invoice.payment_status,
-                "due_date": invoice.due_date,
-            }
-            for invoice in invoices
-        ]
-
+        serialized_invoices = InvoiceDataSerializer(invoices, many=True).data
         return Response(serialized_invoices, status=status.HTTP_200_OK)
+
 
     except Exception as e:
         return Response(
