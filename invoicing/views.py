@@ -1413,9 +1413,9 @@ def createDocument(request, id):
         total_in_words = total_in_words + ' ' + 'Rupees Only'
 
         invoice_date = invoice.invoice_date
-        terms = int(invoice.terms) if invoice else 0
-        due_date = invoice_date + timedelta(days=terms)
-        due_date_str = due_date.strftime('%d-%m-%Y')
+        # terms = int(invoice.terms) if invoice else 0
+        # due_date = invoice_date + timedelta(days=terms)
+        due_date_str = invoice_date.strftime('%d-%m-%Y')
 
         if len(invoice.invoicing_profile.business.email) > 26:
             business_name = split_address(invoice.invoicing_profile.business.email)
@@ -1948,3 +1948,104 @@ def latest_invoice_id(request, invoicing_profile_id):
         # Return error response if an exception occurs
         return JsonResponse({"error": str(e)}, status=500)
 
+
+
+@api_view(['POST'])
+def filter_invoices(request):
+    try:
+        # Extract required parameters from request body (payload)
+        data = request.data
+
+        invoicing_profile_id = data.get('invoicing_profile_id')
+        financial_year = data.get('financial_year')
+
+        # Validate the required parameters
+        if not invoicing_profile_id or not financial_year:
+            return Response(
+                {"error": "invoicing_profile_id and financial_year are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Initialize the base queryset
+        invoices = Invoice.objects.filter(
+            invoicing_profile_id=invoicing_profile_id,
+            financial_year=financial_year
+        )
+
+        # Dynamically apply filters if they are passed in the request body
+        invoice_id = data.get('invoice_id')
+        payment_status = data.get('payment_status')
+        due_date = data.get('due_date')
+        invoice_date = data.get('invoice_date')
+        invoice_number = data.get('invoice_number')
+        customer = data.get('customer')
+        total_amount = data.get('total_amount')
+        pending_amount = data.get('pending_amount')
+
+        # Apply the filters based on the fields passed in the payload
+        if invoice_id:
+            invoices = invoices.filter(id=invoice_id)
+
+        if payment_status:
+            invoices = invoices.filter(payment_status=payment_status)
+
+        if due_date:
+            try:
+                due_date = datetime.strptime(due_date, "%Y-%m-%d").date()
+                invoices = invoices.filter(due_date=due_date)
+            except ValueError:
+                return Response({"error": "Invalid due_date format. Expected format: YYYY-MM-DD."},
+                                 status=status.HTTP_400_BAD_REQUEST)
+
+        if invoice_date:
+            try:
+                invoice_date = datetime.strptime(invoice_date, "%Y-%m-%d").date()
+                invoices = invoices.filter(invoice_date=invoice_date)
+            except ValueError:
+                return Response({"error": "Invalid invoice_date format. Expected format: YYYY-MM-DD."},
+                                 status=status.HTTP_400_BAD_REQUEST)
+
+        if invoice_number:
+            invoices = invoices.filter(invoice_number__icontains=invoice_number)
+
+        if customer:
+            invoices = invoices.filter(customer__icontains=customer)
+
+        if total_amount:
+            try:
+                total_amount = float(total_amount)
+                invoices = invoices.filter(total_amount=total_amount)
+            except ValueError:
+                return Response({"error": "Invalid total_amount. Expected a numeric value."},
+                                 status=status.HTTP_400_BAD_REQUEST)
+
+        if pending_amount:
+            try:
+                pending_amount = float(pending_amount)
+                invoices = invoices.filter(pending_amount=pending_amount)
+            except ValueError:
+                return Response({"error": "Invalid pending_amount. Expected a numeric value."},
+                                 status=status.HTTP_400_BAD_REQUEST)
+
+        # Serialize the filtered invoice data
+        serialized_invoices = [
+            {
+                "invoice_id": invoice.id,
+                "invoice_date": invoice.invoice_date,
+                "invoice_number": invoice.invoice_number,
+                "customer": invoice.customer,
+                "total_amount": invoice.total_amount,
+                "pending_amount": invoice.pending_amount,
+                "payment_status": invoice.payment_status,
+                "due_date": invoice.due_date,
+            }
+            for invoice in invoices
+        ]
+
+        return Response(serialized_invoices, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": f"An error occurred: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
