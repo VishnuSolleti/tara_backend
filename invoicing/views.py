@@ -1639,7 +1639,7 @@ def get_invoice_stats(request):
 
         over_dues = Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
-            payment_status="Unpaid",
+            payment_status="Pending",
             due_date__lt=datetime.today().date()  # Filter invoices with due_date before today's date
         ).aggregate(
             total_due=Sum('total_amount')
@@ -1648,20 +1648,20 @@ def get_invoice_stats(request):
         # Calculate dues for today
         due_today = Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
-            payment_status="Unpaid",
+            payment_status="Pending",
             due_date=datetime.today()
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         # Calculate dues within the next 30 days
         due_within_30_days = Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
-            payment_status="Unpaid",
+            payment_status="Pending",
             invoice_date__lte=datetime.today().date() + timedelta(days=30)
         ).aggregate(total=Sum('total_amount'))['total'] or 0
         # Calculate total receivables
         total_recievables = Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
-            payment_status="Unpaid"
+            payment_status="Pending"
         ).aggregate(total=Sum('total_amount'))['total'] or 0
 
         # Prepare the response data
@@ -1786,24 +1786,24 @@ def get_invoices(request):
         elif filter_type == "over_dues":
             filtered_invoices = Invoice.objects.filter(
                             invoicing_profile_id=invoicing_profile_id,
-                            payment_status="Unpaid",
+                            payment_status="Pending",
                             due_date__lt=datetime.today().date()
                         )
 
         elif filter_type == "due_today":
             filtered_invoices = Invoice.objects.filter(
                 invoicing_profile_id=invoicing_profile_id,
-                payment_status="Unpaid",
+                payment_status="Pending",
                 due_date=datetime.today()
             )
         elif filter_type == "due_within_30_days":
             filtered_invoices = Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id,
-                                                       payment_status="Unpaid",
+                                                       payment_status="Pending",
                                                        invoice_date__lte=datetime.today().date() + timedelta(days=30))
         elif filter_type == "total_recievables":
             filtered_invoices = Invoice.objects.filter(
                 invoicing_profile_id=invoicing_profile_id,
-                payment_status="Unpaid"
+                payment_status="Pending"
             )
 
         else:
