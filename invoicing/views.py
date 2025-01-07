@@ -1924,13 +1924,18 @@ def latest_invoice_id(request, invoicing_profile_id):
                 # Format version has changed, start with the new format
                 prefix = invoicing_profile.invoice_format.get("prefix")
                 starting_number = invoicing_profile.invoice_format.get("startingNumber", 1)
-                suffix = invoicing_profile.invoice_format.get("suffix", "")
+                suffix = invoicing_profile.invoice_format.get("suffix")
+                starting_number = int(starting_number)
                 new_invoice_number = f"{prefix}-{starting_number:03d}-{suffix}"
         else:
             # No previous invoices, start with the new format
             prefix = invoicing_profile.invoice_format.get("prefix")
-            starting_number = invoicing_profile.invoice_format.get("startingNumber", 1)
-            suffix = invoicing_profile.invoice_format.get("suffix", "")
+            starting_number = invoicing_profile.invoice_format.get("startingNumber")
+            suffix = invoicing_profile.invoice_format.get("suffix")
+
+            # Ensure starting_number is an integer before formatting
+            starting_number = int(starting_number)
+
             new_invoice_number = f"{prefix}-{starting_number:03d}-{suffix}"
 
         # Return the new invoice number along with the format version
