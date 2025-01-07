@@ -111,6 +111,8 @@ class Invoice(models.Model):
     invoice_date = models.DateField(null=False, blank=False)
     due_date = models.DateField(null=False, blank=False)
     month = models.IntegerField(null=False, blank=False)
+    sales_person = models.CharField(max_length=10, null=True, blank=True)
+    order_number = models.CharField(max_length=10, null=True, blank=True)
     place_of_supply = models.CharField(max_length=500, null=False, blank=False)
     billing_address = models.JSONField(default=dict, null=True, blank=True)
     shipping_address = models.JSONField(default=dict, null=True, blank=True)
