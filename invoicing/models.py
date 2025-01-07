@@ -108,6 +108,7 @@ class Invoice(models.Model):
     terms = models.CharField(max_length=500, null=False, blank=False)
     financial_year = models.CharField(max_length=50, null=False, blank=False)
     invoice_number = models.CharField(max_length=50, null=False, blank=False)
+    format_version = models.IntegerField(null=False)
     invoice_date = models.DateField(null=False, blank=False)
     due_date = models.DateField(null=False, blank=False)
     month = models.IntegerField(null=False, blank=False)

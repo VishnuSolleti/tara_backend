@@ -1882,6 +1882,20 @@ def get_invoice_by_id(request, id):
 @permission_classes([AllowAny])
 def latest_invoice_id(request, invoicing_profile_id):
     try:
+        # Fetch the invoicing profile
+        invoicing_profile = InvoicingProfile.objects.filter(id=invoicing_profile_id).first()
+        if not invoicing_profile or not invoicing_profile.invoice_format:
+            return JsonResponse(
+                {
+                    "error": "No valid invoicing profile or invoice format found.",
+                    "details": "Ensure the profile includes 'prefix', 'startingNumber', and 'suffix'."
+                },
+                status=400
+            )
+
+        # Get the current format version
+        current_format_version = invoicing_profile.invoice_format.get("format_version")
+
         # Fetch the latest invoice for the given invoicing_profile_id
         latest_invoice = (
             Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id)
@@ -1889,44 +1903,43 @@ def latest_invoice_id(request, invoicing_profile_id):
             .first()
         )
 
-        if latest_invoice and latest_invoice.invoice_number:
-            try:
+        # Initialize new_invoice_number
+        new_invoice_number = None
+
+        if latest_invoice:
+            # Check if the format version matches
+            if latest_invoice.format_version == current_format_version:
                 # Split the invoice_number into prefix, number, and suffix
                 parts = latest_invoice.invoice_number.split('-')
-                if len(parts) == 3:  # Ensure it's in the expected format
+                if len(parts) == 3:
                     prefix, number, suffix = parts
                     new_number = int(number) + 1  # Increment the numeric part
                     new_invoice_number = f"{prefix}-{new_number:03d}-{suffix}"
                 else:
-                    # Fallback if the invoice number isn't in the expected format
-                    invoicing_profile = InvoicingProfile.objects.filter(id=invoicing_profile_id).first()
-
-                    if invoicing_profile and invoicing_profile.invoice_format:
-                        prefix = invoicing_profile.invoice_format.get("prefix")
-                        starting_number = invoicing_profile.invoice_format.get("startingNumber")
-                        suffix = invoicing_profile.invoice_format.get("suffix")
-                        new_invoice_number = f'{prefix}-{starting_number}-{suffix}'
-            except ValueError:
-                # Handle invalid number format or splitting issues
-                return JsonResponse(
-                    {
-                        "error": "No existing invoice found. Please provide a format for the invoice number (prefix-number-suffix).",
-                        "suggested_format": "Example: A-001-Z"
-                    },
-                    status=400
-                )
+                    return JsonResponse(
+                        {"error": "Existing invoice format is invalid."},
+                        status=400
+                    )
+            else:
+                # Format version has changed, start with the new format
+                prefix = invoicing_profile.invoice_format.get("prefix")
+                starting_number = invoicing_profile.invoice_format.get("startingNumber", 1)
+                suffix = invoicing_profile.invoice_format.get("suffix", "")
+                new_invoice_number = f"{prefix}-{starting_number:03d}-{suffix}"
         else:
-            # If no invoice_number exists, ask the user to create one
-            return JsonResponse(
-                {
-                    "error": "No existing invoice found. Please provide a format for the invoice number (prefix-number-suffix).",
-                    "suggested_format": "Example: A-001-Z"
-                },
-                status=400
-            )
+            # No previous invoices, start with the new format
+            prefix = invoicing_profile.invoice_format.get("prefix")
+            starting_number = invoicing_profile.invoice_format.get("startingNumber", 1)
+            suffix = invoicing_profile.invoice_format.get("suffix", "")
+            new_invoice_number = f"{prefix}-{starting_number:03d}-{suffix}"
 
-        return JsonResponse({"latest_invoice_number": new_invoice_number})
+        # Return the new invoice number along with the format version
+        return JsonResponse({
+            "latest_invoice_number": new_invoice_number,
+            "format_version": current_format_version
+        })
 
     except Exception as e:
         # Return error response if an exception occurs
         return JsonResponse({"error": str(e)}, status=500)
+

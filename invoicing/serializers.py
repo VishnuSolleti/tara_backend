@@ -146,6 +146,7 @@ class InvoiceSerializer(serializers.Serializer):
     terms = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
     financial_year = serializers.CharField(max_length=50, allow_null=True, allow_blank=True)
     invoice_number = serializers.CharField(max_length=50, allow_null=True, allow_blank=True)
+    format_version = serializers.IntegerField(allow_null=False)
     invoice_date = serializers.DateField(allow_null=True)
     due_date = serializers.DateField(allow_null=False)
     month = serializers.IntegerField(allow_null=False)
