@@ -1948,16 +1948,49 @@ def latest_invoice_id(request, invoicing_profile_id):
         # Return error response if an exception occurs
         return JsonResponse({"error": str(e)}, status=500)
 
-
-
-@api_view(['POST'])
+@swagger_auto_schema(
+    method='get',  # Keeping GET method
+    operation_description="Filter invoices based on provided filters.",
+    tags=["Invoices"],
+    responses={
+        200: openapi.Response(
+            description="Filtered invoices retrieved successfully.",
+            schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                properties={
+                    'invoice_id': openapi.Schema(type=openapi.TYPE_INTEGER, description="Invoice ID"),
+                    'invoice_date': openapi.Schema(type=openapi.TYPE_STRING, description="Invoice Date"),
+                    'invoice_number': openapi.Schema(type=openapi.TYPE_STRING, description="Invoice Number"),
+                    'customer': openapi.Schema(type=openapi.TYPE_STRING, description="Customer name or ID"),
+                    'total_amount': openapi.Schema(type=openapi.TYPE_NUMBER, format=openapi.FORMAT_FLOAT, description="Total Amount"),
+                    'pending_amount': openapi.Schema(type=openapi.TYPE_NUMBER, format=openapi.FORMAT_FLOAT, description="Pending Amount"),
+                    'payment_status': openapi.Schema(type=openapi.TYPE_STRING, description="Payment Status"),
+                    'due_date': openapi.Schema(type=openapi.TYPE_STRING, description="Due Date"),
+                }
+            )
+        ),
+        400: openapi.Response(description="Bad request - Missing or invalid data."),
+        500: openapi.Response(description="Internal server error.")
+    },
+    manual_parameters=[
+        openapi.Parameter('invoicing_profile_id', openapi.IN_QUERY, description="Invoicing profile ID", type=openapi.TYPE_INTEGER, required=True),
+        openapi.Parameter('financial_year', openapi.IN_QUERY, description="Financial year", type=openapi.TYPE_STRING, required=True),
+        openapi.Parameter('invoice_id', openapi.IN_QUERY, description="Invoice ID", type=openapi.TYPE_INTEGER, required=False),
+        openapi.Parameter('payment_status', openapi.IN_QUERY, description="Payment status (e.g., Paid, Pending, Overdue)", type=openapi.TYPE_STRING, required=False),
+        openapi.Parameter('due_date', openapi.IN_QUERY, description="Due date of the invoice (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=False),
+        openapi.Parameter('invoice_date', openapi.IN_QUERY, description="Date of the invoice (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=False),
+        openapi.Parameter('invoice_number', openapi.IN_QUERY, description="Invoice number", type=openapi.TYPE_STRING, required=False),
+        openapi.Parameter('customer', openapi.IN_QUERY, description="Customer name or ID", type=openapi.TYPE_STRING, required=False),
+        openapi.Parameter('total_amount', openapi.IN_QUERY, description="Total amount", type=openapi.TYPE_NUMBER, required=False),
+        openapi.Parameter('pending_amount', openapi.IN_QUERY, description="Pending amount", type=openapi.TYPE_NUMBER, required=False),
+    ]
+)
+@api_view(['GET'])  # Keeping GET method
 def filter_invoices(request):
     try:
-        # Extract required parameters from request body (payload)
-        data = request.data
-
-        invoicing_profile_id = data.get('invoicing_profile_id')
-        financial_year = data.get('financial_year')
+        # Extract required parameters from query params
+        invoicing_profile_id = request.query_params.get('invoicing_profile_id')
+        financial_year = request.query_params.get('financial_year')
 
         # Validate the required parameters
         if not invoicing_profile_id or not financial_year:
@@ -1972,17 +2005,17 @@ def filter_invoices(request):
             financial_year=financial_year
         )
 
-        # Dynamically apply filters if they are passed in the request body
-        invoice_id = data.get('invoice_id')
-        payment_status = data.get('payment_status')
-        due_date = data.get('due_date')
-        invoice_date = data.get('invoice_date')
-        invoice_number = data.get('invoice_number')
-        customer = data.get('customer')
-        total_amount = data.get('total_amount')
-        pending_amount = data.get('pending_amount')
+        # Dynamically apply filters if they are passed as query params
+        invoice_id = request.query_params.get('invoice_id')
+        payment_status = request.query_params.get('payment_status')
+        due_date = request.query_params.get('due_date')
+        invoice_date = request.query_params.get('invoice_date')
+        invoice_number = request.query_params.get('invoice_number')
+        customer = request.query_params.get('customer')
+        total_amount = request.query_params.get('total_amount')
+        pending_amount = request.query_params.get('pending_amount')
 
-        # Apply the filters based on the fields passed in the payload
+        # Apply the filters based on the query parameters
         if invoice_id:
             invoices = invoices.filter(id=invoice_id)
 

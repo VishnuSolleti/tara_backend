@@ -40,5 +40,7 @@ urlpatterns = [
 
     path('latest/<int:invoicing_profile_id>/', latest_invoice_id, name='latest-invoice-number'),
 
+    path('filter-invoices', filter_invoices, name='filter_invoices'),
+
 ]
 
