@@ -168,7 +168,7 @@ class InvoiceSerializer(serializers.Serializer):
     total_igst_amount = serializers.FloatField(allow_null=True)
     pending_amount = serializers.FloatField(allow_null=True)
     amount_invoiced = serializers.FloatField(allow_null=True)
-    payment_status = serializers.CharField(max_length=50, allow_null=True, allow_blank=True, default='Unpaid')
+    payment_status = serializers.CharField(max_length=50, allow_null=True, allow_blank=True, default='Pending')
     notes = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
     terms_and_conditions = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
     applied_tax = serializers.BooleanField(default=False)
