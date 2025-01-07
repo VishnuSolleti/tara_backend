@@ -318,6 +318,11 @@ class InvoiceSerializerData(serializers.ModelSerializer):
 
 
 class InvoiceDataSerializer(serializers.ModelSerializer):
+    item_details = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=[],
+    )
     class Meta:
         model = Invoice
         fields = '__all__'
