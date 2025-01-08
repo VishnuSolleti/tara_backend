@@ -175,6 +175,7 @@ class InvoiceSerializer(serializers.Serializer):
     shipping_tax = serializers.FloatField(allow_null=True)
     shipping_amount_with_tax = serializers.FloatField(allow_null=True)
     selected_gst_rate = serializers.FloatField(allow_null=True)
+    invoice_status = serializers.CharField(max_length=60, allow_null=False, allow_blank=False)
 
     def create(self, validated_data):
         """

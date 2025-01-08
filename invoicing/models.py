@@ -136,6 +136,7 @@ class Invoice(models.Model):
     shipping_tax = models.FloatField(null=True)
     shipping_amount_with_tax = models.FloatField(null=True)
     selected_gst_rate = models.FloatField(null=True)
+    invoice_status = models.CharField(max_length=60, null=False, blank=False)
 
     def __str__(self):
         return f"Invoice: {self.invoice_number}"
