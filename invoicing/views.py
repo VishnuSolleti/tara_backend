@@ -5,11 +5,12 @@ from rest_framework.response import Response
 from rest_framework import serializers
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
-from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice
+from django.db import models
+from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice, CustomerInvoiceReceipt
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
                           GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
                           InvoicingProfileSerializers, InvoicingProfileCustomersSerializer, InvoicingProfileInvoices,
-                          InvoiceSerializerData, InvoiceDataSerializer)
+                          InvoiceSerializerData, InvoiceDataSerializer, CustomerInvoiceReceiptSerializer)
 from django.http import QueryDict
 import logging
 from django.core.exceptions import ObjectDoesNotExist
@@ -2072,3 +2073,201 @@ def filter_invoices(request):
             {"error": f"An error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@swagger_auto_schema(
+    method='post',
+    operation_description="Create a new customer invoice receipt.",
+    tags=["CustomerInvoiceReceipts"],
+    request_body=CustomerInvoiceReceiptSerializer,
+    responses={
+        201: openapi.Response("Customer Invoice Receipt created successfully."),
+        400: openapi.Response("Bad request."),
+        500: openapi.Response("An unexpected error occurred."),
+    },
+    manual_parameters=[
+        openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            description="Bearer <JWT Token>",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ]
+)
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_customer_invoice_receipt(request):
+    """
+    Create a new Customer Invoice Receipt with auto-incremented payment_number.
+    """
+    try:
+        # Extract and validate invoice_id
+        invoice_id = request.data.get("invoice")
+        if not invoice_id:
+            return Response(
+                {"error": "Invoice ID is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Automatically determine the next payment_number for the given invoice
+        max_payment_number = CustomerInvoiceReceipt.objects.filter(invoice_id=invoice_id).aggregate(
+            max_number=models.Max('payment_number')
+        )['max_number'] or 0
+        next_payment_number = max_payment_number + 1
+        request.data["payment_number"] = next_payment_number
+
+        # Serialize and save the data
+        serializer = CustomerInvoiceReceiptSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        logger.warning(f"Validation error: {serializer.errors}")
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except Exception as e:
+        logger.error(f"Unexpected error in create_customer_invoice_receipt: {e}")
+        return Response(
+            {"error": f"An unexpected error occurred: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Retrieve customer invoice receipts.",
+    tags=["CustomerInvoiceReceipts"],
+    responses={
+        200: openapi.Response("Success"),
+        404: openapi.Response("Not Found"),
+    },
+    manual_parameters=[
+        openapi.Parameter(
+            'id',
+            openapi.IN_QUERY,
+            description="Receipt ID (optional)",
+            type=openapi.TYPE_INTEGER,
+            required=False
+        ),
+        openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            description="Bearer <JWT Token>",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ]
+)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_customer_invoice_receipts(request):
+    """
+    Retrieve a customer invoice receipt by ID or all receipts if no ID is provided.
+    """
+    try:
+        receipt_id = request.query_params.get('id')
+        if receipt_id:
+            receipt = CustomerInvoiceReceipt.objects.get(id=receipt_id)
+            serializer = CustomerInvoiceReceiptSerializer(receipt)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except CustomerInvoiceReceipt.DoesNotExist:
+        return Response(
+            {"error": "Customer Invoice Receipt not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"An unexpected error occurred: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+@swagger_auto_schema(
+    method='put',
+    operation_description="Update a customer invoice receipt.",
+    tags=["CustomerInvoiceReceipts"],
+    request_body=CustomerInvoiceReceiptSerializer,
+    responses={
+        200: openapi.Response("Customer Invoice Receipt updated successfully."),
+        404: openapi.Response("Not Found."),
+        400: openapi.Response("Bad request."),
+    },
+    manual_parameters=[
+        openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            description="Bearer <JWT Token>",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ]
+)
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_customer_invoice_receipt(request, receipt_id):
+    """
+    Update an existing customer invoice receipt.
+    """
+    try:
+        receipt = CustomerInvoiceReceipt.objects.get(id=receipt_id)
+        serializer = CustomerInvoiceReceiptSerializer(receipt, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except CustomerInvoiceReceipt.DoesNotExist:
+        return Response(
+            {"error": "Customer Invoice Receipt not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"An unexpected error occurred: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+@swagger_auto_schema(
+    method='delete',
+    operation_description="Delete a customer invoice receipt.",
+    tags=["CustomerInvoiceReceipts"],
+    responses={
+        204: openapi.Response("Customer Invoice Receipt deleted successfully."),
+        404: openapi.Response("Not Found."),
+    },
+    manual_parameters=[
+        openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            description="Bearer <JWT Token>",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ]
+)
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_customer_invoice_receipt(request, receipt_id):
+    """
+    Delete a customer invoice receipt.
+    """
+    try:
+        receipt = CustomerInvoiceReceipt.objects.get(id=receipt_id)
+        receipt.delete()
+        return Response({"message": "Customer Invoice Receipt deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+    except CustomerInvoiceReceipt.DoesNotExist:
+        return Response(
+            {"error": "Customer Invoice Receipt not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"An unexpected error occurred: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+

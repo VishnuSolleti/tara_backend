@@ -141,14 +141,39 @@ class Invoice(models.Model):
     def __str__(self):
         return f"Invoice: {self.invoice_number}"
 
-#
-# class PaymentDetail(models.Model):
-#     invoice = models.ForeignKey(Invoice, related_name='payments', on_delete=models.CASCADE)
-#     date = models.DateTimeField(auto_now_add=True)
-#     amount = models.FloatField()
-#     method = models.CharField(max_length=50)
-#     reference_number = models.CharField(max_length=50, null=True, blank=True)
-#
-#     def __str__(self):
-#         return f"Payment for Invoice #{self.invoice.invoice_number} - {self.method}"
+
+class CustomerInvoiceReceipt(models.Model):
+    TAX_DEDUCTED_CHOICES = [
+        ('no_tax', 'No Tax deducted'),
+        ('tds_income_tax', 'Yes, TDS (Income Tax)'),
+    ]
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('card', 'Card'),
+        ('bank_transfer', 'Bank Transfer'),
+    ]
+    invoice = models.ForeignKey(Invoice, related_name='customer_invoice_receipts', on_delete=models.CASCADE)
+    date = models.DateField(null=False, blank=False)
+    amount = models.FloatField()
+    method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES, default='cash')
+    reference_number = models.CharField(max_length=50, null=True, blank=True)
+    payment_number = models.IntegerField()
+    tax_deducted = models.CharField(
+        max_length=60,
+        choices=TAX_DEDUCTED_CHOICES,
+        default='no_tax'
+    )
+    amount_withheld = models.FloatField(null=True)
+
+    class Meta:
+        unique_together = ('invoice', 'payment_number')
+
+    def clean(self):
+        if self.tax_deducted == 'tds_income_tax' and self.amount_withheld is None:
+            raise ValidationError("Amount withheld must be specified if tax is deducted.")
+        if self.tax_deducted == 'no_tax' and self.amount_withheld is not None:
+            raise ValidationError("Amount withheld should be null if no tax is deducted.")
+
+    def __str__(self):
+        return f"Payment for Invoice #{self.invoice.invoice_number} - {self.method}"
 

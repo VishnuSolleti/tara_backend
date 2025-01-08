@@ -42,5 +42,13 @@ urlpatterns = [
 
     path('filter-invoices', filter_invoices, name='filter_invoices'),
 
+    path('receipt', create_customer_invoice_receipt, name='create_customer_invoice_receipt'),
+
+    path('receipt-get/', get_customer_invoice_receipts, name='get_customer_invoice_receipts'),
+
+    path('receipt-update/<int:receipt_id>/', update_customer_invoice_receipt, name='update_customer_invoice_receipt'),
+
+    path('receipt-delete/<int:receipt_id>/', delete_customer_invoice_receipt, name='delete_customer_invoice_receipt'),
+
 ]
 

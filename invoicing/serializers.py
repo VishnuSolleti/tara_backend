@@ -311,6 +311,27 @@ class InvoicingProfileInvoices(serializers.ModelSerializer):
         # Serialize the filtered invoices using the InvoicesSerializer
         return InvoicesSerializer(invoices, many=True).data
 
+class CustomerInvoiceReceiptSerializer(serializers.ModelSerializer):
+    def create(self, validated_data):
+        """
+        Create and return a new `InvoicingProfile` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `InvoicingProfile` instance, given the validated data.
+        """
+        [setattr(instance, k, v) for k, v in validated_data.items()]
+        instance.save()
+        return instance
+
+    class Meta:
+        model = CustomerInvoiceReceipt
+        fields = '__all__'
+
 
 class InvoiceSerializerData(serializers.ModelSerializer):
     item_details = serializers.ListField(
@@ -318,10 +339,27 @@ class InvoiceSerializerData(serializers.ModelSerializer):
         required=False,
         default=[],
     )
+    customer_invoice_receipts = CustomerInvoiceReceiptSerializer(many=True, required=False, default=[])
+
     class Meta:
         model = Invoice
         fields = '__all__'
 
+    def to_representation(self, instance):
+        """
+        Add the balance_due field to the response, which is the total amount minus the sum of amounts from customer_invoice_receipts.
+        """
+        representation = super().to_representation(instance)
+
+        # Calculate the sum of the amounts from customer_invoice_receipts
+        receipts = representation.get("customer_invoice_receipts", [])
+        total_received = sum([receipt["amount"] for receipt in receipts])
+
+        # Calculate balance due
+        balance_due = representation.get("total_amount", 0) - total_received
+        representation["balance_due"] = balance_due
+
+        return representation
 
 class InvoiceDataSerializer(serializers.ModelSerializer):
     item_details = serializers.ListField(
@@ -329,7 +367,24 @@ class InvoiceDataSerializer(serializers.ModelSerializer):
         required=False,
         default=[],
     )
+    customer_invoice_receipts = CustomerInvoiceReceiptSerializer(many=True, required=False, default=[])
+
     class Meta:
         model = Invoice
         fields = '__all__'
 
+    def to_representation(self, instance):
+        """
+        Add the balance_due field to the response, which is the total amount minus the sum of amounts from customer_invoice_receipts.
+        """
+        representation = super().to_representation(instance)
+
+        # Calculate the sum of the amounts from customer_invoice_receipts
+        receipts = representation.get("customer_invoice_receipts", [])
+        total_received = sum([receipt["amount"] for receipt in receipts])
+
+        # Calculate balance due
+        balance_due = representation.get("total_amount", 0) - total_received
+        representation["balance_due"] = balance_due
+
+        return representation
