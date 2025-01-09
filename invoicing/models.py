@@ -165,7 +165,10 @@ class Invoice(models.Model):
     place_of_supply = models.CharField(max_length=500, null=False, blank=False)
     billing_address = models.JSONField(default=dict, null=True, blank=True)
     shipping_address = models.JSONField(default=dict, null=True, blank=True)
-    item_details = models.JSONField(default=list, blank=True)
+    item_details = JSONField(
+        default=list,
+        blank=True
+    )
     total_amount = models.FloatField(null=True, blank=False)
     subtotal_amount = models.FloatField(null=True, blank=False)
     shipping_amount = models.FloatField(null=True, blank=False)
