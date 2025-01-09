@@ -3,6 +3,11 @@ from django.db import models
 from djongo.models import ArrayField, EmbeddedField, JSONField
 from user_management.models import User
 from django.core.exceptions import ValidationError
+from django.db import models
+from django.core.exceptions import ValidationError
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from datetime import date
 
 
 class BaseModel(models.Model):
@@ -102,46 +107,6 @@ class GoodsAndServices(models.Model):
         return f"{self.name} - GST Rate: {self.gst_rate}%"
 
 
-class Invoice(models.Model):
-    invoicing_profile = models.ForeignKey(InvoicingProfile, on_delete=models.CASCADE, null=True, related_name='invoices')
-    customer = models.CharField(max_length=200, null=False, blank=False)
-    terms = models.CharField(max_length=500, null=False, blank=False)
-    financial_year = models.CharField(max_length=50, null=False, blank=False)
-    invoice_number = models.CharField(max_length=50, null=False, blank=False)
-    format_version = models.IntegerField(null=False)
-    invoice_date = models.DateField(null=False, blank=False)
-    due_date = models.DateField(null=False, blank=False)
-    month = models.IntegerField(null=False, blank=False)
-    sales_person = models.CharField(max_length=60, null=True, blank=True)
-    order_number = models.CharField(max_length=60, null=True, blank=True)
-    place_of_supply = models.CharField(max_length=500, null=False, blank=False)
-    billing_address = models.JSONField(default=dict, null=True, blank=True)
-    shipping_address = models.JSONField(default=dict, null=True, blank=True)
-    item_details = JSONField(
-        default=list,
-        blank=True
-    )
-    total_amount = models.FloatField(null=True, blank=False)
-    subtotal_amount = models.FloatField(null=True, blank=False)
-    shipping_amount = models.FloatField(null=True, blank=False)
-    total_cgst_amount = models.FloatField(null=True, blank=False)
-    total_sgst_amount = models.FloatField(null=True, blank=False)
-    total_igst_amount = models.FloatField(null=True, blank=False)
-    pending_amount = models.FloatField(null=True, blank=False)
-    amount_invoiced = models.FloatField(null=True, blank=False)
-    payment_status = models.CharField(max_length=50, default="Pending", null=True, blank=True)
-    notes = models.CharField(max_length=500, null=True, blank=True)
-    terms_and_conditions = models.CharField(max_length=500, null=True, blank=True)
-    applied_tax = models.BooleanField(default=False)
-    shipping_tax = models.FloatField(null=True)
-    shipping_amount_with_tax = models.FloatField(null=True)
-    selected_gst_rate = models.FloatField(null=True)
-    invoice_status = models.CharField(max_length=60, null=False, blank=False)
-
-    def __str__(self):
-        return f"Invoice: {self.invoice_number}"
-
-
 class CustomerInvoiceReceipt(models.Model):
     TAX_DEDUCTED_CHOICES = [
         ('no_tax', 'No Tax deducted'),
@@ -152,7 +117,7 @@ class CustomerInvoiceReceipt(models.Model):
         ('card', 'Card'),
         ('bank_transfer', 'Bank Transfer'),
     ]
-    invoice = models.ForeignKey(Invoice, related_name='customer_invoice_receipts', on_delete=models.CASCADE)
+    invoice = models.ForeignKey('Invoice', related_name='customer_invoice_receipts', on_delete=models.CASCADE)
     date = models.DateField(null=False, blank=False)
     amount = models.FloatField()
     method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES, default='cash')
@@ -178,3 +143,69 @@ class CustomerInvoiceReceipt(models.Model):
     def __str__(self):
         return f"Payment for Invoice #{self.invoice.invoice_number} - {self.method}"
 
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)  # Save the current payment receipt
+
+        # After saving, update the invoice's payment status
+        self.invoice.update_payment_status()
+
+
+class Invoice(models.Model):
+    invoicing_profile = models.ForeignKey('InvoicingProfile', on_delete=models.CASCADE, null=True, related_name='invoices')
+    customer = models.CharField(max_length=200, null=False, blank=False)
+    terms = models.CharField(max_length=500, null=False, blank=False)
+    financial_year = models.CharField(max_length=50, null=False, blank=False)
+    invoice_number = models.CharField(max_length=50, null=False, blank=False)
+    format_version = models.IntegerField(null=False)
+    invoice_date = models.DateField(null=False, blank=False)
+    due_date = models.DateField(null=False, blank=False)
+    month = models.IntegerField(null=False, blank=False)
+    sales_person = models.CharField(max_length=60, null=True, blank=True)
+    order_number = models.CharField(max_length=60, null=True, blank=True)
+    place_of_supply = models.CharField(max_length=500, null=False, blank=False)
+    billing_address = models.JSONField(default=dict, null=True, blank=True)
+    shipping_address = models.JSONField(default=dict, null=True, blank=True)
+    item_details = models.JSONField(default=list, blank=True)
+    total_amount = models.FloatField(null=True, blank=False)
+    subtotal_amount = models.FloatField(null=True, blank=False)
+    shipping_amount = models.FloatField(null=True, blank=False)
+    total_cgst_amount = models.FloatField(null=True, blank=False)
+    total_sgst_amount = models.FloatField(null=True, blank=False)
+    total_igst_amount = models.FloatField(null=True, blank=False)
+    pending_amount = models.FloatField(null=True, blank=False)
+    amount_invoiced = models.FloatField(null=True, blank=False)
+    payment_status = models.CharField(max_length=50, default="Pending", null=True, blank=True)
+    notes = models.CharField(max_length=500, null=True, blank=True)
+    terms_and_conditions = models.CharField(max_length=500, null=True, blank=True)
+    applied_tax = models.BooleanField(default=False)
+    shipping_tax = models.FloatField(null=True)
+    shipping_amount_with_tax = models.FloatField(null=True)
+    selected_gst_rate = models.FloatField(null=True)
+    invoice_status = models.CharField(max_length=60, null=False, blank=False)
+
+    def __str__(self):
+        return f"Invoice: {self.invoice_number}"
+
+    def update_payment_status(self):
+        # Sum up all payments made
+        total_paid = sum(receipt.amount for receipt in self.customer_invoice_receipts.all())
+
+        # Check if the invoice is fully paid
+        if total_paid >= self.total_amount:
+            self.payment_status = "Paid"
+        elif total_paid > 0:
+            self.payment_status = "Partially Paid"
+        else:
+            self.payment_status = "Pending"
+
+        # Check if the invoice is overdue
+        if self.due_date < date.today() and self.payment_status != "Paid":
+            self.payment_status = "Overdue"
+
+        self.save()
+
+
+# Signals to automatically update the payment status after saving a payment receipt
+@receiver(post_save, sender=CustomerInvoiceReceipt)
+def update_invoice_payment_status(sender, instance, **kwargs):
+    instance.invoice.update_payment_status()
