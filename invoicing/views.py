@@ -1605,14 +1605,14 @@ def get_invoice_stats(request):
         invoices = Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id, financial_year=financial_year)
 
         # Calculate total revenue
-        total_revenue = invoices.aggregate(total=Sum('total_amount'))['total'] or 0
+        total_revenue = round(invoices.aggregate(total=Sum('total_amount'))['total'] or 0, 2)
 
         # Calculate today's revenue
-        today_revenue = invoices.filter(invoice_date=datetime.today()).aggregate(total=Sum('total_amount'))['total'] or 0
+        today_revenue = round(invoices.filter(invoice_date=datetime.today()).aggregate(total=Sum('total_amount'))['total'] or 0, 2)
 
         # Calculate revenue for this month
         current_month = datetime.today().month
-        revenue_this_month = invoices.filter(month=current_month).aggregate(total=Sum('total_amount'))['total'] or 0
+        revenue_this_month = round(invoices.filter(month=current_month).aggregate(total=Sum('total_amount'))['total'] or 0, 2)
 
         # Calculate revenue for last month
         last_month = current_month - 1 if current_month > 1 else 12
@@ -1621,7 +1621,8 @@ def get_invoice_stats(request):
             financial_year = f"{start_year - 1}-{str(start_year)[-2:]}"
 
         # Calculate revenue for the last month
-        revenue_last_month = calculate_revenue_last_month(invoicing_profile_id, financial_year, last_month)
+        revenue_last_month = round(calculate_revenue_last_month(invoicing_profile_id, financial_year, last_month), 2)
+
         # Calculate average revenue per day
         days_in_financial_year = get_days_in_financial_year(financial_year)
         current_year = datetime.now().year
@@ -1634,36 +1635,36 @@ def get_invoice_stats(request):
         average_revenue_per_day_on_total_revenue = round(total_revenue / days_in_financial_year, 2)
 
         # Average revenue per day for the current month
-        average_revenue_per_day_on_current_month = revenue_this_month / days_in_current_month
+        average_revenue_per_day_on_current_month = round(revenue_this_month / days_in_current_month, 2)
 
         # Calculate overdues
-
-        over_dues = Invoice.objects.filter(
+        over_dues = round(Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
             payment_status="Pending",
             due_date__lt=datetime.today().date()  # Filter invoices with due_date before today's date
         ).aggregate(
             total_due=Sum('total_amount')
-        ).get('total_due') or 0
+        ).get('total_due') or 0, 2)
 
         # Calculate dues for today
-        due_today = Invoice.objects.filter(
+        due_today = round(Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
             payment_status="Pending",
             due_date=datetime.today()
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        ).aggregate(total=Sum('total_amount'))['total'] or 0, 2)
 
         # Calculate dues within the next 30 days
-        due_within_30_days = Invoice.objects.filter(
+        due_within_30_days = round(Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
             payment_status="Pending",
             invoice_date__lte=datetime.today().date() + timedelta(days=30)
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        ).aggregate(total=Sum('total_amount'))['total'] or 0, 2)
+
         # Calculate total receivables
-        total_recievables = Invoice.objects.filter(
+        total_recievables = round(Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
             payment_status="Pending"
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        ).aggregate(total=Sum('total_amount'))['total'] or 0, 2)
 
         # Prepare the response data
         response_data = {
@@ -1672,6 +1673,7 @@ def get_invoice_stats(request):
             "revenue_this_month": revenue_this_month,
             "revenue_last_month": revenue_last_month,
             "average_revenue_per_day": average_revenue_per_day_on_total_revenue,
+            "average_revenue_per_day_current_month": average_revenue_per_day_on_current_month,
             "over_dues": over_dues,
             "due_today": due_today,
             "due_within_30_days": due_within_30_days,
@@ -1684,6 +1686,7 @@ def get_invoice_stats(request):
         # Return a response with the error message and status code 500 if something goes wrong
         error_message = str(e)
         return Response({"error": f"An error occurred: {error_message}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @swagger_auto_schema(
     method='get',
