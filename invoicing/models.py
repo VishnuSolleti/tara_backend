@@ -164,6 +164,7 @@ class CustomerInvoiceReceipt(models.Model):
         default='no_tax'
     )
     amount_withheld = models.FloatField(null=True)
+    comments = models.TextField(blank=True)
 
     class Meta:
         unique_together = ('invoice', 'payment_number')
