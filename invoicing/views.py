@@ -27,6 +27,9 @@ from calendar import isleap, monthrange
 from django.db.models import Sum
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
+from django.db.models import Case, When, F, Sum, Prefetch, FloatField
+from django.utils.timezone import now
+
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -1640,31 +1643,55 @@ def get_invoice_stats(request):
         # Calculate overdues
         over_dues = round(Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
-            payment_status="Pending",
             due_date__lt=datetime.today().date()  # Filter invoices with due_date before today's date
+        ).exclude(
+            payment_status__in=["NA", "Paid", "Written Off", "Partially Written Off"]  # Exclude unwanted statuses
         ).aggregate(
-            total_due=Sum('total_amount')
+            total_due=Sum('pending_amount')
         ).get('total_due') or 0, 2)
 
         # Calculate dues for today
         due_today = round(Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
-            payment_status="Pending",
             due_date=datetime.today()
-        ).aggregate(total=Sum('total_amount'))['total'] or 0, 2)
+        ).exclude(
+            payment_status__in=["NA", "Paid", "Written Off", "Partially Written Off"]
+        ).aggregate(
+            total=Sum('pending_amount')
+        )['total'] or 0, 2)
 
         # Calculate dues within the next 30 days
         due_within_30_days = round(Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
-            payment_status="Pending",
-            invoice_date__lte=datetime.today().date() + timedelta(days=30)
-        ).aggregate(total=Sum('total_amount'))['total'] or 0, 2)
+            invoice_date__lte=datetime.today().date() + timedelta(days=30),  # Invoices due within the next 30 days
+        ).exclude(
+            payment_status__in=["NA", "Paid", "Written Off", "Partially Written Off"]  # Exclude unwanted statuses
+        ).aggregate(
+            total=Sum('pending_amount')
+        ).get('total') or 0, 2)
 
-        # Calculate total receivables
+        # Calculate total receivables (excluding unwanted statuses)
         total_recievables = round(Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
-            payment_status="Pending"
-        ).aggregate(total=Sum('total_amount'))['total'] or 0, 2)
+        ).exclude(
+            payment_status__in=["NA", "Paid", "Written Off", "Partially Written Off"]  # Exclude unwanted statuses
+        ).aggregate(
+            total=Sum('total_amount')
+        ).get('total') or 0, 2)
+
+        try:
+            bad_debt = round(
+                CustomerInvoiceReceipt.objects.filter(
+                    invoice__invoicing_profile_id=invoicing_profile_id,
+                    method="wave off"
+                ).aggregate(
+                    total_wave_off_amount=Sum('amount')
+                )['total_wave_off_amount'] or 0, 2
+            )
+            print(bad_debt)
+        except Exception as e:
+            print(f"Error occurred: {e}")
+
 
         # Prepare the response data
         response_data = {
@@ -1678,6 +1705,7 @@ def get_invoice_stats(request):
             "due_today": due_today,
             "due_within_30_days": due_within_30_days,
             "total_recievables": total_recievables,
+            "bad_debt": bad_debt,
         }
 
         return Response(response_data)
@@ -1731,7 +1759,7 @@ def get_invoice_stats(request):
             required=True,
             enum=["total_revenue", "today_revenue", "revenue_this_month", "revenue_last_month",
                   "average_revenue_per_day", "over_dues", "due_today", "due_within_30_days",
-                  "total_recievables"]
+                  "total_recievables", "bad_debt"]
         ),
         openapi.Parameter(
             'financial_year',
@@ -1809,6 +1837,11 @@ def get_invoices(request):
             filtered_invoices = Invoice.objects.filter(
                 invoicing_profile_id=invoicing_profile_id,
                 payment_status="Pending"
+            )
+        elif filter_type == "bad_debt":
+            filtered_invoices = Invoice.objects.filter(
+                invoicing_profile_id=invoicing_profile_id,
+                payment_status__in=['Written Off', 'Partially Written Off']
             )
 
         else:
@@ -1988,7 +2021,7 @@ def latest_invoice_id(request, invoicing_profile_id):
         openapi.Parameter('invoice_number', openapi.IN_QUERY, description="Invoice number", type=openapi.TYPE_STRING, required=False),
         openapi.Parameter('customer', openapi.IN_QUERY, description="Customer name or ID", type=openapi.TYPE_STRING, required=False),
         openapi.Parameter('total_amount', openapi.IN_QUERY, description="Total amount", type=openapi.TYPE_NUMBER, required=False),
-        openapi.Parameter('pending_amount', openapi.IN_QUERY, description="Pending amount", type=openapi.TYPE_NUMBER, required=False),
+        openapi.Parameter('invoice_status', openapi.IN_QUERY, description="Invoice status", type=openapi.TYPE_NUMBER, required=False),
     ]
 )
 @api_view(['GET'])  # Keeping GET method
@@ -2020,6 +2053,7 @@ def filter_invoices(request):
         customer = request.query_params.get('customer')
         total_amount = request.query_params.get('total_amount')
         pending_amount = request.query_params.get('pending_amount')
+        invoice_status = request.query_params.get('invoice_status')
 
         # Apply the filters based on the query parameters
         if invoice_id:
@@ -2065,12 +2099,11 @@ def filter_invoices(request):
             except ValueError:
                 return Response({"error": "Invalid pending_amount. Expected a numeric value."},
                                  status=status.HTTP_400_BAD_REQUEST)
-
+        if invoice_status:
+            invoices = invoices.filter(invoice_status=invoice_status)
         # Serialize the filtered invoice data
         serialized_invoices = InvoiceDataSerializer(invoices, many=True).data
         return Response(serialized_invoices, status=status.HTTP_200_OK)
-
-
     except Exception as e:
         return Response(
             {"error": f"An error occurred: {str(e)}"},
@@ -2272,5 +2305,123 @@ def delete_customer_invoice_receipt(request, receipt_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+@swagger_auto_schema(
+    method='put',
+    operation_description="Mark an invoice as written off or partially written off.",
+    tags=["Invoices"],
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            "invoice_id": openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description="ID of the invoice to be written off"
+            )
+        },
+        required=[]  # No request body fields are required as invoice_id comes from the URL
+    ),
+    responses={
+        200: openapi.Response(
+            "Wave-off processed successfully.",
+            examples={
+                "application/json": {
+                    "message": "Wave-off processed successfully.",
+                    "wave_off_receipt": {
+                        "id": 6,
+                        "date": "2025-01-10",
+                        "amount": 600.0,
+                        "method": "wave off",
+                        "payment_number": 3
+                    }
+                }
+            }
+        ),
+        404: openapi.Response(
+            "Invoice not found.",
+            examples={
+                "application/json": {
+                    "error": "Invoice not found."
+                }
+            }
+        ),
+        400: openapi.Response(
+            "Bad request.",
+            examples={
+                "application/json": {
+                    "error": "The invoice is already fully paid or written off."
+                }
+            }
+        )
+    },
+    manual_parameters=[
+        openapi.Parameter(
+            'Authorization',
+            openapi.IN_HEADER,
+            description="Bearer <JWT Token>",
+            type=openapi.TYPE_STRING,
+            required=True
+        )
+    ]
+)
+@api_view(['PUT'])
+def wave_off_invoice(request, invoice_id):
+    """
+    Handle the wave-off action for an invoice.
+    """
+    try:
+        invoice = Invoice.objects.get(id=invoice_id)
+        existing_receipts = invoice.customer_invoice_receipts.all()
 
+        # Calculate the total paid amount from existing receipts
+        total_paid = sum(receipt.amount for receipt in existing_receipts)
 
+        # Calculate the pending amount
+        pending_amount = invoice.total_amount - total_paid
+
+        # Determine the amount to wave off
+        if not existing_receipts:
+            # No previous payments; full wave-off
+            wave_off_amount = invoice.total_amount
+            payment_number = 1
+        else:
+            # Partial wave-off of the pending amount
+            wave_off_amount = pending_amount
+            payment_number = existing_receipts.count() + 1
+
+        if wave_off_amount <= 0:
+            return Response({
+                "error": "The invoice is already fully paid"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create a new receipt for wave-off
+        wave_off_receipt = CustomerInvoiceReceipt.objects.create(
+            invoice=invoice,
+            date=now().date(),
+            amount=wave_off_amount,
+            method="wave off",
+            reference_number="",
+            payment_number=payment_number,
+            tax_deducted="No",
+            amount_withheld=0,
+            comments="No comments",
+        )
+
+        # Update invoice status and pending amount
+        invoice.pending_amount = max(0, pending_amount - wave_off_amount)
+        invoice.payment_status = "Written Off" if total_paid == 0 else "Partially Written Off"
+        invoice.save()
+
+        return Response({
+            "message": "Wave-off processed successfully.",
+            "wave_off_receipt": {
+                "id": wave_off_receipt.id,
+                "date": wave_off_receipt.date,
+                "amount": wave_off_receipt.amount,
+                "method": wave_off_receipt.method,
+                "payment_number": wave_off_receipt.payment_number,
+            }
+        }, status=status.HTTP_200_OK)
+
+    except Invoice.DoesNotExist:
+        return Response({"error": "Invoice not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

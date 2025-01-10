@@ -116,6 +116,7 @@ class CustomerInvoiceReceipt(models.Model):
         ('cash', 'Cash'),
         ('card', 'Card'),
         ('bank_transfer', 'Bank Transfer'),
+        ('wave off', 'wave off')
     ]
     invoice = models.ForeignKey('Invoice', related_name='customer_invoice_receipts', on_delete=models.CASCADE)
     date = models.DateField(null=False, blank=False)
@@ -193,6 +194,12 @@ class Invoice(models.Model):
         # Sum up all payments made
         total_paid = sum(receipt.amount for receipt in self.customer_invoice_receipts.all())
 
+        # Calculate the pending amount
+        self.pending_amount = self.total_amount - total_paid
+
+        # Ensure pending amount is not negative (in case of overpayments)
+        self.pending_amount = max(self.pending_amount, 0)
+
         # Check if the invoice is fully paid
         if total_paid >= self.total_amount:
             self.payment_status = "Paid"
@@ -205,6 +212,7 @@ class Invoice(models.Model):
         if self.due_date < date.today() and self.payment_status != "Paid":
             self.payment_status = "Overdue"
 
+        # Save the updates to the database
         self.save()
 
 
