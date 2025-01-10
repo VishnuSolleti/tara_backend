@@ -1655,7 +1655,7 @@ def get_invoice_stats(request):
             invoicing_profile_id=invoicing_profile_id,
             due_date=datetime.today()
         ).exclude(
-            payment_status__in=["NA", "Paid", "Written Off", "Partially Written Off"]
+            payment_status__in=["Paid", "Written Off", "Partially Written Off"]
         ).aggregate(
             total=Sum('pending_amount')
         )['total'] or 0, 2)
@@ -1665,7 +1665,7 @@ def get_invoice_stats(request):
             invoicing_profile_id=invoicing_profile_id,
             invoice_date__lte=datetime.today().date() + timedelta(days=30),  # Invoices due within the next 30 days
         ).exclude(
-            payment_status__in=["NA", "Paid", "Written Off", "Partially Written Off"]  # Exclude unwanted statuses
+            payment_status__in=["Paid", "Written Off", "Partially Written Off"]  # Exclude unwanted statuses
         ).aggregate(
             total=Sum('pending_amount')
         ).get('total') or 0, 2)
@@ -1674,7 +1674,7 @@ def get_invoice_stats(request):
         total_recievables = round(Invoice.objects.filter(
             invoicing_profile_id=invoicing_profile_id,
         ).exclude(
-            payment_status__in=["NA", "Paid", "Written Off", "Partially Written Off"]  # Exclude unwanted statuses
+            payment_status__in=["Paid", "Written Off", "Partially Written Off"]  # Exclude unwanted statuses
         ).aggregate(
             total=Sum('total_amount')
         ).get('total') or 0, 2)
