@@ -5,7 +5,7 @@ from user_management.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from datetime import date
 
@@ -230,4 +230,11 @@ class Invoice(models.Model):
 # Signals to automatically update the payment status after saving a payment receipt
 @receiver(post_save, sender=CustomerInvoiceReceipt)
 def update_invoice_payment_status(sender, instance, **kwargs):
+    instance.invoice.update_payment_status()
+
+@receiver(post_delete, sender=CustomerInvoiceReceipt)
+def update_invoice_payment_status_on_delete(sender, instance, **kwargs):
+    """
+    Triggered when a CustomerInvoiceReceipt is deleted.
+    """
     instance.invoice.update_payment_status()
