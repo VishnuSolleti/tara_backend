@@ -276,16 +276,6 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
             'goods_and_services',  # Nested goods and services
         ]
 
-
-class InvoicesSerializer(serializers.ModelSerializer):
-    billing_address = serializers.JSONField()  # Properly serialize as JSON
-    shipping_address = serializers.JSONField()
-    item_details = serializers.ListField()
-
-    class Meta:
-        model = Invoice
-        exclude = ['invoicing_profile']  # Ensuring all fields from the Invoice model are serialized
-
 # InvoicingProfile Serializer
 class InvoicingProfileInvoices(serializers.ModelSerializer):
     invoices = serializers.SerializerMethodField()  # Nested serializer for invoices
@@ -372,6 +362,32 @@ class InvoiceDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invoice
         fields = '__all__'
+
+    def to_representation(self, instance):
+        """
+        Add the balance_due field to the response, which is the total amount minus the sum of amounts from customer_invoice_receipts.
+        """
+        representation = super().to_representation(instance)
+
+        # Calculate the sum of the amounts from customer_invoice_receipts
+        receipts = representation.get("customer_invoice_receipts", [])
+        total_received = sum([receipt["amount"] for receipt in receipts])
+
+        # Calculate balance due
+        balance_due = representation.get("total_amount", 0) - total_received
+        representation["balance_due"] = balance_due
+
+        return representation
+
+class InvoicesSerializer(serializers.ModelSerializer):
+    billing_address = serializers.JSONField()  # Properly serialize as JSON
+    shipping_address = serializers.JSONField()
+    item_details = serializers.ListField()
+    customer_invoice_receipts = CustomerInvoiceReceiptSerializer(many=True, required=False, default=[])
+
+    class Meta:
+        model = Invoice
+        exclude = ['invoicing_profile']  # Ensuring all fields from the Invoice model are serialized
 
     def to_representation(self, instance):
         """
