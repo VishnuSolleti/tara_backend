@@ -2385,25 +2385,39 @@ def wave_off_invoice(request, invoice_id):
         else:
             # Partial wave-off of the pending amount
             wave_off_amount = pending_amount
-            payment_number = existing_receipts.count() + 1
+            # Get the maximum payment number from existing receipts
+            payment_number = existing_receipts.aggregate(max_payment_number=models.Max('payment_number'))[
+                                 'max_payment_number'] or 0
+            payment_number += 1
 
         if wave_off_amount <= 0:
             return Response({
                 "error": "The invoice is already fully paid"
             }, status=status.HTTP_400_BAD_REQUEST)
 
-        # Create a new receipt for wave-off
-        wave_off_receipt = CustomerInvoiceReceipt.objects.create(
-            invoice=invoice,
-            date=now().date(),
-            amount=wave_off_amount,
-            method="wave off",
-            reference_number="",
-            payment_number=payment_number,
-            tax_deducted="No",
-            amount_withheld=0,
-            comments="No comments",
-        )
+        # Prepare data for validation
+        data = {
+            "invoice": invoice.id,  # Ensure you pass the foreign key as its ID
+            "date": datetime.now().date(),
+            "amount": wave_off_amount,
+            "method": "wave off",
+            "reference_number": "",
+            "payment_number": payment_number,
+            "tax_deducted": "no_tax",
+            "amount_withheld": 0,
+            "comments": "No comments",
+        }
+
+        # Validate the data using the serializer
+        serializer = CustomerInvoiceReceiptSerializer(data=data)
+        if not serializer.is_valid():
+            return Response({
+                "error": "Validation failed",
+                "details": serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Save the validated data
+        wave_off_receipt = serializer.save()
 
         # Update invoice status and pending amount
         invoice.pending_amount = max(0, pending_amount - wave_off_amount)
@@ -2412,13 +2426,7 @@ def wave_off_invoice(request, invoice_id):
 
         return Response({
             "message": "Wave-off processed successfully.",
-            "wave_off_receipt": {
-                "id": wave_off_receipt.id,
-                "date": wave_off_receipt.date,
-                "amount": wave_off_receipt.amount,
-                "method": wave_off_receipt.method,
-                "payment_number": wave_off_receipt.payment_number,
-            }
+            "wave_off_receipt": serializer.data
         }, status=status.HTTP_200_OK)
 
     except Invoice.DoesNotExist:
