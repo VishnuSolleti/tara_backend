@@ -191,6 +191,17 @@ class Invoice(models.Model):
         return f"Invoice: {self.invoice_number}"
 
     def update_payment_status(self):
+        # Handle the different cases for invoice_status
+        if self.invoice_status in ["Draft", "Pending Approval", "Resubmission"]:
+            # If the invoice is in any of these statuses, set payment_status to "NA"
+            self.payment_status = "NA"
+            self.save()
+            return
+
+        # If the invoice is Approved, set the payment_status to Pending
+        if self.invoice_status == "Approved":
+            self.payment_status = "Pending"
+
         # Sum up all payments made
         total_paid = sum(receipt.amount for receipt in self.customer_invoice_receipts.all())
 
