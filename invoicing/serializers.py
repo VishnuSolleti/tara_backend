@@ -139,6 +139,7 @@ class PaymentDetailSerializer(serializers.ModelSerializer):
 
 
 class InvoiceSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
     invoicing_profile = serializers.PrimaryKeyRelatedField(
         queryset=InvoicingProfile.objects.all()
     )
