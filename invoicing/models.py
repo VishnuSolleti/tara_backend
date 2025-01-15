@@ -202,24 +202,42 @@ class Invoice(models.Model):
         if self.invoice_status == "Approved":
             self.payment_status = "Pending"
 
-        # Sum up all payments made
+        # Check if the total amount has changed
+        previous_total_amount = self.__class__.objects.get(id=self.id).total_amount
         total_paid = sum(receipt.amount for receipt in self.customer_invoice_receipts.all())
 
-        # Calculate the pending amount
-        self.pending_amount = self.total_amount - total_paid
+        # If the total amount has increased, adjust the pending amount and payment status
+        if self.total_amount > previous_total_amount:
+            # If the total amount has increased, update the pending amount
+            self.pending_amount = self.total_amount - total_paid
 
-        # Ensure pending amount is not negative (in case of overpayments)
-        self.pending_amount = max(self.pending_amount, 0)
+            # If the pending amount is 0, mark it as Paid
+            if self.pending_amount == 0:
+                self.payment_status = "Paid"
+            # If there's still a balance to be paid, mark it as Partially Paid
+            elif self.pending_amount > 0:
+                self.payment_status = "Partially Paid"
 
-        # Check if the invoice is fully paid
-        if total_paid >= self.total_amount:
-            self.payment_status = "Paid"
-        elif total_paid > 0:
-            self.payment_status = "Partially Paid"
+            # If the due date has passed and the invoice is not fully paid, mark as Overdue
+            if self.due_date < date.today() and self.payment_status != "Paid":
+                self.payment_status = "Overdue"
+
+        # If the invoice amount remains the same or decreased, calculate the pending amount
         else:
-            self.payment_status = "Pending"
+            self.pending_amount = self.total_amount - total_paid
 
-        # Check if the invoice is overdue
+            # Ensure pending amount is not negative (in case of overpayments)
+            self.pending_amount = max(self.pending_amount, 0)
+
+            # Check if the invoice is fully paid
+            if total_paid >= self.total_amount:
+                self.payment_status = "Paid"
+            elif total_paid > 0:
+                self.payment_status = "Partially Paid"
+            else:
+                self.payment_status = "Pending"
+
+        # Check if the invoice is overdue (only if due_date has passed and payment is not fully made)
         if self.due_date < date.today() and self.payment_status != "Paid":
             self.payment_status = "Overdue"
 

@@ -2400,7 +2400,7 @@ def wave_off_invoice(request, invoice_id):
             "invoice": invoice.id,  # Ensure you pass the foreign key as its ID
             "date": datetime.now().date(),
             "amount": wave_off_amount,
-            "method": "wave off",
+            "method": "written off",
             "reference_number": "",
             "payment_number": payment_number,
             "tax_deducted": "no_tax",
