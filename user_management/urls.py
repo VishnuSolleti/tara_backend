@@ -4,6 +4,13 @@ from .views import *
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
+    path('permissions/', views.custom_permission_list_create, name='custom_permission_list_create'),
+    path('permissions/<int:pk>/', views.custom_permission_retrieve_update_destroy,
+         name='custom_permission_retrieve_update_destroy'),
+    # CRUD for CustomGroup
+    path('groups/', views.custom_group_list_create, name='custom_group_list_create'),
+    path('groups/<int:pk>/', views.custom_group_retrieve_update_destroy, name='custom_group_retrieve_update_destroy'),
+
     path('register/', views.user_registration, name='user_registration'),
     path('users/', users_creation, name='users_creation'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),

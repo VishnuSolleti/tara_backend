@@ -2,7 +2,9 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from .serializers import UserRegistrationSerializer, UsersKYCSerializer, UserActivationSerializer, FirmKYCSerializer
+from .serializers import (UserRegistrationSerializer, UsersKYCSerializer, UserActivationSerializer,
+                          FirmKYCSerializer,CustomPermissionSerializer, CustomGroupSerializer)
+
 from .serializers import *
 from password_generator import PasswordGenerator
 from drf_yasg.utils import swagger_auto_schema
@@ -15,7 +17,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from .models import User, UserKYC, FirmKYC
+from .models import User, UserKYC, FirmKYC, CustomPermission, CustomGroup, UserGroup
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
@@ -33,6 +35,10 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import NotFound
 from django.contrib.auth.password_validation import validate_password
 from django.http import Http404
+from .permissions import GroupPermission, has_group_permission
+from django.contrib.auth.decorators import permission_required
+
+
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -74,6 +80,84 @@ def authenticate():
     }
     response = requests.request("POST", url, headers=headers, data=payload)
     return response.json()['access_token']
+
+
+@api_view(['GET', 'POST'])
+def custom_permission_list_create(request):
+    if request.method == 'GET':
+        permissions = CustomPermission.objects.all()
+        serializer = CustomPermissionSerializer(permissions, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = CustomPermissionSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def custom_permission_retrieve_update_destroy(request, pk):
+    try:
+        permission = CustomPermission.objects.get(pk=pk)
+    except CustomPermission.DoesNotExist:
+        return Response({"error": "Permission not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = CustomPermissionSerializer(permission)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = CustomPermissionSerializer(permission, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        permission.delete()
+        return Response({"message": "Permission deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+# CRUD for CustomGroup
+
+@api_view(['GET', 'POST'])
+def custom_group_list_create(request):
+    if request.method == 'GET':
+        groups = CustomGroup.objects.all()
+        serializer = CustomGroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = CustomGroupSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def custom_group_retrieve_update_destroy(request, pk):
+    try:
+        group = CustomGroup.objects.get(pk=pk)
+    except CustomGroup.DoesNotExist:
+        return Response({"error": "Group not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = CustomGroupSerializer(group)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = CustomGroupSerializer(group, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        group.delete()
+        return Response({"message": "Group deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
 # User Registration
@@ -1387,7 +1471,8 @@ class ServicesMasterDataDetailAPIView(APIView):
 
 
 class VisaApplicationDetailAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [GroupPermission]
+    permission_required = "VS Task View"
 
     @swagger_auto_schema(
         operation_description="Retrieve details of a specific visa application by ID.",
@@ -1395,7 +1480,16 @@ class VisaApplicationDetailAPIView(APIView):
         responses={
             200: "Visa application details retrieved successfully.",
             404: "Visa application not found."
-        }
+        },
+        manual_parameters=[
+                    openapi.Parameter(
+                        'Authorization',
+                        openapi.IN_HEADER,
+                        description="Bearer <JWT Token>",
+                        type=openapi.TYPE_STRING,
+                        required=True,
+                    ),
+                ]
     )
     def get(self, request, pk):
         try:
@@ -1461,6 +1555,7 @@ class VisaApplicationDetailAPIView(APIView):
         except VisaApplications.DoesNotExist:
             return Response({"error": "Visa application not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    permission_required = "VS Task Edit"
     @swagger_auto_schema(
         operation_description="Update an existing visa application by ID.",
         tags=["VisaApplication"],
@@ -1483,6 +1578,8 @@ class VisaApplicationDetailAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    # For DELETE
+    permission_required = "VS Task Delete"  # Define the required permission for DELETE method
     @swagger_auto_schema(
         operation_description="Delete a visa application by ID.",
         tags=["VisaApplication"],
@@ -1598,7 +1695,8 @@ class VisaApplicationDetailAPIView(APIView):
     }
 )
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([AllowAny])  # Add 'GroupPermission' if necessary for handling role-based permission
+@has_group_permission('VS Task Create')
 def manage_visa_applications(request):
     try:
         # Authorization check
@@ -1693,6 +1791,7 @@ def manage_visa_applications(request):
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@has_group_permission('VS Task View')
 def get_visa_clients_users_list(request):
     try:
         # Check if the user is a ServiceProvider_Admin with the correct type

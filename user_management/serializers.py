@@ -73,6 +73,19 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 
+class CustomPermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomPermission
+        fields = ['id', 'codename', 'name']
+
+class CustomGroupSerializer(serializers.ModelSerializer):
+    permissions = CustomPermissionSerializer(many=True)
+
+    class Meta:
+        model = CustomGroup
+        fields = ['id', 'name', 'permissions']
+
+
 class UserActivationSerializer(serializers.Serializer):
     token = serializers.CharField()
 

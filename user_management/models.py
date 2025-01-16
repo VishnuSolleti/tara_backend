@@ -39,6 +39,21 @@ class EncryptedField(models.Field):
             print(f"Decryption failed with error: {str(e)}")
             return None
 
+
+class CustomPermission(models.Model):
+    codename = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
+
+class CustomGroup(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    permissions = models.ManyToManyField(CustomPermission, related_name='groups')
+
+    def __str__(self):
+        return self.name
+
 class CustomAccountManager(BaseUserManager):
     def create_user(self, email=None, password=None, mobile_number=None, created_by=None, **extra_fields):
         # Normalize email if provided
@@ -110,7 +125,7 @@ USER_ROLE_CHOICES = [
 ]
 
 
-class User(AbstractBaseUser, PermissionsMixin):
+class User(AbstractBaseUser):
     USER_TYPE_CHOICES = [
         ('Individual', 'Individual'),
         ('CA', 'Chartered Accountant Firm'),
@@ -155,6 +170,21 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email_or_mobile or "User"
+
+
+class UserGroup(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    group = models.ForeignKey(CustomGroup, on_delete=models.CASCADE)
+
+    # Optional: Track the date when the user was added to the group
+    added_on = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # This will make sure each user can only be assigned to a group once
+        unique_together = ('user', 'group')
+
+    def __str__(self):
+        return f"{self.user.email} - {self.group.name}"
 
 
 class UserKYC(models.Model):

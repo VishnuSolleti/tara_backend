@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
+from user_management.models import CustomGroup, CustomPermission, UserGroup
 
 
 User = get_user_model()  # Fetch the custom user model
@@ -59,16 +60,29 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Extract the date from created_on
         created_on_date = user.date_joined.date()
 
+        # Retrieve the user's groups and associated permissions
+        user_groups = UserGroup.objects.filter(user=user).select_related('group')
+
+        if user_groups.exists():
+            group_names = [ug.group.name for ug in user_groups]
+            permissions = CustomPermission.objects.filter(groups__in=[ug.group for ug in user_groups]).distinct()
+            permission_codenames = [perm.codename for perm in permissions]
+        else:
+            group_names = []  # No groups assigned
+            permission_codenames = []  # No permissions assigned
+
         # Customize the response data
         data = {
             'id': user.id,
             'email': user.email,
             'mobile_number': user.mobile_number,
-            'name': user.first_name + ' '+user.last_name,
+            'name': user.first_name + ' ' + user.last_name,
             'created_on': created_on_date,
             'user_type': user.user_type,
             'user_role': user.user_role,
             'user_kyc': user.user_kyc,
+            'user_groups': group_names,
+            'permissions': permission_codenames,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }
