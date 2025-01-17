@@ -1683,7 +1683,7 @@ def get_invoice_stats(request):
             bad_debt = round(
                 CustomerInvoiceReceipt.objects.filter(
                     invoice__invoicing_profile_id=invoicing_profile_id,
-                    method="wave off"
+                    method="written off"
                 ).aggregate(
                     total_wave_off_amount=Sum('amount')
                 )['total_wave_off_amount'] or 0, 2

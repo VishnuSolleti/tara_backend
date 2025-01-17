@@ -116,7 +116,7 @@ class CustomerInvoiceReceipt(models.Model):
         ('cash', 'Cash'),
         ('card', 'Card'),
         ('bank_transfer', 'Bank Transfer'),
-        ('wave off', 'wave off')
+        ('written off', 'written off')
     ]
     invoice = models.ForeignKey('Invoice', related_name='customer_invoice_receipts', on_delete=models.CASCADE)
     date = models.DateField(null=False, blank=False)
