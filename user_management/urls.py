@@ -10,6 +10,8 @@ urlpatterns = [
     # CRUD for CustomGroup
     path('groups/', views.custom_group_list_create, name='custom_group_list_create'),
     path('groups/<int:pk>/', views.custom_group_retrieve_update_destroy, name='custom_group_retrieve_update_destroy'),
+    # Add Permission to the Group
+    path('groups/<int:group_id>/permissions/', views.assign_permissions_to_group, name='assign_permissions_to_group'),
 
     # Permission Assignment
     path('user-group/assign/', assign_group_with_permissions, name='assign_group_with_permissions'),

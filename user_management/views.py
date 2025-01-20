@@ -161,6 +161,34 @@ def custom_group_retrieve_update_destroy(request, pk):
 
 
 @api_view(['POST'])
+def assign_permissions_to_group(request, group_id):
+    """
+    Assign permissions to a group.
+    """
+    try:
+        group = CustomGroup.objects.get(id=group_id)
+    except CustomGroup.DoesNotExist:
+        return Response({"error": "Group not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'POST':
+        permission_ids = request.data.get('permissions', [])
+        if not isinstance(permission_ids, list):
+            return Response({"error": "'permissions' must be a list of IDs."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Add permissions to the group
+        try:
+            permissions = CustomPermission.objects.filter(id__in=permission_ids)
+            group.permissions.set(permissions)  # Replaces existing permissions with the new ones
+            return Response(
+                {"message": f"Permissions successfully assigned to group '{group.name}'."},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+@api_view(['POST'])
 def assign_group_with_permissions(request):
     """
     Assign one or more groups to a user with optional customization of permissions.
