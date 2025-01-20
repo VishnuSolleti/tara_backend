@@ -85,6 +85,36 @@ class CustomGroupSerializer(serializers.ModelSerializer):
         model = CustomGroup
         fields = ['id', 'name', 'permissions']
 
+class CustomGroupSerializerData(serializers.ModelSerializer):
+    class Meta:
+        model = CustomGroup
+        fields = ['id', 'name']
+
+
+class UserGroupSerializer(serializers.ModelSerializer):
+    group = serializers.JSONField(required=False)
+    custom_permissions = CustomPermissionSerializer(many=True, required=False)
+
+    class Meta:
+        model = UserGroup
+        fields = ['id', 'user', 'group', 'custom_permissions', 'added_on']
+
+    def create(self, validated_data):
+        """
+        Create and return a new `InvoicingProfile` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `InvoicingProfile` instance, given the validated data.
+        """
+        [setattr(instance, k, v) for k, v in validated_data.items()]
+        instance.save()
+        return instance
+
 
 class UserActivationSerializer(serializers.Serializer):
     token = serializers.CharField()

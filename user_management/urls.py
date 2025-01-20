@@ -11,6 +11,12 @@ urlpatterns = [
     path('groups/', views.custom_group_list_create, name='custom_group_list_create'),
     path('groups/<int:pk>/', views.custom_group_retrieve_update_destroy, name='custom_group_retrieve_update_destroy'),
 
+    # Permission Assignment
+    path('user-group/assign/', assign_group_with_permissions, name='assign_group_with_permissions'),
+
+    path('user-group/<int:user_group_id>/permissions/', update_group_permissions, name='update_group_permissions'),
+    path('user-group/<int:user_id>', get_user_group_permissions, name='get_user_group_permissions'),
+
     path('register/', views.user_registration, name='user_registration'),
     path('users/', users_creation, name='users_creation'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),

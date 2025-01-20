@@ -60,16 +60,19 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Extract the date from created_on
         created_on_date = user.date_joined.date()
 
-        # Retrieve the user's groups and associated permissions
-        user_groups = UserGroup.objects.filter(user=user).select_related('group')
+        # Retrieve the user's group
+        try:
+            user_group = UserGroup.objects.get(user=user)  # Fetch a single UserGroup instance
+        except UserGroup.DoesNotExist:
+            user_group = None
 
-        if user_groups.exists():
-            group_names = [ug.group.name for ug in user_groups]
-            permissions = CustomPermission.objects.filter(groups__in=[ug.group for ug in user_groups]).distinct()
-            permission_codenames = [perm.codename for perm in permissions]
+        if user_group:
+            # Retrieve the user's groups and associated permissions
+            group_names = [group.get('name') for group in user_group.group if 'name' in group]
+            associated_services = list(user_group.custom_permissions.values_list('name', flat=True).distinct())
         else:
             group_names = []  # No groups assigned
-            permission_codenames = []  # No permissions assigned
+            associated_services = []  # No permissions assigned
 
         # Customize the response data
         data = {
@@ -82,7 +85,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'user_role': user.user_role,
             'user_kyc': user.user_kyc,
             'user_groups': group_names,
-            'permissions': permission_codenames,
+            'associated_services': associated_services,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }

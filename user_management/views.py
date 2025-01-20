@@ -160,6 +160,119 @@ def custom_group_retrieve_update_destroy(request, pk):
         return Response({"message": "Group deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['POST'])
+def assign_group_with_permissions(request):
+    """
+    Assign one or more groups to a user with optional customization of permissions.
+    """
+    user_id = request.data.get('user')
+    group_ids = request.data.get('groups', [])
+    custom_permissions_ids = request.data.get('custom_permissions', [])
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Fetch the groups by their IDs
+    groups = CustomGroup.objects.filter(id__in=group_ids)
+    if not groups.exists():
+        return Response({"error": "Some groups not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Create or get UserGroup for each group
+    user_group = UserGroup.objects.create(user=user)
+
+    li=[{"id": group.id, "name": group.name} for group in groups]
+    print(li)
+
+    # Assign the group names to the user group
+    user_group.group = [{"id": group.id, "name": group.name} for group in groups]
+
+    # Set permissions
+    if custom_permissions_ids:
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if not custom_permissions.exists():
+            return Response({"error": "Invalid custom permissions provided"}, status=status.HTTP_400_BAD_REQUEST)
+        user_group.custom_permissions.set(custom_permissions)
+    else:
+        # Default to the group's permissions if no custom permissions are provided
+        default_permissions = CustomPermission.objects.filter(group__in=groups)
+        user_group.custom_permissions.set(default_permissions)
+
+    user_group.save()
+
+    return Response({
+        "user_group": UserGroupSerializer(user_group).data,
+        "message": "Groups assigned successfully with custom permissions."
+    }, status=status.HTTP_201_CREATED)
+
+@api_view(['GET'])
+def get_user_group_permissions(request, user_id):
+    """
+    Retrieve the group and custom permissions associated with a User based on the user_id.
+    """
+    # Ensure the user is authenticated
+    if not request.user.is_authenticated:
+        return Response({"error": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        # Retrieve the UserGroup entry for the provided user_id
+        user_group = UserGroup.objects.get(user_id=user_id)
+    except UserGroup.DoesNotExist:
+        return Response({"error": "No UserGroup found for the given user."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Serialize the UserGroup object
+    serializer = UserGroupSerializer(user_group)
+
+    return Response({
+        "data": serializer.data,
+        "message": "UserGroup data retrieved successfully."
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['PUT'])
+def update_group_permissions(request, user_group_id):
+    """
+    Update the group or custom permissions associated with a UserGroup.
+    This allows adding or removing groups and custom permissions.
+    """
+    try:
+        user_group = UserGroup.objects.get(id=user_group_id)
+    except UserGroup.DoesNotExist:
+        return Response({"error": "UserGroup not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    group_ids = request.data.get('group', [])  # List of group IDs to update (add/remove)
+    custom_permissions_ids = request.data.get('custom_permissions', [])  # List of custom permission IDs to update
+
+    # Handle group update (add or remove)
+    if group_ids:
+        # Retrieve the groups from the database
+        groups = CustomGroup.objects.filter(id__in=group_ids)
+
+        if groups.count() != len(group_ids):  # Check if any invalid group IDs were provided
+            return Response({"error": "Some groups were not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Set the new groups list (overwrites the previous list)
+        user_group.group = [{"id": group.id, "name": group.name} for group in groups]
+
+    # Handle custom permissions update (add/remove)
+    if custom_permissions_ids is not None:
+        # Retrieve custom permissions from the database
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if not custom_permissions.exists():
+            return Response({"error": "Invalid custom permissions provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update custom permissions
+        user_group.custom_permissions.set(custom_permissions)
+
+    # Save the updated UserGroup
+    user_group.save()
+
+    return Response({
+        "user_group": UserGroupSerializer(user_group).data,
+        "message": "UserGroup updated successfully."
+    }, status=status.HTTP_200_OK)
+
 # User Registration
 @swagger_auto_schema(
     method='post',
@@ -1472,7 +1585,7 @@ class ServicesMasterDataDetailAPIView(APIView):
 
 class VisaApplicationDetailAPIView(APIView):
     permission_classes = [GroupPermission]
-    permission_required = "VS Task View"
+    permission_required = "VS_Task_View"
 
     @swagger_auto_schema(
         operation_description="Retrieve details of a specific visa application by ID.",
@@ -1555,7 +1668,7 @@ class VisaApplicationDetailAPIView(APIView):
         except VisaApplications.DoesNotExist:
             return Response({"error": "Visa application not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    permission_required = "VS Task Edit"
+    permission_required = "VS_Task_Edit"
     @swagger_auto_schema(
         operation_description="Update an existing visa application by ID.",
         tags=["VisaApplication"],
@@ -1579,7 +1692,7 @@ class VisaApplicationDetailAPIView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     # For DELETE
-    permission_required = "VS Task Delete"  # Define the required permission for DELETE method
+    permission_required = "VS_Task_Delete"  # Define the required permission for DELETE method
     @swagger_auto_schema(
         operation_description="Delete a visa application by ID.",
         tags=["VisaApplication"],
@@ -1696,7 +1809,7 @@ class VisaApplicationDetailAPIView(APIView):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])  # Add 'GroupPermission' if necessary for handling role-based permission
-@has_group_permission('VS Task Create')
+@has_group_permission('VS_Task_Create')
 def manage_visa_applications(request):
     try:
         # Authorization check
@@ -1791,7 +1904,7 @@ def manage_visa_applications(request):
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-@has_group_permission('VS Task View')
+@has_group_permission('VS_Task_View')
 def get_visa_clients_users_list(request):
     try:
         # Check if the user is a ServiceProvider_Admin with the correct type

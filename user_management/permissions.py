@@ -14,17 +14,17 @@ class GroupPermission(BasePermission):
         if not request.user.is_authenticated:
             return False
 
-        # Check the group of the user
-        user_group = UserGroup.objects.filter(user=request.user).first()
-        if not user_group:
+        # Check if the user is part of any group
+        user_groups = UserGroup.objects.filter(user=request.user)
+        if not user_groups.exists():
             return False  # User is not part of any group
 
-        group = user_group.group
         permission_needed = view.permission_required  # Define the permission needed in the view
 
-        # Check if the group has the required permission
-        if group.permissions.filter(name=permission_needed).exists():
-            return True
+        # Check if any group has the required permission
+        for user_group in user_groups:
+            if user_group.custom_permissions.filter(codename=permission_needed).exists():
+                return True
 
         return False
 
@@ -39,18 +39,18 @@ def has_group_permission(permission_needed):
                 return Response({"error": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
 
             # Check if the user belongs to any group
-            user_group = UserGroup.objects.filter(user=request.user).first()
-            if not user_group:
+            user_groups = UserGroup.objects.filter(user=request.user)
+            if not user_groups.exists():
                 return Response({"error": "User is not part of any group."}, status=status.HTTP_403_FORBIDDEN)
 
-            group = user_group.group
+            # Check if any group has the required permission
+            for user_group in user_groups:
+                if user_group.custom_permissions.filter(codename=permission_needed).exists():
+                    return view_func(request, *args, **kwargs)
 
-            # Check if the group has the required permission
-            if group.permissions.filter(name=permission_needed).exists():
-                return view_func(request, *args, **kwargs)
-            else:
-                return Response({"error": "You do not have the necessary permissions to access this resource."},
-                                 status=status.HTTP_403_FORBIDDEN)
+            return Response({"error": "You do not have the necessary permissions to access this resource."},
+                             status=status.HTTP_403_FORBIDDEN)
 
         return _wrapped_view
     return decorator
+

@@ -6,6 +6,7 @@ from django.db import models
 from djongo.models import ArrayField, EmbeddedField
 from Tara.settings.default import *
 import json
+from djongo.models import ArrayField, EmbeddedField, JSONField
 
 
 KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='  # Fernet key
@@ -173,18 +174,20 @@ class User(AbstractBaseUser):
 
 
 class UserGroup(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    group = models.ForeignKey(CustomGroup, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    group = JSONField(default=list, blank=True)  # List of custom group ids (from CustomGroup)
+    custom_permissions = models.ManyToManyField(
+        CustomPermission,
+        related_name="user_groups",
+        blank=True,
+        help_text="User-specific custom permissions."
+    )
 
     # Optional: Track the date when the user was added to the group
     added_on = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        # This will make sure each user can only be assigned to a group once
-        unique_together = ('user', 'group')
-
     def __str__(self):
-        return f"{self.user.email} - {self.group.name}"
+        return f"{self.user.email}"
 
 
 class UserKYC(models.Model):
