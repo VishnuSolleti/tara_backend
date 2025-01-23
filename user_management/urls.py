@@ -17,7 +17,7 @@ urlpatterns = [
     path('user-group/assign/', assign_group_with_permissions, name='assign_group_with_permissions'),
 
     path('user-group/<int:user_group_id>/permissions/', update_group_permissions, name='update_group_permissions'),
-    path('user-group/<int:user_id>', get_user_group_permissions, name='get_user_group_permissions'),
+    path('user-group', get_user_group_permissions, name='get_user_group_permissions'),
 
     path('register/', views.user_registration, name='user_registration'),
     path('users/', users_creation, name='users_creation'),

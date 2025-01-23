@@ -235,27 +235,49 @@ def assign_group_with_permissions(request):
     }, status=status.HTTP_201_CREATED)
 
 @api_view(['GET'])
-def get_user_group_permissions(request, user_id):
+def get_user_group_permissions(request):
     """
-    Retrieve the group and custom permissions associated with a User based on the user_id.
+    Retrieve the group and custom permissions associated with a User based on the user_id and/or permission name.
     """
+    user_id = request.query_params.get('user_id')
+    permission_name = request.query_params.get('name')
+
     # Ensure the user is authenticated
     if not request.user.is_authenticated:
         return Response({"error": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
 
-    try:
-        # Retrieve the UserGroup entry for the provided user_id
-        user_group = UserGroup.objects.get(user_id=user_id)
-    except UserGroup.DoesNotExist:
-        return Response({"error": "No UserGroup found for the given user."}, status=status.HTTP_404_NOT_FOUND)
+    # If user_id is provided, fetch the UserGroup entry
+    if user_id:
+        try:
+            user_group = UserGroup.objects.get(user_id=user_id)
+        except UserGroup.DoesNotExist:
+            return Response({"error": "No UserGroup found for the given user."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Serialize the UserGroup object
-    serializer = UserGroupSerializer(user_group)
+        # If permission_name is provided, filter custom permissions
+        if permission_name:
+            filtered_permissions = user_group.custom_permissions.filter(name=permission_name)
+        else:
+            filtered_permissions = user_group.custom_permissions.all()
 
+        # Serialize the response
+        serializer = UserGroupSerializer(user_group)
+        data = serializer.data
+        if permission_name:
+            data['custom_permissions'] = [
+                perm.codename
+                for perm in filtered_permissions
+            ]
+
+        return Response({
+            "data": data,
+            "message": "UserGroup data retrieved successfully."
+        }, status=status.HTTP_200_OK)
+
+    # If neither parameter is provided, return an error
     return Response({
-        "data": serializer.data,
-        "message": "UserGroup data retrieved successfully."
-    }, status=status.HTTP_200_OK)
+        "error": "The 'user_id' parameter is required."
+    }, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(['PUT'])
