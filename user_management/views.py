@@ -245,7 +245,7 @@ def get_user_group_permissions(request, user_id):
 
     try:
         # Retrieve the UserGroup entry for the provided user_id
-        user_group = UserGroup.objects.get(id=user_id)
+        user_group = UserGroup.objects.get(user_id=user_id)
     except UserGroup.DoesNotExist:
         return Response({"error": "No UserGroup found for the given user."}, status=status.HTTP_404_NOT_FOUND)
 
