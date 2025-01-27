@@ -73,10 +73,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return user
 
 class UserSerializer(serializers.ModelSerializer):
+    date_joined = serializers.SerializerMethodField()
     class Meta:
         model = User
         fields = ['id', 'email_or_mobile', 'email', 'mobile_number',
                   'first_name', 'last_name', 'user_type', 'is_active', 'date_joined']
+
+    def get_date_joined(self, obj):
+        return obj.date_joined.date()
 
 
 class CustomPermissionSerializer(serializers.ModelSerializer):
