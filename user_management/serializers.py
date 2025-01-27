@@ -80,7 +80,7 @@ class UserSerializer(serializers.ModelSerializer):
                   'first_name', 'last_name', 'user_type', 'is_active', 'date_joined']
 
     def get_date_joined(self, obj):
-        return obj.date_joined.date()
+        return obj.date_joined.strftime('%d-%m-%Y')  # Format as dd-mm-yyyy
 
 
 class CustomPermissionSerializer(serializers.ModelSerializer):
