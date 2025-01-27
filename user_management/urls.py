@@ -13,6 +13,11 @@ urlpatterns = [
     # Add Permission to the Group
     path('groups/<int:group_id>/permissions/', views.assign_permissions_to_group, name='assign_permissions_to_group'),
 
+    # path('users/by-type/', UserListByTypeAPIView.as_view(), name='users-by-type')
+
+    path('users/stats/', DynamicUserStatsAPIView.as_view(), name='user-stats'),
+    path('users/by-type/', UsersByDynamicTypeAPIView.as_view(), name='users-by-type'),
+
     # Permission Assignment
     path('user-group/assign/', assign_group_with_permissions, name='assign_group_with_permissions'),
 
