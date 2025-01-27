@@ -264,7 +264,7 @@ class FirmKYCSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['email_or_mobile', 'email', 'mobile_number', 'user_type']
+        fields = ['email_or_mobile', 'email', 'mobile_number', 'user_type', 'first_name', 'last_name', 'is_active']
         # You can modify this list based on the fields you want to allow updating
 
     def update(self, instance, validated_data):

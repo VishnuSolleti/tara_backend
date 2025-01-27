@@ -1460,21 +1460,45 @@ class FirmKYCView(APIView):
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
+            'id': openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description='ID of the user to update. If not provided, the currently authenticated user will be updated.',
+                example=1
+            ),
             'email_or_mobile': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='Email or Mobile Number of the user (optional).'
+                description='Email or Mobile Number of the user (optional).',
+                example='example@example.com'
             ),
             'email': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='Email address of the user (optional).'
+                description='Email address of the user (optional).',
+                example='example@example.com'
             ),
             'mobile_number': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='Mobile number of the user (optional).'
+                description='Mobile number of the user (optional).',
+                example='+1234567890'
             ),
             'user_type': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='User type to be updated. Choices are: "individual", "cafirm", "business_or_corporate", "superuser". (optional).'
+                description='User type to be updated. Choices are: "Individual", "CA", "Business", "ServiceProvider". (optional)',
+                example='Individual'
+            ),
+            'first_name': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='First name of the user (optional).',
+                example='John'
+            ),
+            'last_name': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='Last name of the user (optional).',
+                example='Doe'
+            ),
+            'is_active': openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description='Indicates if the user is active (optional).',
+                example=True
             ),
         },
         required=[],  # No required fields because any field from the serializer can be passed.
@@ -1489,11 +1513,16 @@ class FirmKYCView(APIView):
                         type=openapi.TYPE_STRING,
                         description='Success message'
                     ),
+                    'data': openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        description="Updated user data",
+                    ),
                 }
             ),
         ),
         400: openapi.Response("Invalid data provided."),
         404: openapi.Response("User not found."),
+        500: openapi.Response("Unexpected error occurred."),
     },
     manual_parameters=[
         openapi.Parameter(
@@ -1504,16 +1533,29 @@ class FirmKYCView(APIView):
             required=True  # Make Authorization header required
         ),
     ],
-    operation_description="Updates the user fields like email, mobile number, or user type of the currently authenticated user. Only the fields provided will be updated."
+    operation_description="Updates the user fields like email, mobile number, or user type of the currently authenticated user. Only the fields provided will be updated. If `id` is passed, updates the user with that ID."
 )
-@api_view(['PATCH'])
 @permission_classes([IsAuthenticated])  # Ensure only authenticated users can access this endpoint
+@api_view(['PATCH'])
 def partial_update_user(request):
     """
-    Handle partial update of user profile, allowing only specified fields to be updated.
+    Handle partial update of user profile. If `id` is passed, update that user;
+    otherwise, update the currently authenticated user.
     """
     try:
-        user = request.user  # Get the currently authenticated user
+        user_id = request.data.get('id', None)  # Get the 'id' from request data
+
+        if user_id:
+            # If `id` is passed, fetch the user with the provided `id`
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # If no `id` is passed, update the currently authenticated user
+            user = request.user  # Get the currently authenticated user
+
+        # Create a serializer instance with partial update flag
         serializer = UserUpdateSerializer(user, data=request.data, partial=True)
 
         if serializer.is_valid():
