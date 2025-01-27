@@ -75,7 +75,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'email_or_mobile', 'email', 'mobile_number', 'first_name', 'last_name', 'user_type', 'is_active']
+        fields = ['id', 'email_or_mobile', 'email', 'mobile_number',
+                  'first_name', 'last_name', 'user_type', 'is_active', 'date_joined']
 
 
 class CustomPermissionSerializer(serializers.ModelSerializer):
