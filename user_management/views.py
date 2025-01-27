@@ -37,8 +37,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.http import Http404
 from .permissions import GroupPermission, has_group_permission
 from django.contrib.auth.decorators import permission_required
-
-
+from django.db.models.functions import Coalesce
+from django.db.models import Count, F, Value
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -705,18 +705,27 @@ class DynamicUserStatsAPIView(APIView):
     Ignores users with user_type='SuperAdmin'.
     """
     permission_classes = [AllowAny]
+
     def get(self, request, *args, **kwargs):
-        # Exclude 'SuperAdmin' and group by user_type
+        # Exclude 'SuperAdmin'
         users = User.objects.exclude(user_type="SuperAdmin")
+
+        # Get the stats for user types, including those with None values
         user_stats = users.values("user_type").annotate(count=Count("id"))
 
-        # Prepare stats dictionary
-        stats = {}
-        for stat in user_stats:
-            user_type = stat["user_type"] or "Individual"  # Default to "Individual" for None
-            stats[user_type] = stat["count"]
+        # Initialize stats dictionary with "Individual" for None user_type
+        stats = {"Individual": 0}
 
-        return Response(stats,  status=status.HTTP_200_OK)
+        # Loop through each user type count and add to stats
+        for stat in user_stats:
+            user_type = stat["user_type"]
+            if user_type is None:
+                stats["Individual"] += stat["count"]
+            else:
+                stats[user_type] = stat["count"]
+
+        return Response(stats, status=status.HTTP_200_OK)
+
 
 class UsersByDynamicTypeAPIView(APIView):
     """
