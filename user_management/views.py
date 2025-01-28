@@ -107,7 +107,7 @@ def custom_permission_list_create(request):
         serializer = CustomPermissionSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({"data": serializer.data, "detail": "Custom Permission Created."}, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -147,7 +147,8 @@ def custom_group_list_create(request):
         serializer = CustomGroupSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({"data": serializer.data, "detail": "User details saved successfully."},
+                            status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -1379,7 +1380,8 @@ class FirmKYCView(APIView):
         try:
             firm_kyc = request.user.firmkyc
             serializer = FirmKYCSerializer(firm_kyc)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({"data": serializer.data, "detail": "FIRM KYC saved successfully."},
+                            status=status.HTTP_200_OK)
         except FirmKYC.DoesNotExist:
             return Response({"detail": "FirmKYC details not found."}, status=status.HTTP_404_NOT_FOUND)
 

@@ -4,6 +4,7 @@ from django.contrib.auth.models import *
 from .models import *
 import json
 from collections import OrderedDict
+from collections import defaultdict
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
     Serializer for user registration.
@@ -89,15 +90,23 @@ class CustomPermissionSerializer(serializers.ModelSerializer):
         fields = ['id', 'codename', 'name', 'description']
 
 class CustomGroupSerializer(serializers.ModelSerializer):
-    permissions = serializers.PrimaryKeyRelatedField(
-        queryset=CustomPermission.objects.all(),
-        many=True,
-        required=False  # Make the field optional
-    )
+    permissions = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomGroup
         fields = ['id', 'name', 'permissions']
+
+    def get_permissions(self, obj):
+        grouped_permissions = defaultdict(list)
+        for perm in obj.permissions.all():
+            # Format each permission
+            grouped_permissions[perm.name].append({
+                "id": perm.id,
+                "key": perm.codename,
+                "label": perm.codename.replace('_', ' ').title(),
+                "description": perm.description,
+            })
+        return grouped_permissions
 
     def create(self, validated_data):
         permissions = validated_data.pop('permissions', [])
