@@ -39,6 +39,7 @@ from .permissions import GroupPermission, has_group_permission
 from django.contrib.auth.decorators import permission_required
 from django.db.models.functions import Coalesce
 from django.db.models import Count, F, Value
+from collections import defaultdict
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -87,7 +88,20 @@ def custom_permission_list_create(request):
     if request.method == 'GET':
         permissions = CustomPermission.objects.all()
         serializer = CustomPermissionSerializer(permissions, many=True)
-        return Response(serializer.data)
+
+        # Use a defaultdict to group permissions by name
+        grouped_permissions = defaultdict(list)
+
+        for perm in serializer.data:
+            action = {
+                "id": perm['id'],
+                "key": perm['codename'],
+                "label": perm['codename'].replace('_', ' ').title(),  # Generate label from codename
+                "description": perm['description']
+            }
+            grouped_permissions[perm['name']].append(action)
+
+        return Response(grouped_permissions)
 
     elif request.method == 'POST':
         serializer = CustomPermissionSerializer(data=request.data)
