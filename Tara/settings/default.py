@@ -59,6 +59,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'invoicing',
+    'django_celery_beat',
+    'payroll'
 ]
 
 MIDDLEWARE = [
@@ -301,6 +303,8 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 
+S3_BUCKET_NAME = "tarafirstdevelopment"
+
 
 DATABASES = {
         'default': {
@@ -340,3 +344,15 @@ TEMPLATES = [
         },
     },
 ]
+
+# settings.py
+
+# Celery settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ENABLE_UTC = False
+CELERY_TIMEZONE = 'Asia/Kolkata'
+

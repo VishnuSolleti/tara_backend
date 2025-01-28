@@ -1250,6 +1250,9 @@ class UsersKYCListView(APIView):
             elif pan_verification_data['code'] != 200:
                 return Response({'error_message': 'Invalid pan details, Please cross check the DOB, Pan number or Name'},
                                 status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({'error_message': pan_verification_data['data']['remarks']},
+                                status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(e, exc_info=1)
             return Response({'error_message': str(e), 'status_cd': 1},
