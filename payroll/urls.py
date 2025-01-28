@@ -8,6 +8,8 @@ urlpatterns = [
     # URL for retrieving, updating, or deleting a specific PayrollOrg by its ID
     path('orgs/<int:pk>/', views.PayrollOrgDetail.as_view(), name='payroll_org_detail'),
 
+    path('business-payroll/<int:business_id>/', views.PayrollOrgBusinessDetail.as_view(), name='payroll-org-detail'),
+
     # URL for listing and creating WorkLocation instances
     path('work-locations/', views.work_location_list, name='work_location_list'),
 

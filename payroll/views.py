@@ -101,57 +101,23 @@ class PayrollOrgDetail(APIView):
         serializer = PayrollOrgSerializer(payroll_org)
         return Response(serializer.data)
 
-    def put(self, request, pk):
+class PayrollOrgBusinessDetail(APIView):
+    """
+    Retrieve a payroll organization instance by its business ID.
+    """
+
+    def get(self, request, business_id):
         try:
-            payroll_org = PayrollOrg.objects.get(pk=pk)
+            payroll_org = PayrollOrg.objects.get(business_id=business_id)
+            serializer = PayrollOrgSerializer(payroll_org)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         except PayrollOrg.DoesNotExist:
-            return Response({"error": "PayrollOrg not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        data = request.data.copy()
-        file = request.FILES.get('logo')  # Handle uploaded file (logo)
-        bucket_name = S3_BUCKET_NAME
-
-        if file:
-            # Replace spaces with underscores in the file name
-            sanitized_file_name = file.name.replace(" ", "_")
-            business_name = payroll_org.org_name.replace(" ", "_")  # Use existing org_name
-            object_key = f'{business_name}/business_logo/{sanitized_file_name}'
-
-            try:
-                # Upload file to S3 as private
-                url = upload_to_s3(file.read(), bucket_name, object_key)
-                # Update the logo field in the data
-                data['logo'] = url
-            except Exception as e:
-                return Response(
-                    {"error": f"File upload failed: {str(e)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-        serializer = PayrollOrgSerializer(payroll_org, data=data, partial=True)  # Use partial update
-
-        if serializer.is_valid():
-            updated_payroll_org = serializer.save()
             return Response(
-                PayrollOrgSerializer(updated_payroll_org).data,
-                status=status.HTTP_200_OK
+                {"error": "Payroll organization not found."},
+                status=status.HTTP_404_NOT_FOUND
             )
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, pk):
-        """
-        Delete a payroll organization instance.
-        """
-        try:
-            payroll_org = PayrollOrg.objects.get(pk=pk)
-            payroll_org.delete()
-            return Response(
-                {"message": f"PayrollOrg with id {pk} has been deleted successfully."},
-                status=status.HTTP_204_NO_CONTENT
-            )
-        except PayrollOrg.DoesNotExist:
-            return Response({"error": "PayrollOrg not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 # List all WorkLocations
 @api_view(['GET'])
