@@ -490,6 +490,7 @@ def user_registration_by_admin(request):
 
             # Prepare request data for serializer
             password = request_data['password']
+            request_data['created_by'] = request.user.id
             serializer = UserRegistrationSerializer(data=request_data)
 
             if serializer.is_valid():
