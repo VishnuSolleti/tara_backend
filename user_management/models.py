@@ -176,7 +176,14 @@ class User(AbstractBaseUser):
 
 class UserGroup(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    group = JSONField(default=list, blank=True)  # List of custom group ids (from CustomGroup)
+    group = models.ForeignKey(
+        CustomGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="user_groups"
+    )  # Each user belongs to one CustomGroup
+
     custom_permissions = models.ManyToManyField(
         CustomPermission,
         related_name="user_groups",
@@ -184,11 +191,11 @@ class UserGroup(models.Model):
         help_text="User-specific custom permissions."
     )
 
-    # Optional: Track the date when the user was added to the group
     added_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.email}"
+        return f"{self.user.email} - {self.group.name if self.group else 'No Group'}"
+
 
 
 class UserKYC(models.Model):

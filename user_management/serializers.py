@@ -121,7 +121,10 @@ class CustomGroupSerializerData(serializers.ModelSerializer):
 
 
 class UserGroupSerializer(serializers.ModelSerializer):
-    group = serializers.JSONField(required=False)
+    # group = serializers.PrimaryKeyRelatedField(
+    #     queryset=CustomGroup.objects.all(), required=False, allow_null=True
+    # )  # Handles foreign key relationship correctly
+
     custom_permissions = CustomPermissionSerializer(many=True, required=False)
 
     class Meta:

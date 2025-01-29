@@ -201,37 +201,32 @@ def assign_permissions_to_group(request, group_id):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-
-
 @api_view(['POST'])
 def assign_group_with_permissions(request):
     """
-    Assign one or more groups to a user with optional customization of permissions.
+    Assign a single group to a user with optional customization of permissions.
     """
     user_id = request.data.get('user')
-    group_ids = request.data.get('groups', [])
+    group_id = request.data.get('group')  # Expecting only one group now
     custom_permissions_ids = request.data.get('custom_permissions', [])
 
+    # Validate User
     try:
         user = User.objects.get(id=user_id)
     except User.DoesNotExist:
         return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    # Fetch the groups by their IDs
-    groups = CustomGroup.objects.filter(id__in=group_ids)
-    if not groups.exists():
-        return Response({"error": "Some groups not found"}, status=status.HTTP_404_NOT_FOUND)
+    # Validate Group
+    try:
+        group = CustomGroup.objects.get(id=group_id)
+    except CustomGroup.DoesNotExist:
+        return Response({"error": "Group not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    # Create or get UserGroup for each group
-    user_group = UserGroup.objects.create(user=user)
+    # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
+    user_group, created = UserGroup.objects.get_or_create(user=user)
+    user_group.group = group  # Assigning a single group
 
-    li=[{"id": group.id, "name": group.name} for group in groups]
-    print(li)
-
-    # Assign the group names to the user group
-    user_group.group = [{"id": group.id, "name": group.name} for group in groups]
-
-    # Set permissions
+    # Assign permissions
     if custom_permissions_ids:
         custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
         if not custom_permissions.exists():
@@ -239,14 +234,14 @@ def assign_group_with_permissions(request):
         user_group.custom_permissions.set(custom_permissions)
     else:
         # Default to the group's permissions if no custom permissions are provided
-        default_permissions = CustomPermission.objects.filter(group__in=groups)
+        default_permissions = group.permissions.all()  # Fetch default permissions from the assigned group
         user_group.custom_permissions.set(default_permissions)
 
     user_group.save()
 
     return Response({
         "user_group": UserGroupSerializer(user_group).data,
-        "message": "Groups assigned successfully with custom permissions."
+        "message": "Group assigned successfully with custom permissions."
     }, status=status.HTTP_201_CREATED)
 
 @api_view(['GET'])
@@ -274,61 +269,69 @@ def get_user_group_permissions(request):
         else:
             filtered_permissions = user_group.custom_permissions.all()
 
-        # Serialize the response
-        serializer = UserGroupSerializer(user_group)
-        data = serializer.data
-        if permission_name:
-            data['custom_permissions'] = [
-                perm.codename
-                for perm in filtered_permissions
-            ]
+        # Organize permissions by their 'name' field
+        permissions_by_group = {}
+        for perm in filtered_permissions:
+            group_name = perm.name  # Group by the 'name' of the permission
+            permission_data = {
+                "id": perm.id,
+                "key": perm.codename,
+                "label": perm.codename.replace("_", " ").title(),
+                "description": perm.description
+            }
+            if group_name not in permissions_by_group:
+                permissions_by_group[group_name] = []
+            permissions_by_group[group_name].append(permission_data)
 
-        return Response({
-            "data": data,
-            "message": "UserGroup data retrieved successfully."
-        }, status=status.HTTP_200_OK)
+        # Prepare the final response
+        data = {
+            "id": user_group.id,
+            "user": user_group.user.id,
+            "group": user_group.group.name if user_group.group else None,
+            "permissions": permissions_by_group,
+            "added_on": user_group.added_on
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
 
     # If neither parameter is provided, return an error
     return Response({
         "error": "The 'user_id' parameter is required."
     }, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['PUT'])
 def update_group_permissions(request, user_group_id):
     """
     Update the group or custom permissions associated with a UserGroup.
-    This allows adding or removing groups and custom permissions.
+    This allows updating the group and custom permissions.
     """
     try:
         user_group = UserGroup.objects.get(id=user_group_id)
     except UserGroup.DoesNotExist:
         return Response({"error": "UserGroup not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    group_ids = request.data.get('group', [])  # List of group IDs to update (add/remove)
-    custom_permissions_ids = request.data.get('custom_permissions', [])  # List of custom permission IDs to update
+    group_id = request.data.get('group')  # Expecting a single group ID
+    custom_permissions_ids = request.data.get('custom_permissions', [])  # List of permission IDs
 
-    # Handle group update (add or remove)
-    if group_ids:
-        # Retrieve the groups from the database
-        groups = CustomGroup.objects.filter(id__in=group_ids)
+    # Handle group update
+    if group_id:
+        try:
+            group = CustomGroup.objects.get(id=group_id)
+        except CustomGroup.DoesNotExist:
+            return Response({"error": "Group not found"}, status=status.HTTP_400_BAD_REQUEST)
 
-        if groups.count() != len(group_ids):  # Check if any invalid group IDs were provided
-            return Response({"error": "Some groups were not found"}, status=status.HTTP_400_BAD_REQUEST)
+        user_group.group = group  # Assign new group
 
-        # Set the new groups list (overwrites the previous list)
-        user_group.group = [{"id": group.id, "name": group.name} for group in groups]
-
-    # Handle custom permissions update (add/remove)
+    # Handle custom permissions update
     if custom_permissions_ids is not None:
-        # Retrieve custom permissions from the database
         custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
-        if not custom_permissions.exists():
+        if custom_permissions.count() != len(custom_permissions_ids):
             return Response({"error": "Invalid custom permissions provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Update custom permissions
         user_group.custom_permissions.set(custom_permissions)
 
-    # Save the updated UserGroup
+    # Save changes
     user_group.save()
 
     return Response({
