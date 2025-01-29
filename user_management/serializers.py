@@ -15,14 +15,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     mobile_number = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False, allow_null=True)
     user_type = serializers.CharField(required=False, allow_null=True)
-    user_role = serializers.CharField(required=False, allow_null=True)
+    user_role = serializers.CharField(required=False, allow_null=True, default=None)
     first_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    is_active = serializers.BooleanField(default=False)
 
     class Meta:
         model = User
         fields = ('email', 'mobile_number', 'password', 'created_by', 'user_type',
-                  'user_role', 'first_name', 'last_name')
+                  'user_role', 'first_name', 'last_name', 'is_active')
 
     def validate(self, attrs):
         email = attrs.get('email')

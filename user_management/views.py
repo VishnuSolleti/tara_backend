@@ -461,6 +461,103 @@ def user_registration(request):
             return Response({"error": "An unexpected error occurred.", "details": str(e)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def user_registration_by_admin(request):
+    """
+    Handle user registration by superadmin without activation link,
+    and send username and password to the user via email.
+    """
+    logger.info("Received a superadmin user registration request.")
+    print("*********************")
+
+    if request.method == 'POST':
+        try:
+            request_data = request.data
+            email = request_data.get('email', '').lower()
+            mobile_number = request_data.get('mobile_number', '')
+
+            logger.debug(f"Request data: email={email}, mobile_number={mobile_number}")
+
+            # Ensure at least one of email or mobile_number is provided
+            if not email and not mobile_number:
+                logger.warning("Registration failed: Missing both email and mobile number.")
+                return Response(
+                    {"error": "Either email or mobile number must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Prepare request data for serializer
+            password = request_data['password']
+            serializer = UserRegistrationSerializer(data=request_data)
+
+            if serializer.is_valid():
+                user = serializer.save()
+                logger.info(f"User created successfully by superadmin: {user.pk}")
+
+                # Send email with the username and password
+                if email:
+                    subject = "Your Account Details"
+                    body_html = f"""
+                                    <html>
+                                    <body>
+                                        <h1>Welcome to Our Platform</h1>
+                                        <p>Your account has been created by the superadmin.</p>
+                                        <p><strong>Username:</strong> {user.email}</p>
+                                        <p><strong>Password:</strong> {password}</p>
+                                    </body>
+                                    </html>
+                                    """
+                    ses_client = boto3.client(
+                        'ses',
+                        region_name=AWS_REGION,
+                        aws_access_key_id=AWS_ACCESS_KEY_ID,
+                        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+                    )
+
+                    try:
+                        response = ses_client.send_email(
+                            Source=EMAIL_HOST_USER,
+                            Destination={'ToAddresses': [email]},
+                            Message={
+                                'Subject': {'Data': subject},
+                                'Body': {
+                                    'Html': {'Data': body_html},
+                                    'Text': {'Data': f"Your username is: {user.email}\nYour password is: {password}"}
+                                },
+                            }
+                        )
+                        logger.info(f"Account details email sent to: {email}")
+                        return Response(
+                            {"message": "User created successfully. Check your email for the username and password."},
+                            status=status.HTTP_201_CREATED,
+                        )
+
+                    except ClientError as e:
+                        logger.error(f"Failed to send email via SES: {e.response['Error']['Message']}")
+                        return Response(
+                            {"error": "Failed to send account details email. Please try again later."},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        )
+
+            logger.warning("Registration failed: Validation errors.")
+            logger.debug(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except IntegrityError as e:
+            logger.error(f"Integrity error during registration: {str(e)}")
+            return Response({"error": "A user with this email or mobile number already exists."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}")
+            return Response({"error": "Database error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}")
+            return Response({"error": "An unexpected error occurred.", "details": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 # Define the conditional schema
 def get_conditional_schema(user_type):
     """
