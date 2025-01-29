@@ -141,6 +141,14 @@ class PayrollOrgDetail(APIView):
         # Handle validation errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    def delete(self, request, pk):
+        try:
+            payroll_org = PayrollOrg.objects.get(pk=pk)
+            payroll_org.delete()
+            return Response({"message": "PayrollOrg deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except PayrollOrg.DoesNotExist:
+            return Response({"error": "PayrollOrg not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
 class PayrollOrgBusinessDetail(APIView):
     """
