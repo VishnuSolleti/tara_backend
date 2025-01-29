@@ -101,6 +101,47 @@ class PayrollOrgDetail(APIView):
         serializer = PayrollOrgSerializer(payroll_org)
         return Response(serializer.data)
 
+    def put(self, request, pk):
+        try:
+            payroll_org = PayrollOrg.objects.get(pk=pk)
+        except PayrollOrg.DoesNotExist:
+            return Response({"error": "PayrollOrg not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data.copy()
+        file = request.FILES.get('logo')  # Handle uploaded file (logo)
+        bucket_name = S3_BUCKET_NAME
+
+        if file:
+            # Replace spaces with underscores in the file name
+            sanitized_file_name = file.name.replace(" ", "_")
+            business_name = request.data.get('org_name', 'default_org').replace(" ",
+                                                                                "_")  # Ensure no spaces in org_name
+            object_key = f'{business_name}/business_logo/{sanitized_file_name}'
+
+            try:
+                # Upload file to S3 as private
+                url = upload_to_s3(file.read(), bucket_name, object_key)  # Read file content for upload
+                # Store the S3 URL in the `logo` field
+                data['logo'] = url
+            except Exception as e:
+                return Response(
+                    {"error": f"File upload failed: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        # Validate and update the serializer
+        serializer = PayrollOrgSerializer(payroll_org, data=data, partial=True)
+        if serializer.is_valid():
+            payroll_org = serializer.save()  # Update the instance directly
+            return Response(
+                PayrollOrgSerializer(payroll_org).data,
+                status=status.HTTP_200_OK
+            )
+
+        # Handle validation errors
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
 class PayrollOrgBusinessDetail(APIView):
     """
     Retrieve a payroll organization instance by its business ID.
