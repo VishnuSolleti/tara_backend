@@ -278,11 +278,10 @@ def work_location_delete(request, pk):
     try:
         work_location = WorkLocations.objects.get(pk=pk)
     except WorkLocations.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Work location not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'DELETE':
-        work_location.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    work_location.delete()
+    return Response({"message": "Work location deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 
 # List and create departments
