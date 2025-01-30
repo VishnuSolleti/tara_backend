@@ -1723,6 +1723,25 @@ def partial_update_user(request):
 #             return Response(serializer.data, status=status.HTTP_201_CREATED)
 #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def business_list_by_client(request):
+    client_id = request.user.id
+
+    # Filter businesses by client_id
+    businesses = Business.objects.filter(client=client_id)
+
+    # Check if businesses are found for the client
+    if not businesses.exists():
+        return Response({'message': 'No businesses found for this client.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Serialize the data
+    serializer = BusinessSerializer(businesses, many=True)
+
+    # Return the serialized data
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def business_list(request):

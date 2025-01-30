@@ -54,6 +54,8 @@ urlpatterns = [
     # Business urls
     path('businesses/', views.business_list, name='business-list'),
     path('businesses/<int:pk>/', views.business_detail, name='business-detail'),
+    # Business list By Client
+    path('businesses-by-client/', views.business_list_by_client, name='business-list-by-client'),
 
     path('services/', ServicesMasterDataListAPIView.as_view()),  # For GET (list) and POST
 
