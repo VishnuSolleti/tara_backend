@@ -152,7 +152,7 @@ def create_invoicing_profile(request):
     """
     user = request.user
     data = request.data.copy()
-    data['business'] = user.id  # Assign the current user as the business owner
+    # data['business'] = user.id  # Assign the current user as the business owner
 
     serializer = InvoicingProfileSerializer(data=data)
 
