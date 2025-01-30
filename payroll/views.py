@@ -403,7 +403,7 @@ def designation_list(request):
             designations = Designation.objects.filter(payroll_id=payroll_id)
         else:
             # Retrieve all designations if no payroll_id is provided
-            designations = Departments.objects.all()
+            designations = Designation.objects.all()
         serializer = DesignationSerializer(designations, many=True)
         return Response(serializer.data)
 

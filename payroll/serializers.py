@@ -81,7 +81,7 @@ class DesignationSerializer(serializers.ModelSerializer):
         """
         Create and return a new `WorkLocations` instance, given the validated data.
         """
-        instance = WorkLocations(**validated_data)
+        instance = Designation(**validated_data)
         instance.save()
         return instance
 
