@@ -77,8 +77,9 @@ def get_invoicing_profile(request):
     Retrieve the invoicing profile for the logged-in user.
     """
     try:
-        business_id = request.query_params.get('business_id')
-        invoicing_profile = InvoicingProfile.objects.get(business=business_id)
+        # business_id = request.query_params.get('business_id')
+        user = request.user.id
+        invoicing_profile = InvoicingProfile.objects.get(business__client=user)
 
         serializer = InvoicingProfileBusinessSerializers(invoicing_profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
