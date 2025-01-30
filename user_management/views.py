@@ -288,7 +288,7 @@ def get_user_group_permissions(request):
             "id": user_group.id,
             "user": user_group.user.id,
             "group": user_group.group.name if user_group.group else None,
-            "permissions": permissions_by_group,
+            "custom_permissions": permissions_by_group,
             "added_on": user_group.added_on
         }
 
