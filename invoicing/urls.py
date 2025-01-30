@@ -3,7 +3,7 @@ from . import views
 from .views import *
 
 urlpatterns = [
-    path('invoicing-profiles', views.get_invoicing_profile, name='get-invoicing-profile'),
+    path('invoicing-profiles/', views.get_invoicing_profile, name='get-invoicing-profile'),
     path('invoicing-profiles/create/', views.create_invoicing_profile, name='create-invoicing-profile'),
     path('invoicing-profiles/<int:pk>/update/', views.update_invoicing_profile, name='update-invoicing-profile'),
     path('invoicing-profiles/delete/', views.delete_invoicing_profile, name='delete-invoicing-profile'),
