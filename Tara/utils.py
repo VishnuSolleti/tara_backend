@@ -68,10 +68,11 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         if user_group:
             # Retrieve the user's groups and associated permissions
-            group_names = [group.get('name') for group in user_group.group if 'name' in group]
+            # group_names = [group.get('name') for group in user_group.group if 'name' in group]
+            group_name = user_group.group.name
             associated_services = list(user_group.custom_permissions.values_list('name', flat=True).distinct())
         else:
-            group_names = []  # No groups assigned
+            group_name = None  # No groups assigned
             associated_services = []  # No permissions assigned
 
         # Customize the response data
@@ -84,7 +85,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'user_type': user.user_type,
             'user_role': user.user_role,
             'user_kyc': user.user_kyc,
-            'user_groups': group_names,
+            'group_name': group_name,
             'associated_services': associated_services,
             'refresh': str(refresh),
             'access': str(refresh.access_token),
