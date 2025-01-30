@@ -1723,6 +1723,53 @@ def partial_update_user(request):
 #             return Response(serializer.data, status=status.HTTP_201_CREATED)
 #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def business_list(request):
+    if request.method == 'GET':
+        businesses = Business.objects.all()
+        serializer = BusinessSerializer(businesses, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        request_data = request.data
+        request_data['nameOfBusiness'] = request_data.get('nameOfBusiness', '').title()
+
+        if request_data.get('entityType') != 'individual':
+            qs = Business.objects.filter(nameOfBusiness__iexact=request_data.get('nameOfBusiness'))
+            if qs.exists():
+                return Response({'error_message': 'Business already exists'}, status=status.HTTP_400_BAD_REQUEST)
+            qs = Business.objects.filter(pan=request_data.get('pan'))
+            if qs.exists():
+                return Response({'error_message': 'Business with PAN already exists'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = BusinessSerializer(data=request_data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def business_detail(request, pk):
+    business = get_object_or_404(Business, pk=pk)
+
+    if request.method == 'GET':
+        serializer = BusinessSerializer(business)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = BusinessSerializer(business, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        business.delete()
+        return Response({'message': 'Business deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
 
 class ServicesMasterDataListAPIView(APIView):
     permission_classes = [AllowAny]

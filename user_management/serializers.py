@@ -152,7 +152,6 @@ class UserGroupSerializer(serializers.ModelSerializer):
 class UserActivationSerializer(serializers.Serializer):
     token = serializers.CharField()
 
-
 class AddressSerializer(serializers.Serializer):
     address_line1 = serializers.CharField(max_length=255, required=False)
     address_line2 = serializers.CharField(max_length=255, required=False)
@@ -161,6 +160,40 @@ class AddressSerializer(serializers.Serializer):
     state = serializers.CharField(max_length=20, required=False)
     city = serializers.CharField(max_length=20, required=False)
     country = serializers.CharField(max_length=20, required=False)
+
+class BusinessSerializer(serializers.ModelSerializer):
+    headOffice = AddressSerializer(required=False)
+    entityType = serializers.CharField(max_length=50, required=False)
+    pan = serializers.CharField(max_length=15, required=True)
+
+    class Meta:
+        model = Business
+        fields = '__all__'
+
+    def validate(self, data):
+        if not data.get('pan'):
+            raise serializers.ValidationError({'PAN': 'This field is required.'})
+        if not data.get('nameOfBusiness'):
+            raise serializers.ValidationError({'name_as_per_pan': 'This field is required.'})
+        if not data.get('dob_or_incorp_date'):
+            raise serializers.ValidationError({'establishment_date': 'This field is required.'})
+        return data
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Business` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Business` instance, given the validated data.
+        """
+        [setattr(instance, k, v) for k, v in validated_data.items()]
+        instance.save()
+        return instance
 
 
 class UsersKYCSerializer(serializers.ModelSerializer):

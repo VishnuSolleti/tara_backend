@@ -1,7 +1,7 @@
 from django.core.validators import RegexValidator
 from django.db import models
 from djongo.models import ArrayField, EmbeddedField, JSONField
-from user_management.models import User
+from user_management.models import User, Business
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.core.exceptions import ValidationError
@@ -57,8 +57,7 @@ class PaymentDetail(models.Model):
 
 
 class InvoicingProfile(BaseModel):
-    business = models.OneToOneField(User, on_delete=models.CASCADE)
-    pan_number = models.CharField(max_length=50)
+    business = models.OneToOneField(Business, on_delete=models.CASCADE)
     bank_name = models.CharField(max_length=50)
     account_number = models.BigIntegerField(validators=[validate_account_number])
     ifsc_code = models.CharField(max_length=50)

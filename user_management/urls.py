@@ -51,6 +51,10 @@ urlpatterns = [
 
     path('update-users-info', views.partial_update_user, name='partial_update_user'),
 
+    # Business urls
+    path('businesses/', views.business_list, name='business-list'),
+    path('businesses/<int:pk>/', views.business_detail, name='business-detail'),
+
     path('services/', ServicesMasterDataListAPIView.as_view()),  # For GET (list) and POST
 
     path('services/<int:pk>/', ServicesMasterDataDetailAPIView.as_view()),  # For GET (detail), PUT, DELETE

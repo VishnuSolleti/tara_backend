@@ -10,7 +10,8 @@ from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
                           GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
                           InvoicingProfileSerializers, InvoicingProfileCustomersSerializer, InvoicingProfileInvoices,
-                          InvoiceSerializerData, InvoiceDataSerializer, CustomerInvoiceReceiptSerializer)
+                          InvoiceSerializerData, InvoiceDataSerializer,
+                          CustomerInvoiceReceiptSerializer, InvoicingProfileBusinessSerializers)
 from django.http import QueryDict
 import logging
 from django.core.exceptions import ObjectDoesNotExist
@@ -76,10 +77,10 @@ def get_invoicing_profile(request):
     Retrieve the invoicing profile for the logged-in user.
     """
     try:
-        user = request.user
-        invoicing_profile = InvoicingProfile.objects.get(business=user)
+        business_id = request.query_params.get('business_id')
+        invoicing_profile = InvoicingProfile.objects.get(business=business_id)
 
-        serializer = InvoicingProfileSerializers(invoicing_profile)
+        serializer = InvoicingProfileBusinessSerializers(invoicing_profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except InvoicingProfile.DoesNotExist:

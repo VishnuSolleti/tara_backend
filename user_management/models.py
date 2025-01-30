@@ -196,8 +196,6 @@ class UserGroup(models.Model):
     def __str__(self):
         return f"{self.user.email} - {self.group.name if self.group else 'No Group'}"
 
-
-
 class UserKYC(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='userkyc')  # Added `related_name='userkyc'`
     name = models.CharField(max_length=40, blank=False, null=False)
@@ -245,6 +243,70 @@ class ServicesMasterData(models.Model):
 
     def __str__(self):
         return f"{self.service_name}"
+
+
+class BaseModel(models.Model):
+    createdAt = models.DateTimeField(auto_now_add=True)
+    updatedAt = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class Business(BaseModel):
+    entity_choices = [
+        ('soleProprietor', 'Sole Proprietor'),
+        ('partnershipUnregistered', 'Partnership Unregistered'),
+        ('partnershipRegistered', 'Partnership Registered'),
+        ('llp', 'LLP'),
+        ('huf', 'HUF'),
+        ('privateLimitedCompany', 'Private Limited Company'),
+        ('publicCompanyListed', 'Public Company Listed'),
+        ('publicCompanyUnlisted', 'Public Company Unlisted'),
+        ('trust', 'Trust'),
+        ('society', 'Society'),
+        ('opc', 'OPC'),
+        ('others', 'Others (Specify)'),
+    ]
+
+    business_nature_choices = [
+        ('service_provider', 'Service Provider'),
+        ('trading_business', 'Trading Business'),
+        ('manufacturing_business', 'Manufacturing Business'),
+        ('consultancy', 'Consultancy'),
+        ('freelancing', 'Freelancing'),
+        ('e_commerce', 'E-commerce'),
+        ('real_estate', 'Real Estate'),
+        ('financial_services', 'Financial Services'),
+        ('healthcare', 'Healthcare'),
+        ('education', 'Education'),
+        ('information_technology', 'Information Technology'),
+        ('hospitality', 'Hospitality'),
+        ('transportation_logistics', 'Transportation and Logistics'),
+        ('agriculture', 'Agriculture'),
+        ('retail', 'Retail'),
+    ]
+    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='business_clients_id')
+    nameOfBusiness = models.CharField(max_length=200, unique=True, db_index=True, null=False, blank=False)
+    registrationNumber = models.CharField(max_length=120, null=True, blank=True)
+    gst_registered = models.BooleanField()
+    gstin = models.CharField(max_length=120, null=True, blank=True)
+    entityType = models.CharField(max_length=50)
+    headOffice = JSONField(default=dict, null=True, blank=True)
+    pan = models.CharField(max_length=15, unique=True, null=False, blank=False)
+    business_nature = models.CharField(max_length=50, choices=business_nature_choices, null=True,
+                                       blank=True)  # Choices field
+    trade_name = models.CharField(max_length=100, null=True, blank=True)  # New field
+    mobile_number = models.CharField(max_length=15, null=True, blank=True)  # New field
+    email = models.EmailField(null=True, blank=True)
+    dob_or_incorp_date = models.DateField(null=False)
+
+    class Meta:
+        unique_together = ('nameOfBusiness', 'pan')
+
+    def __str__(self):
+        return str(self.nameOfBusiness)
+
 
 
 class ServiceDetails(models.Model):
