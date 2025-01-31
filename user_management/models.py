@@ -289,8 +289,6 @@ class Business(BaseModel):
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='business_clients_id')
     nameOfBusiness = models.CharField(max_length=200, unique=True, db_index=True, null=False, blank=False)
     registrationNumber = models.CharField(max_length=120, null=True, blank=True)
-    gst_registered = models.BooleanField()
-    gstin = models.CharField(max_length=120, null=True, blank=True)
     entityType = models.CharField(max_length=50)
     headOffice = JSONField(default=dict, null=True, blank=True)
     pan = models.CharField(max_length=15, unique=True, null=False, blank=False)
@@ -308,6 +306,13 @@ class Business(BaseModel):
         return str(self.nameOfBusiness)
 
 
+class GSTDetails(BaseModel):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='gst_details')
+    gstin = models.CharField(max_length=120, null=True, blank=True)
+    address = JSONField(default=dict, null=True, blank=True)
+
+    def __str__(self):
+        return f"GST Details for {self.business.nameOfBusiness}"
 
 class ServiceDetails(models.Model):
     STATUS_CHOICES = [

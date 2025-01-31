@@ -17,7 +17,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from .models import User, UserKYC, FirmKYC, CustomPermission, CustomGroup, UserGroup
+from .models import User, UserKYC, FirmKYC, CustomPermission, CustomGroup, UserGroup, GSTDetails
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
@@ -1789,6 +1789,63 @@ def business_detail(request, pk):
         business.delete()
         return Response({'message': 'Business deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
+
+@api_view(['GET', 'POST'])
+def gst_details_list_create(request):
+    """
+    List all GST details or create a new GST detail.
+    """
+    if request.method == 'GET':
+        gst_details = GSTDetails.objects.all()
+        serializer = GSTDetailsSerializer(gst_details, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = GSTDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+def gst_details_detail(request, pk):
+    """
+    Retrieve, update or delete a GST detail by ID.
+    """
+    try:
+        gst_detail = GSTDetails.objects.get(pk=pk)
+    except GSTDetails.DoesNotExist:
+        return Response({"error": "GST Detail not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = GSTDetailsSerializer(gst_detail)
+        return Response(serializer.data)
+
+    elif request.method in ['PUT', 'PATCH']:
+        serializer = GSTDetailsSerializer(gst_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        gst_detail.delete()
+        return Response({"message": "GST Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def business_with_gst_details(request, business_id):
+    """
+    Retrieve a Business along with all its associated GST details using serializers.
+    """
+    try:
+        business = Business.objects.prefetch_related('gst_details').get(id=business_id)
+    except Business.DoesNotExist:
+        return Response({"error": "Business not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = BusinessWithGSTSerializer(business)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 class ServicesMasterDataListAPIView(APIView):
     permission_classes = [AllowAny]

@@ -57,6 +57,11 @@ urlpatterns = [
     # Business list By Client
     path('businesses-by-client/', views.business_list_by_client, name='business-list-by-client'),
 
+    # Adding GST Details
+    path('gst-details/', gst_details_list_create, name='gst-details-list-create'),
+    path('gst-details/<int:pk>/', gst_details_detail, name='gst-details-detail'),
+    path('gst-details/by-business/<int:business_id>/', business_with_gst_details, name='gst-details-by-business'),
+
     path('services/', ServicesMasterDataListAPIView.as_view()),  # For GET (list) and POST
 
     path('services/<int:pk>/', ServicesMasterDataDetailAPIView.as_view()),  # For GET (detail), PUT, DELETE

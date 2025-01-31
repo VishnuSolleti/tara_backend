@@ -5,6 +5,8 @@ from .models import UserGroup
 from functools import wraps
 from rest_framework.response import Response
 from rest_framework import status
+from Tara.settings.default import *
+import requests
 
 class GroupPermission(BasePermission):
     """
@@ -72,4 +74,81 @@ def has_group_permission(*permissions_needed):
 
         return _wrapped_view
     return decorator
+
+
+def authenticate():
+    url = "https://api.sandbox.co.in/authenticate"
+    payload = {}
+    headers = {
+        'x-api-key': SANDBOX_API_KEY,
+        'x-api-secret': SANDBOX_API_SECRET,
+        'x-api-version': '3.4.0'
+    }
+    response = requests.request("POST", url, headers=headers, data=payload)
+    return response.json()['access_token']
+
+
+def verify_pan(pan, name_of_business, dob_or_incorp_date):
+    """
+    Sends a request to verify the PAN details using the sandbox API.
+
+    Args:
+        pan (str): PAN number to verify.
+        name_of_business (str): Name as per PAN.
+        dob_or_incorp_date (str): Date of birth or incorporation date.
+        access_token (str): Authorization token.
+
+    Returns:
+        dict: API response data.
+
+    Raises:
+        ValueError: If the response contains errors or missing fields.
+    """
+    if not pan or not name_of_business or not dob_or_incorp_date:
+        raise ValueError("All input parameters (PAN, name, DOB/incorp date) are required.")
+
+        access_token = authenticate()
+
+    url = "https://api.sandbox.co.in/kyc/pan/verify"
+
+    payload = {
+        "@entity": "in.co.sandbox.kyc.pan_verification.request",
+        "pan": pan,
+        "name_as_per_pan": name_of_business,
+        "date_of_birth": dob_or_incorp_date,
+        "consent": "Y",
+        "reason": "For Onboarding"
+    }
+
+    headers = {
+        "accept": "application/json",
+        "authorization": access_token,
+        "x-api-key": SANDBOX_API_KEY,
+        "x-accept-cache": "true",
+        "x-api-version": "1.0",
+        "content-type": "application/json"
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response_data = response.json()
+        pan_verification_data = response_data
+        category = None
+        if pan_verification_data['code'] == 200 and pan_verification_data['data']['status'] == 'VALID':
+            category = pan_verification_data['data']['category'] \
+                if pan_verification_data['data']['category'] == 'Individual' else None
+        elif pan_verification_data['code'] == 200 and pan_verification_data['data']['status'] == 'NOT-VALID':
+
+            raise ValueError("Invalid pan number")
+        else:
+            raise ValueError("Invalid response from PAN verification API.")
+
+        if 'code' not in response_data or 'data' not in response_data:
+            message = pan_verification_data['message'] if pan_verification_data['message'] else "Internal Server Error"
+            raise ValueError(message)
+
+        return category
+
+    except requests.exceptions.RequestException as e:
+        raise ValueError(f"Request error: {str(e)}")
 

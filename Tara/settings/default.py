@@ -356,3 +356,8 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_ENABLE_UTC = False
 CELERY_TIMEZONE = 'Asia/Kolkata'
 
+SANDBOX_API_KEY = 'key_live_KAbyGU4p0Hu4bkkTuZCUJb9HyEiaGxcu'
+SANDBOX_API_SECRET = 'secret_live_ZTyQBPYUHJtU3aLDtcH6ofRMMlrjmjKD'
+SANDBOX_API_URL = 'https://api.sandbox.co.in'
+SANDBOX_API_VERSION = '1.0'
+

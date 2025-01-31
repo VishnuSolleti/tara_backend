@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import *
 from django.core.files.storage import FileSystemStorage
+from user_management.serializers import *
 
 class CustomerProfileSerializers(serializers.Serializer):
     invoicing_profile = serializers.PrimaryKeyRelatedField(
@@ -252,12 +253,12 @@ class InvoicingProfileSerializers(serializers.ModelSerializer):
 class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
     invoice_format = serializers.JSONField()
+    gst_details = GSTDetailsSerializer(many=True, source='business.gst_details')  # Include gst_details
+
     # Including fields from Business model
     nameOfBusiness = serializers.CharField(source='business.nameOfBusiness')
     registrationNumber = serializers.CharField(source='business.registrationNumber')
     entityType = serializers.CharField(source='business.entityType')
-    gst_registered = serializers.BooleanField(source='business.gst_registered')
-    gstin = serializers.CharField(source='business.gstin')
     state = serializers.CharField(source='business.headOffice.state', default="")
     email = serializers.EmailField(source='business.email', default="")
     address_line1 = serializers.CharField(source='business.headOffice.address_line1', default="")
@@ -285,8 +286,10 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
             'ifsc_code',
             'swift_code',
             'customer_profiles',
-            'invoice_format'
+            'invoice_format',
+            'gst_details',  # Add this field to include gst_details
         ]
+
 
 
 class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):

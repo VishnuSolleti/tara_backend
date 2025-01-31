@@ -162,7 +162,6 @@ class AddressSerializer(serializers.Serializer):
     country = serializers.CharField(max_length=20, required=False)
 
 class BusinessSerializer(serializers.ModelSerializer):
-    headOffice = AddressSerializer(required=False)
     entityType = serializers.CharField(max_length=50, required=False)
     pan = serializers.CharField(max_length=15, required=True)
 
@@ -194,6 +193,38 @@ class BusinessSerializer(serializers.ModelSerializer):
         [setattr(instance, k, v) for k, v in validated_data.items()]
         instance.save()
         return instance
+
+class GSTDetailsSerializer(serializers.ModelSerializer):
+    address = AddressSerializer(default={}, required=False)
+
+    class Meta:
+        model = GSTDetails
+        fields = '__all__'
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Business` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Business` instance, given the validated data.
+        """
+        [setattr(instance, k, v) for k, v in validated_data.items()]
+        instance.save()
+        return instance
+
+
+class BusinessWithGSTSerializer(serializers.ModelSerializer):
+    gst_details = GSTDetailsSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Business
+        fields = ['id', 'nameOfBusiness', 'entityType', 'registrationNumber', 'pan', 'mobile_number',
+                  'email', 'dob_or_incorp_date', 'gst_details']
 
 
 class UsersKYCSerializer(serializers.ModelSerializer):

@@ -74,13 +74,21 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 def get_invoicing_profile(request):
     """
-    Retrieve the invoicing profile for the logged-in user.
+    Retrieve the invoicing profile for the logged-in user or by business_id.
     """
     try:
-        # business_id = request.query_params.get('business_id')
-        user = request.user.id
-        invoicing_profile = InvoicingProfile.objects.get(business__client=user)
+        # Retrieve the business_id from query parameters (if provided)
+        business_id = request.query_params.get('business_id')
 
+        # If business_id is provided, fetch the invoicing profile for that business
+        if business_id:
+            invoicing_profile = InvoicingProfile.objects.get(business__id=business_id)
+        else:
+            # If no business_id is provided, fetch the invoicing profile for the logged-in user
+            user = request.user.id
+            invoicing_profile = InvoicingProfile.objects.get(business__client=user)
+
+        # Serialize the invoicing profile data
         serializer = InvoicingProfileBusinessSerializers(invoicing_profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -93,6 +101,7 @@ def get_invoicing_profile(request):
             {"error": f"An unexpected error occurred: {e}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
 
 @swagger_auto_schema(
     method='post',
