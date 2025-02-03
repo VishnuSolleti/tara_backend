@@ -141,8 +141,6 @@ class User(AbstractBaseUser):
     last_name = models.CharField(max_length=40, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
-    user_kyc = models.BooleanField(default=False)
-    otp = models.IntegerField(null=True)
     user_type = models.CharField(
         max_length=40,
         choices=USER_TYPE_CHOICES,
@@ -150,13 +148,7 @@ class User(AbstractBaseUser):
         null=True,  # Allows storing NULL in the database
         blank=True  # Allows leaving the field blank in forms
     )
-    user_role = models.CharField(
-        max_length=40,
-        choices=USER_ROLE_CHOICES,
-        default=None,  # Default value set to None
-        null=True,  # Allows storing NULL in the database
-        blank=True  # Allows leaving the field blank in forms
-    )
+
     created_by = models.ForeignKey(
         AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

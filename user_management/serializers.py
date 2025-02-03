@@ -15,15 +15,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     mobile_number = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False, allow_null=True)
     user_type = serializers.CharField(required=False, allow_null=True)
-    user_role = serializers.CharField(required=False, allow_null=True, default=None)
     first_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     is_active = serializers.BooleanField(default=False)
 
     class Meta:
         model = User
-        fields = ('email', 'mobile_number', 'password', 'created_by', 'user_type',
-                  'user_role', 'first_name', 'last_name', 'is_active')
+        fields = ('email', 'mobile_number', 'password', 'created_by', 'user_type'
+                  , 'first_name', 'last_name', 'is_active')
 
     def validate(self, attrs):
         email = attrs.get('email')
@@ -52,7 +51,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         mobile_number = validated_data.get('mobile_number', None)
         password = validated_data.get('password')
         user_type = validated_data.get('user_type', None)
-        user_role = validated_data.get('user_role', None)
         first_name = validated_data.get('first_name', '')
         last_name = validated_data.get('last_name', '')
 
@@ -62,7 +60,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             password=password,
             mobile_number=mobile_number,
             user_type=user_type,
-            user_role=user_role,
             first_name=first_name,
             last_name=last_name
         )
