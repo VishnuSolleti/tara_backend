@@ -93,7 +93,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         }
         if user.user_type == "Business":
             business_exists = Business.objects.filter(client=user).exists()
-            data['business_exits'] = business_exits
+            data['business_exists'] = business_exists
         return data
 
 
