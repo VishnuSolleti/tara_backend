@@ -9,7 +9,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
-from user_management.models import CustomGroup, CustomPermission, UserGroup
+from user_management.models import CustomGroup, CustomPermission, UserGroup, Business
 
 
 User = get_user_model()  # Fetch the custom user model
@@ -75,6 +75,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             group_name = None  # No groups assigned
             associated_services = []  # No permissions assigned
 
+        business_exits = False
+
         # Customize the response data
         data = {
             'id': user.id,
@@ -89,7 +91,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }
-
+        if user.user_type == "Business":
+            business_exists = Business.objects.filter(client=user).exists()
+            data['business_exits'] = business_exits
         return data
 
 
