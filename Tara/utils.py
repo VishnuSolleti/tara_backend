@@ -74,6 +74,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if hasattr(user, 'userkyc'):  # Assuming `UserKYC` has a one-to-one or foreign key to `User`
             user_kyc_instance = user.userkyc
             user_name = user_kyc_instance.name
+            user_kyc = True
+
             # if user_kyc_instance.is_completed:  # Assuming `is_completed` indicates KYC completion
             #     user.user_kyc = True  # Update the `user_kyc` field in the User model
             #     user.save(update_fields=['user_kyc'])  # Save only the `user_kyc` field
