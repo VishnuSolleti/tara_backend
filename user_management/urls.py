@@ -4,10 +4,32 @@ from .views import *
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
+    path('permissions/', views.custom_permission_list_create, name='custom_permission_list_create'),
+    path('permissions/<int:pk>/', views.custom_permission_retrieve_update_destroy,
+         name='custom_permission_retrieve_update_destroy'),
+    # CRUD for CustomGroup
+    path('groups/', views.custom_group_list_create, name='custom_group_list_create'),
+    path('groups/<int:pk>/', views.custom_group_retrieve_update_destroy, name='custom_group_retrieve_update_destroy'),
+    # Add Permission to the Group
+    path('groups/<int:group_id>/permissions/', views.assign_permissions_to_group, name='assign_permissions_to_group'),
+
+    # path('users/by-type/', UserListByTypeAPIView.as_view(), name='users-by-type')
+
+    path('users/stats/', DynamicUserStatsAPIView.as_view(), name='user-stats'),
+    path('users/by-type/', UsersByDynamicTypeAPIView.as_view(), name='users-by-type'),
+
+    # Permission Assignment
+    path('user-group/assign/', assign_group_with_permissions, name='assign_group_with_permissions'),
+
+    path('user-group/<int:user_group_id>/permissions/', update_group_permissions, name='update_group_permissions'),
+    path('user-group', get_user_group_permissions, name='get_user_group_permissions'),
+
     path('register/', views.user_registration, name='user_registration'),
+    path('admin/user-registration/', user_registration_by_admin, name='admin-user-registration'),
     path('users/', users_creation, name='users_creation'),
+    path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('visa-users/', visa_users_creation, name='visa_users_creation'),
-    path('activate/<uid>/<token>/', ActivateUserView.as_view(), name='activate'),
+    path('activate', ActivateUserView.as_view(), name='activate'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('protected/', TestProtectedAPIView.as_view(), name='test_protected'),
     # Forgot password view
@@ -28,6 +50,17 @@ urlpatterns = [
     path('firmkyc/', FirmKYCView.as_view(), name='firmkyc'),
 
     path('update-users-info', views.partial_update_user, name='partial_update_user'),
+
+    # Business urls
+    path('businesses/', views.business_list, name='business-list'),
+    path('businesses/<int:pk>/', views.business_detail, name='business-detail'),
+    # Business list By Client
+    path('businesses-by-client/', views.business_list_by_client, name='business-list-by-client'),
+
+    # Adding GST Details
+    path('gst-details/', gst_details_list_create, name='gst-details-list-create'),
+    path('gst-details/<int:pk>/', gst_details_detail, name='gst-details-detail'),
+    path('gst-details/by-business/<int:business_id>/', business_with_gst_details, name='gst-details-by-business'),
 
     path('services/', ServicesMasterDataListAPIView.as_view()),  # For GET (list) and POST
 

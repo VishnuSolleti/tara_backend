@@ -2,7 +2,9 @@ from rest_framework import serializers
 from .models import User, UserKYC, FirmKYC, AddressModel
 from django.contrib.auth.models import *
 from .models import *
-
+import json
+from collections import OrderedDict
+from collections import defaultdict
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
     Serializer for user registration.
@@ -13,14 +15,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     mobile_number = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False, allow_null=True)
     user_type = serializers.CharField(required=False, allow_null=True)
-    user_role = serializers.CharField(required=False, allow_null=True)
     first_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    is_active = serializers.BooleanField(default=False)
+    user_name = serializers.CharField(max_length=120, allow_null=False, allow_blank=False)
 
     class Meta:
         model = User
-        fields = ('email', 'mobile_number', 'password', 'created_by', 'user_type',
-                  'user_role', 'first_name', 'last_name')
+        fields = ('email', 'mobile_number', 'password', 'created_by', 'user_type', 'user_name'
+                  , 'first_name', 'last_name', 'is_active')
 
     def validate(self, attrs):
         email = attrs.get('email')
@@ -32,26 +35,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if not email and not mobile_number:
             raise serializers.ValidationError("At least one of email or mobile number must be provided.")
 
-        # Check if email is already registered
-        if email and User.objects.filter(email=email).exists():
-            raise serializers.ValidationError({"email": "A user with this email already exists."})
-
-        # Check if mobile number is already registered
-        if mobile_number and User.objects.filter(mobile_number=mobile_number).exists():
-            raise serializers.ValidationError({"mobile_number": "A user with this mobile number already exists."})
-
         return attrs
 
     def create(self, validated_data):
         # Extract created_by if present; default to None
-        created_by = validated_data.pop('created_by', None)
+        created_by = validated_data.get('created_by', None)
         email = validated_data.get('email', None)
         mobile_number = validated_data.get('mobile_number', None)
         password = validated_data.get('password')
         user_type = validated_data.get('user_type', None)
-        user_role = validated_data.get('user_role', None)
         first_name = validated_data.get('first_name', '')
         last_name = validated_data.get('last_name', '')
+        user_name = validated_data.get('user_name')
 
         # Create the user with the provided data
         user = User.objects.create_user(
@@ -59,22 +54,91 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             password=password,
             mobile_number=mobile_number,
             user_type=user_type,
-            user_role=user_role,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            user_name=user_name,
+            created_by=created_by
         )
 
-        # Assign created_by to the user
-        if created_by:
-            user.created_by = created_by
-            user.save()
-
         return user
+
+class UserSerializer(serializers.ModelSerializer):
+    date_joined = serializers.SerializerMethodField()
+    class Meta:
+        model = User
+        fields = ['id', 'user_name', 'email', 'mobile_number',
+                  'first_name', 'last_name', 'user_type', 'is_active', 'date_joined']
+
+    def get_date_joined(self, obj):
+        return obj.date_joined.strftime('%d-%m-%Y')  # Format as dd-mm-yyyy
+
+
+class CustomPermissionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomPermission
+        fields = ['id', 'codename', 'name', 'description']
+
+class CustomGroupSerializer(serializers.ModelSerializer):
+    permissions = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomGroup
+        fields = ['id', 'name', 'permissions']
+
+    def get_permissions(self, obj):
+        grouped_permissions = defaultdict(list)
+        for perm in obj.permissions.all():
+            # Format each permission
+            grouped_permissions[perm.name].append({
+                "id": perm.id,
+                "key": perm.codename,
+                "label": perm.codename.replace('_', ' ').title(),
+                "description": perm.description,
+            })
+        return grouped_permissions
+
+    def create(self, validated_data):
+        permissions = validated_data.pop('permissions', [])
+        group = CustomGroup.objects.create(**validated_data)
+        group.permissions.set(permissions)  # Assign permissions
+        return group
+
+class CustomGroupSerializerData(serializers.ModelSerializer):
+    class Meta:
+        model = CustomGroup
+        fields = ['id', 'name']
+
+
+class UserGroupSerializer(serializers.ModelSerializer):
+    # group = serializers.PrimaryKeyRelatedField(
+    #     queryset=CustomGroup.objects.all(), required=False, allow_null=True
+    # )  # Handles foreign key relationship correctly
+
+    custom_permissions = CustomPermissionSerializer(many=True, required=False)
+
+    class Meta:
+        model = UserAffiliatedRole
+        fields = ['id', 'user', 'group', 'custom_permissions', 'added_on']
+
+    def create(self, validated_data):
+        """
+        Create and return a new `InvoicingProfile` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `InvoicingProfile` instance, given the validated data.
+        """
+        [setattr(instance, k, v) for k, v in validated_data.items()]
+        instance.save()
+        return instance
 
 
 class UserActivationSerializer(serializers.Serializer):
     token = serializers.CharField()
-
 
 class AddressSerializer(serializers.Serializer):
     address_line1 = serializers.CharField(max_length=255, required=False)
@@ -84,6 +148,71 @@ class AddressSerializer(serializers.Serializer):
     state = serializers.CharField(max_length=20, required=False)
     city = serializers.CharField(max_length=20, required=False)
     country = serializers.CharField(max_length=20, required=False)
+
+class BusinessSerializer(serializers.ModelSerializer):
+    entityType = serializers.CharField(max_length=50, required=False)
+    pan = serializers.CharField(max_length=15, required=True)
+
+    class Meta:
+        model = Business
+        fields = '__all__'
+
+    def validate(self, data):
+        if not data.get('pan'):
+            raise serializers.ValidationError({'PAN': 'This field is required.'})
+        if not data.get('nameOfBusiness'):
+            raise serializers.ValidationError({'name_as_per_pan': 'This field is required.'})
+        if not data.get('dob_or_incorp_date'):
+            raise serializers.ValidationError({'establishment_date': 'This field is required.'})
+        return data
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Business` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Business` instance, given the validated data.
+        """
+        [setattr(instance, k, v) for k, v in validated_data.items()]
+        instance.save()
+        return instance
+
+class GSTDetailsSerializer(serializers.ModelSerializer):
+    address = AddressSerializer(default={}, required=False)
+
+    class Meta:
+        model = GSTDetails
+        fields = '__all__'
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Business` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Business` instance, given the validated data.
+        """
+        [setattr(instance, k, v) for k, v in validated_data.items()]
+        instance.save()
+        return instance
+
+
+class BusinessWithGSTSerializer(serializers.ModelSerializer):
+    gst_details = GSTDetailsSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Business
+        fields = ['id', 'nameOfBusiness', 'entityType', 'registrationNumber', 'pan', 'mobile_number',
+                  'email', 'dob_or_incorp_date', 'gst_details']
 
 
 class UsersKYCSerializer(serializers.ModelSerializer):
@@ -127,10 +256,10 @@ class UsersKYCSerializer(serializers.ModelSerializer):
         """
         Create a new `UserKYC` instance.
         """
-        # Check if 'address' is present in validated_data
-        if 'address' not in validated_data:
-            # If not present, set default address values
-            validated_data['address'] = {
+        # Handle address field: if it's not provided, use default empty address
+        address_data = validated_data.pop('address', None)
+        if address_data is None:
+            address_data = {
                 "address_line1": None,
                 "address_line2": None,
                 "address_line3": None,
@@ -140,22 +269,24 @@ class UsersKYCSerializer(serializers.ModelSerializer):
                 "country": None
             }
 
-        # Create and save the UserKYC instance
-        user_details = UserKYC.objects.create(**validated_data)
+        # Create the UserKYC instance
+        user_details = UserKYC.objects.create(**validated_data, address=address_data)
         return user_details
 
     def update(self, instance, validated_data):
         """
-        Update an existing `UserDetails` instance.
+        Update an existing `UserKYC` instance.
         """
         # Extract and handle address data
-        address_data = validated_data.pop('address', {})
+        address_data = validated_data.pop('address', None)
+
+        # Update other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        # Update the embedded address data if provided
+        # Update the address field if it's provided
         if address_data:
-            instance.address.update(address_data)
+            instance.address = address_data
 
         instance.save()
         return instance
@@ -198,7 +329,7 @@ class FirmKYCSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['email_or_mobile', 'email', 'mobile_number', 'user_type']
+        fields = ['user_name', 'email', 'mobile_number', 'user_type', 'first_name', 'last_name', 'is_active']
         # You can modify this list based on the fields you want to allow updating
 
     def update(self, instance, validated_data):

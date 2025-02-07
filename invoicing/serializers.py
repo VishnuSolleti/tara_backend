@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import *
 from django.core.files.storage import FileSystemStorage
+from user_management.serializers import *
 
 class CustomerProfileSerializers(serializers.Serializer):
     invoicing_profile = serializers.PrimaryKeyRelatedField(
@@ -10,12 +11,12 @@ class CustomerProfileSerializers(serializers.Serializer):
     pan_number = serializers.CharField(max_length=10, allow_null=True, allow_blank=True)
     country = serializers.CharField(max_length=10, allow_null=True, allow_blank=True)
     address_line1 = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
-    address_line2  = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
+    address_line2 = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
     state = serializers.CharField(max_length=30, allow_null=True, allow_blank=True)
     postal_code = serializers.CharField(max_length=10, allow_null=True, allow_blank=True)
     gst_registered = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
     gstin = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
-    gst_type = serializers.CharField(max_length=20, allow_null=True, allow_blank=True)
+    gst_type = serializers.CharField(max_length=60, allow_null=True, allow_blank=True)
     email = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
     mobile_number = serializers.CharField(max_length=15, allow_null=True, allow_blank=True)
     opening_balance = serializers.IntegerField(allow_null=True)
@@ -51,7 +52,7 @@ class GoodsAndServicesSerializer(serializers.Serializer):
     # categoryasGST = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
     hsn_sac = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
     gst_rate = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
-    tax_preference = serializers.IntegerField(allow_null=True)
+    tax_preference = serializers.CharField(max_length=60, allow_null=True, allow_blank=True)
     selling_price = serializers.IntegerField(allow_null=True)
     description = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
 
@@ -139,6 +140,7 @@ class PaymentDetailSerializer(serializers.ModelSerializer):
 
 
 class InvoiceSerializer(serializers.Serializer):
+    id = serializers.IntegerField(read_only=True)
     invoicing_profile = serializers.PrimaryKeyRelatedField(
         queryset=InvoicingProfile.objects.all()
     )
@@ -146,22 +148,36 @@ class InvoiceSerializer(serializers.Serializer):
     terms = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
     financial_year = serializers.CharField(max_length=50, allow_null=True, allow_blank=True)
     invoice_number = serializers.CharField(max_length=50, allow_null=True, allow_blank=True)
+    format_version = serializers.IntegerField(allow_null=False)
     invoice_date = serializers.DateField(allow_null=True)
+    due_date = serializers.DateField(allow_null=False)
+    month = serializers.IntegerField(allow_null=False)
+    sales_person = serializers.CharField(max_length=60, allow_null=True, allow_blank=True)
+    order_number = serializers.CharField(max_length=60, allow_null=True, allow_blank=True)
     place_of_supply = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
     billing_address = serializers.JSONField(required=False, default={})
     shipping_address = serializers.JSONField(required=False, default={})
-    item_details = DetailedItemSerializer(many=True, required=False)
+    item_details = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=[],
+    )
     total_amount = serializers.FloatField(allow_null=True)
     subtotal_amount = serializers.FloatField(allow_null=True)
     shipping_amount = serializers.FloatField(allow_null=True)
-    cgst_amount = serializers.FloatField(allow_null=True)
-    sgst_amount = serializers.FloatField(allow_null=True)
-    igst_amount = serializers.FloatField(allow_null=True)
+    total_cgst_amount = serializers.FloatField(allow_null=True)
+    total_sgst_amount = serializers.FloatField(allow_null=True)
+    total_igst_amount = serializers.FloatField(allow_null=True)
     pending_amount = serializers.FloatField(allow_null=True)
     amount_invoiced = serializers.FloatField(allow_null=True)
-    payment_status = serializers.CharField(max_length=50, allow_null=True, allow_blank=True, default='Unpaid')
+    payment_status = serializers.CharField(max_length=50, allow_null=True, allow_blank=True, default='Pending')
     notes = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
     terms_and_conditions = serializers.CharField(max_length=500, allow_null=True, allow_blank=True)
+    applied_tax = serializers.BooleanField(default=False)
+    shipping_tax = serializers.FloatField(allow_null=True)
+    shipping_amount_with_tax = serializers.FloatField(allow_null=True)
+    selected_gst_rate = serializers.FloatField(allow_null=True)
+    invoice_status = serializers.CharField(max_length=60, allow_null=False, allow_blank=False)
 
     def create(self, validated_data):
         """
@@ -216,9 +232,67 @@ class CustomerProfileGetSerializers(serializers.ModelSerializer):
     class Meta:
         model = CustomerProfile
         exclude = ['invoicing_profile']
-    
-    
-class InvoicingProfileSerializer(serializers.ModelSerializer):
+
+class InvoicingProfileSerializers(serializers.ModelSerializer):
+    customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
+    invoice_format = serializers.JSONField()
+    class Meta:
+        model = InvoicingProfile
+        fields = [
+            'id',
+            'business',
+            'bank_name',
+            'account_number',
+            'ifsc_code',
+            'swift_code',
+            'customer_profiles',  # Nested customer profiles included
+            'invoice_format'
+        ]
+
+
+class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
+    customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
+    invoice_format = serializers.JSONField()
+    gst_details = GSTDetailsSerializer(many=True, source='business.gst_details')  # Include gst_details
+
+    # Including fields from Business model
+    nameOfBusiness = serializers.CharField(source='business.nameOfBusiness')
+    registrationNumber = serializers.CharField(source='business.registrationNumber')
+    entityType = serializers.CharField(source='business.entityType')
+    state = serializers.CharField(source='business.headOffice.state', default="")
+    email = serializers.EmailField(source='business.email', default="")
+    address_line1 = serializers.CharField(source='business.headOffice.address_line1', default="")
+    address_line2 = serializers.CharField(source='business.headOffice.address_line2', default="")
+    pinCode = serializers.CharField(source='business.headOffice.pinCode', default="")
+    mobile_number = serializers.CharField(source='business.mobile_number', default="")
+
+    class Meta:
+        model = InvoicingProfile
+        fields = [
+            'id',
+            'nameOfBusiness',
+            'registrationNumber',
+            'entityType',
+            'gst_registered',
+            'gstin',
+            'state',
+            'email',
+            'address_line1',
+            'address_line2',
+            'pinCode',
+            'mobile_number',
+            'bank_name',
+            'account_number',
+            'ifsc_code',
+            'swift_code',
+            'customer_profiles',
+            'invoice_format',
+            'gst_details',  # Add this field to include gst_details
+        ]
+
+
+
+class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
 
     class Meta:
@@ -226,12 +300,18 @@ class InvoicingProfileSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'business',
-            'customer_profiles',  # Nested customer profiles
+            'customer_profiles',  # Nested customer profiles included
         ]
 
 
+class GoodsAndServiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GoodsAndServices
+        exclude = ['invoicing_profile']  # Exclude the 'invoicing_profile' field
+
+
 class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
-    goods_and_services = GoodsAndServicesSerializer(many=True)
+    goods_and_services = GoodsAndServiceSerializer(many=True)
 
     class Meta:
         model = InvoicingProfile
@@ -240,3 +320,132 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
             'business',
             'goods_and_services',  # Nested goods and services
         ]
+
+# InvoicingProfile Serializer
+class InvoicingProfileInvoices(serializers.ModelSerializer):
+    invoices = serializers.SerializerMethodField()  # Nested serializer for invoices
+
+    class Meta:
+        model = InvoicingProfile
+        fields = ['id', 'business', 'invoices']
+
+    def get_invoices(self, obj):
+        """
+        Dynamically filters invoices based on the financial_year query parameter.
+        """
+        request = self.context.get('request')
+        financial_year = request.query_params.get('financial_year') if request else None
+
+        # Get all invoices related to the InvoicingProfile instance (obj)
+        invoices = obj.invoices.all()
+
+        # Apply the financial_year filter if provided
+        if financial_year:
+            invoices = invoices.filter(financial_year=financial_year)
+
+        # Serialize the filtered invoices using the InvoicesSerializer
+        return InvoicesSerializer(invoices, many=True).data
+
+class CustomerInvoiceReceiptSerializer(serializers.ModelSerializer):
+    def create(self, validated_data):
+        """
+        Create and return a new `InvoicingProfile` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `InvoicingProfile` instance, given the validated data.
+        """
+        [setattr(instance, k, v) for k, v in validated_data.items()]
+        instance.save()
+        return instance
+
+    class Meta:
+        model = CustomerInvoiceReceipt
+        fields = '__all__'
+
+
+class InvoiceSerializerData(serializers.ModelSerializer):
+    item_details = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=[],
+    )
+    customer_invoice_receipts = CustomerInvoiceReceiptSerializer(many=True, required=False, default=[])
+
+    class Meta:
+        model = Invoice
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        """
+        Add the balance_due field to the response, which is the total amount minus the sum of amounts from customer_invoice_receipts.
+        """
+        representation = super().to_representation(instance)
+
+        # Calculate the sum of the amounts from customer_invoice_receipts
+        receipts = representation.get("customer_invoice_receipts", [])
+        total_received = sum([receipt["amount"] for receipt in receipts])
+
+        # Calculate balance due
+        balance_due = representation.get("total_amount", 0) - total_received
+        representation["balance_due"] = balance_due
+
+        return representation
+
+class InvoiceDataSerializer(serializers.ModelSerializer):
+    item_details = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=[],
+    )
+    customer_invoice_receipts = CustomerInvoiceReceiptSerializer(many=True, required=False, default=[])
+
+    class Meta:
+        model = Invoice
+        fields = '__all__'
+
+    def to_representation(self, instance):
+        """
+        Add the balance_due field to the response, which is the total amount minus the sum of amounts from customer_invoice_receipts.
+        """
+        representation = super().to_representation(instance)
+
+        # Calculate the sum of the amounts from customer_invoice_receipts
+        receipts = representation.get("customer_invoice_receipts", [])
+        total_received = sum([receipt["amount"] for receipt in receipts])
+
+        # Calculate balance due
+        balance_due = representation.get("total_amount", 0) - total_received
+        representation["balance_due"] = balance_due
+
+        return representation
+
+class InvoicesSerializer(serializers.ModelSerializer):
+    billing_address = serializers.JSONField()  # Properly serialize as JSON
+    shipping_address = serializers.JSONField()
+    item_details = serializers.ListField()
+    customer_invoice_receipts = CustomerInvoiceReceiptSerializer(many=True, required=False, default=[])
+
+    class Meta:
+        model = Invoice
+        exclude = ['invoicing_profile']  # Ensuring all fields from the Invoice model are serialized
+
+    def to_representation(self, instance):
+        """
+        Add the balance_due field to the response, which is the total amount minus the sum of amounts from customer_invoice_receipts.
+        """
+        representation = super().to_representation(instance)
+
+        # Calculate the sum of the amounts from customer_invoice_receipts
+        receipts = representation.get("customer_invoice_receipts", [])
+        total_received = sum([receipt["amount"] for receipt in receipts])
+
+        # Calculate balance due
+        balance_due = representation.get("total_amount", 0) - total_received
+        representation["balance_due"] = balance_due
+
+        return representation

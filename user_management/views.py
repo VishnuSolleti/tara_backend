@@ -2,7 +2,9 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
-from .serializers import UserRegistrationSerializer, UsersKYCSerializer, UserActivationSerializer, FirmKYCSerializer
+from .serializers import (UserRegistrationSerializer, UsersKYCSerializer, UserActivationSerializer,
+                          FirmKYCSerializer,CustomPermissionSerializer, CustomGroupSerializer)
+from django.db.models import Count
 from .serializers import *
 from password_generator import PasswordGenerator
 from drf_yasg.utils import swagger_auto_schema
@@ -15,7 +17,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from .models import User, UserKYC, FirmKYC
+from .models import User, UserKYC, FirmKYC, CustomPermission, CustomGroup, UserAffiliatedRole, GSTDetails
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
@@ -31,6 +33,13 @@ from datetime import datetime
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import NotFound
+from django.contrib.auth.password_validation import validate_password
+from django.http import Http404
+from .permissions import GroupPermission, has_group_permission
+from django.contrib.auth.decorators import permission_required
+from django.db.models.functions import Coalesce
+from django.db.models import Count, F, Value
+from collections import defaultdict
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -73,6 +82,262 @@ def authenticate():
     response = requests.request("POST", url, headers=headers, data=payload)
     return response.json()['access_token']
 
+
+@api_view(['GET', 'POST'])
+def custom_permission_list_create(request):
+    if request.method == 'GET':
+        permissions = CustomPermission.objects.all()
+        serializer = CustomPermissionSerializer(permissions, many=True)
+
+        # Use a defaultdict to group permissions by name
+        grouped_permissions = defaultdict(list)
+
+        for perm in serializer.data:
+            action = {
+                "id": perm['id'],
+                "key": perm['codename'],
+                "label": perm['codename'].replace('_', ' ').title(),  # Generate label from codename
+                "description": perm['description']
+            }
+            grouped_permissions[perm['name']].append(action)
+
+        return Response(grouped_permissions)
+
+    elif request.method == 'POST':
+        serializer = CustomPermissionSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "detail": "Custom Permission Created."}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def custom_permission_retrieve_update_destroy(request, pk):
+    try:
+        permission = CustomPermission.objects.get(pk=pk)
+    except CustomPermission.DoesNotExist:
+        return Response({"error": "Permission not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = CustomPermissionSerializer(permission)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = CustomPermissionSerializer(permission, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        permission.delete()
+        return Response({"message": "Permission deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+# CRUD for CustomGroup
+
+@api_view(['GET', 'POST'])
+def custom_group_list_create(request):
+    if request.method == 'GET':
+        groups = CustomGroup.objects.all()
+        serializer = CustomGroupSerializer(groups, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = CustomGroupSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "detail": "User details saved successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def custom_group_retrieve_update_destroy(request, pk):
+    try:
+        group = CustomGroup.objects.get(pk=pk)
+    except CustomGroup.DoesNotExist:
+        return Response({"error": "Group not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = CustomGroupSerializer(group)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = CustomGroupSerializer(group, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        group.delete()
+        return Response({"message": "Group deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+def assign_permissions_to_group(request, group_id):
+    """
+    Assign permissions to a group.
+    """
+    try:
+        group = CustomGroup.objects.get(id=group_id)
+    except CustomGroup.DoesNotExist:
+        return Response({"error": "Group not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'POST':
+        permission_ids = request.data.get('permissions', [])
+        if not isinstance(permission_ids, list):
+            return Response({"error": "'permissions' must be a list of IDs."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Add permissions to the group
+        try:
+            permissions = CustomPermission.objects.filter(id__in=permission_ids)
+            group.permissions.set(permissions)  # Replaces existing permissions with the new ones
+            return Response(
+                {"message": f"Permissions successfully assigned to group '{group.name}'."},
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+def assign_group_with_permissions(request):
+    """
+    Assign a single group to a user with optional customization of permissions.
+    """
+    user_id = request.data.get('user')
+    group_id = request.data.get('group')  # Expecting only one group now
+    custom_permissions_ids = request.data.get('custom_permissions', [])
+
+    # Validate User
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Validate Group
+    try:
+        group = CustomGroup.objects.get(id=group_id)
+    except CustomGroup.DoesNotExist:
+        return Response({"error": "Group not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
+    user_group, created = UserAffiliatedRole.objects.get_or_create(user=user)
+    user_group.group = group  # Assigning a single group
+
+    # Assign permissions
+    if custom_permissions_ids:
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if not custom_permissions.exists():
+            return Response({"error": "Invalid custom permissions provided"}, status=status.HTTP_400_BAD_REQUEST)
+        user_group.custom_permissions.set(custom_permissions)
+    else:
+        # Default to the group's permissions if no custom permissions are provided
+        default_permissions = group.permissions.all()  # Fetch default permissions from the assigned group
+        user_group.custom_permissions.set(default_permissions)
+
+    user_group.save()
+
+    return Response({
+        "user_group": UserGroupSerializer(user_group).data,
+        "message": "Group assigned successfully with custom permissions."
+    }, status=status.HTTP_201_CREATED)
+
+@api_view(['GET'])
+def get_user_group_permissions(request):
+    """
+    Retrieve the group and custom permissions associated with a User based on the user_id and/or permission name.
+    """
+    user_id = request.query_params.get('user_id')
+    permission_name = request.query_params.get('name')
+
+    # Ensure the user is authenticated
+    if not request.user.is_authenticated:
+        return Response({"error": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
+
+    # If user_id is provided, fetch the UserGroup entry
+    if user_id:
+        try:
+            user_group = UserAffiliatedRole.objects.get(user_id=user_id)
+        except UserAffiliatedRole.DoesNotExist:
+            return Response({"error": "No UserGroup found for the given user."}, status=status.HTTP_404_NOT_FOUND)
+
+        # If permission_name is provided, filter custom permissions
+        if permission_name:
+            filtered_permissions = user_group.custom_permissions.filter(name=permission_name)
+        else:
+            filtered_permissions = user_group.custom_permissions.all()
+
+        # Organize permissions by their 'name' field
+        permissions_by_group = {}
+        for perm in filtered_permissions:
+            group_name = perm.name  # Group by the 'name' of the permission
+            permission_data = {
+                "id": perm.id,
+                "key": perm.codename,
+                "label": perm.codename.replace("_", " ").title(),
+                "description": perm.description
+            }
+            if group_name not in permissions_by_group:
+                permissions_by_group[group_name] = []
+            permissions_by_group[group_name].append(permission_data)
+
+        # Prepare the final response
+        data = {
+            "id": user_group.id,
+            "user": user_group.user.id,
+            "group": user_group.group.name if user_group.group else None,
+            "custom_permissions": permissions_by_group,
+            "added_on": user_group.added_on
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    # If neither parameter is provided, return an error
+    return Response({
+        "error": "The 'user_id' parameter is required."
+    }, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT'])
+def update_group_permissions(request, user_group_id):
+    """
+    Update the group or custom permissions associated with a UserGroup.
+    This allows updating the group and custom permissions.
+    """
+    try:
+        user_group = UserAffiliatedRole.objects.get(id=user_group_id)
+    except UserAffiliatedRole.DoesNotExist:
+        return Response({"error": "UserGroup not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    group_id = request.data.get('group')  # Expecting a single group ID
+    custom_permissions_ids = request.data.get('custom_permissions', [])  # List of permission IDs
+
+    # Handle group update
+    if group_id:
+        try:
+            group = CustomGroup.objects.get(id=group_id)
+        except CustomGroup.DoesNotExist:
+            return Response({"error": "Group not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_group.group = group  # Assign new group
+
+    # Handle custom permissions update
+    if custom_permissions_ids is not None:
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if custom_permissions.count() != len(custom_permissions_ids):
+            return Response({"error": "Invalid custom permissions provided"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_group.custom_permissions.set(custom_permissions)
+
+    # Save changes
+    user_group.save()
+
+    return Response({
+        "user_group": UserGroupSerializer(user_group).data,
+        "message": "UserGroup updated successfully."
+    }, status=status.HTTP_200_OK)
 
 # User Registration
 @swagger_auto_schema(
@@ -120,7 +385,7 @@ def user_registration(request):
                 if email:
                     token = default_token_generator.make_token(user)
                     uid = urlsafe_base64_encode(str(user.pk).encode())
-                    activation_link = f"{FRONTEND_URL}/activate/{uid}/{token}/"
+                    activation_link = f"{FRONTEND_URL}activation?uid={uid}&token={token}"
                     ses_client = boto3.client(
                         'ses',
                         region_name=AWS_REGION,
@@ -195,6 +460,104 @@ def user_registration(request):
             logger.error(f"Unexpected error during registration: {str(e)}")
             return Response({"error": "An unexpected error occurred.", "details": str(e)},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def user_registration_by_admin(request):
+    """
+    Handle user registration by superadmin without activation link,
+    and send username and password to the user via email.
+    """
+    logger.info("Received a superadmin user registration request.")
+    print("*********************")
+
+    if request.method == 'POST':
+        try:
+            request_data = request.data
+            email = request_data.get('email', '').lower()
+            mobile_number = request_data.get('mobile_number', '')
+
+            logger.debug(f"Request data: email={email}, mobile_number={mobile_number}")
+
+            # Ensure at least one of email or mobile_number is provided
+            if not email and not mobile_number:
+                logger.warning("Registration failed: Missing both email and mobile number.")
+                return Response(
+                    {"error": "Either email or mobile number must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Prepare request data for serializer
+            password = request_data['password']
+            request_data['created_by'] = request.user.id
+            serializer = UserRegistrationSerializer(data=request_data)
+
+            if serializer.is_valid():
+                user = serializer.save()
+                logger.info(f"User created successfully by superadmin: {user.pk}")
+
+                # Send email with the username and password
+                if email:
+                    subject = "Your Account Details"
+                    body_html = f"""
+                                    <html>
+                                    <body>
+                                        <h1>Welcome to Our Platform</h1>
+                                        <p>Your account has been created by the superadmin.</p>
+                                        <p><strong>Username:</strong> {user.email}</p>
+                                        <p><strong>Password:</strong> {password}</p>
+                                    </body>
+                                    </html>
+                                    """
+                    ses_client = boto3.client(
+                        'ses',
+                        region_name=AWS_REGION,
+                        aws_access_key_id=AWS_ACCESS_KEY_ID,
+                        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+                    )
+
+                    try:
+                        response = ses_client.send_email(
+                            Source=EMAIL_HOST_USER,
+                            Destination={'ToAddresses': [email]},
+                            Message={
+                                'Subject': {'Data': subject},
+                                'Body': {
+                                    'Html': {'Data': body_html},
+                                    'Text': {'Data': f"Your username is: {user.email}\nYour password is: {password}"}
+                                },
+                            }
+                        )
+                        logger.info(f"Account details email sent to: {email}")
+                        return Response(
+                            {"message": "User created successfully. Check your email for the username and password."},
+                            status=status.HTTP_201_CREATED,
+                        )
+
+                    except ClientError as e:
+                        logger.error(f"Failed to send email via SES: {e.response['Error']['Message']}")
+                        return Response(
+                            {"error": "Failed to send account details email. Please try again later."},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        )
+
+            logger.warning("Registration failed: Validation errors.")
+            logger.debug(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except IntegrityError as e:
+            logger.error(f"Integrity error during registration: {str(e)}")
+            return Response({"error": "A user with this email or mobile number already exists."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}")
+            return Response({"error": "Database error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}")
+            return Response({"error": "An unexpected error occurred.", "details": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 # Define the conditional schema
 def get_conditional_schema(user_type):
@@ -452,6 +815,88 @@ def visa_users_creation(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+class DynamicUserStatsAPIView(APIView):
+    """
+    API View to fetch dynamic user statistics grouped by user_type.
+    Ignores users with user_type='SuperAdmin'.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        # Exclude 'SuperAdmin'
+        users = User.objects.exclude(user_type="SuperAdmin")
+
+        # Get the stats for user types, including those with None values
+        user_stats = users.values("user_type").annotate(count=Count("id"))
+
+        # Initialize stats dictionary with "Individual" for None user_type
+        stats = {"Individual": 0}
+
+        # Loop through each user type count and add to stats
+        for stat in user_stats:
+            user_type = stat["user_type"]
+            if user_type is None:
+                stats["Individual"] += stat["count"]
+            else:
+                stats[user_type] = stat["count"]
+
+        return Response(stats, status=status.HTTP_200_OK)
+
+
+class UsersByDynamicTypeAPIView(APIView):
+    """
+    API View to retrieve users based on user_type dynamically.
+    Ignores users with user_type='SuperAdmin'.
+    """
+    permission_classes = [AllowAny]  # Adjust permissions as needed
+
+    def get(self, request, *args, **kwargs):
+        # Get user_type from query parameters
+        user_type = request.query_params.get("user_type")
+
+        if not user_type:
+            return Response({"error": "user_type parameter is required."}, status=400)
+
+        # Filter users dynamically based on user_type
+        if user_type == "Individual":
+            users = User.objects.filter(user_type__isnull=True)
+        else:
+            users = User.objects.filter(user_type=user_type)
+
+        # Exclude 'SuperAdmin' in all cases
+        users = users.exclude(user_type="SuperAdmin")
+
+        # Serialize and return data
+        user_data = UserSerializer(users, many=True).data
+
+        return Response({
+            "users": user_data
+        },  status=status.HTTP_200_OK)
+
+class UserListByTypeAPIView(APIView):
+    """
+    API View to list all users grouped by user_type.
+    Users with user_type = None are categorized under 'Individual'.
+    """
+    permission_classes = [AllowAny]  # Adjust permissions as needed
+
+    def get(self, request, *args, **kwargs):
+        user_groups = {
+            "CA": [],
+            "Business": [],
+            "ServiceProvider": [],
+            "Individual": []
+        }
+
+        # Fetch all users
+        users = User.objects.exclude(user_type="SuperAdmin")
+
+        # Serialize users and group them by user_type
+        for user in users:
+            user_type = user.user_type or "Individual"
+            user_groups[user_type].append(UserSerializer(user).data)
+
+        return Response(user_groups)
 
 def send_user_email(email, password):
     """Sends autogenerated credentials to user's email."""
@@ -507,12 +952,8 @@ class ActivateUserView(APIView):
 
     @swagger_auto_schema(
         manual_parameters=[
-            openapi.Parameter(
-                'uid', openapi.IN_PATH, description="User ID (Base64 encoded)", type=openapi.TYPE_STRING
-            ),
-            openapi.Parameter(
-                'token', openapi.IN_PATH, description="Activation token", type=openapi.TYPE_STRING
-            )
+            openapi.Parameter('uid', openapi.IN_QUERY, description="User ID (Base64 encoded)", type=openapi.TYPE_STRING),
+            openapi.Parameter('token', openapi.IN_QUERY, description="Activation token", type=openapi.TYPE_STRING)
         ],
         responses={
             200: openapi.Response("Account activated successfully"),
@@ -520,11 +961,18 @@ class ActivateUserView(APIView):
         },
         operation_description="Activate user account using UID and token."
     )
-    def get(self, request, uid, token):
+    def get(self, request, *args, **kwargs):
         """
-        Handle user account activation.
+        Handle user account activation using query parameters (uid and token).
         """
         logger.info("Starting user account activation process.")
+
+        # Get 'uid' and 'token' from query parameters
+        uid = request.query_params.get('uid')
+        token = request.query_params.get('token')
+
+        if not uid or not token:
+            raise Http404("UID or token is missing from the request.")
 
         try:
             uid = urlsafe_base64_decode(uid).decode()
@@ -542,6 +990,64 @@ class ActivateUserView(APIView):
 
         logger.warning(f"Activation token for user with UID {uid} is invalid or expired.")
         return Response({"message": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @swagger_auto_schema(
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            properties={
+                'old_password': openapi.Schema(type=openapi.TYPE_STRING, description="Current password"),
+                'new_password': openapi.Schema(type=openapi.TYPE_STRING, description="New password"),
+            },
+            required=['old_password', 'new_password']
+        ),
+        responses={
+            200: openapi.Response("Password changed successfully"),
+            400: openapi.Response("Invalid input or validation failed"),
+            401: openapi.Response("Authentication required")
+        },
+        manual_parameters=[
+            openapi.Parameter(
+                'Authorization',
+                openapi.IN_HEADER,
+                description="Bearer <JWT Token>",
+                type=openapi.TYPE_STRING
+            ),
+        ],
+        operation_description="Change the password for the authenticated user."
+    )
+    def put(self, request, *args, **kwargs):
+        """
+        Allow the authenticated user to change their password.
+        """
+        user = request.user
+        old_password = request.data.get("old_password")
+        new_password = request.data.get("new_password")
+
+        if not old_password or not new_password:
+            raise ValidationError({"detail": "Both 'old_password' and 'new_password' are required."})
+
+        # Check if the old password is correct
+        if not user.check_password(old_password):
+            raise ValidationError({"old_password": "Old password is incorrect."})
+
+        # Validate the new password
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as e:
+            # Catch the ValidationError and return a 400 Bad Request with the error message
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Set the new password
+        user.set_password(new_password)
+        user.save()
+
+        return Response({"message": "Password changed successfully."}, status=status.HTTP_200_OK)
 
 
 # Test Protected API
@@ -846,6 +1352,9 @@ class UsersKYCListView(APIView):
             elif pan_verification_data['code'] != 200:
                 return Response({'error_message': 'Invalid pan details, Please cross check the DOB, Pan number or Name'},
                                 status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({'error_message': pan_verification_data['data']['remarks']},
+                                status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(e, exc_info=1)
             return Response({'error_message': str(e), 'status_cd': 1},
@@ -972,7 +1481,8 @@ class FirmKYCView(APIView):
         try:
             firm_kyc = request.user.firmkyc
             serializer = FirmKYCSerializer(firm_kyc)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response({"data": serializer.data, "detail": "FIRM KYC saved successfully."},
+                            status=status.HTTP_200_OK)
         except FirmKYC.DoesNotExist:
             return Response({"detail": "FirmKYC details not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -1070,21 +1580,45 @@ class FirmKYCView(APIView):
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
-            'email_or_mobile': openapi.Schema(
+            'id': openapi.Schema(
+                type=openapi.TYPE_INTEGER,
+                description='ID of the user to update. If not provided, the currently authenticated user will be updated.',
+                example=1
+            ),
+            'user_name': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='Email or Mobile Number of the user (optional).'
+                description='Email or Mobile Number of the user (optional).',
+                example='example@example.com'
             ),
             'email': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='Email address of the user (optional).'
+                description='Email address of the user (optional).',
+                example='example@example.com'
             ),
             'mobile_number': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='Mobile number of the user (optional).'
+                description='Mobile number of the user (optional).',
+                example='+1234567890'
             ),
             'user_type': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description='User type to be updated. Choices are: "individual", "cafirm", "business_or_corporate", "superuser". (optional).'
+                description='User type to be updated. Choices are: "Individual", "CA", "Business", "ServiceProvider". (optional)',
+                example='Individual'
+            ),
+            'first_name': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='First name of the user (optional).',
+                example='John'
+            ),
+            'last_name': openapi.Schema(
+                type=openapi.TYPE_STRING,
+                description='Last name of the user (optional).',
+                example='Doe'
+            ),
+            'is_active': openapi.Schema(
+                type=openapi.TYPE_BOOLEAN,
+                description='Indicates if the user is active (optional).',
+                example=True
             ),
         },
         required=[],  # No required fields because any field from the serializer can be passed.
@@ -1099,11 +1633,16 @@ class FirmKYCView(APIView):
                         type=openapi.TYPE_STRING,
                         description='Success message'
                     ),
+                    'data': openapi.Schema(
+                        type=openapi.TYPE_OBJECT,
+                        description="Updated user data",
+                    ),
                 }
             ),
         ),
         400: openapi.Response("Invalid data provided."),
         404: openapi.Response("User not found."),
+        500: openapi.Response("Unexpected error occurred."),
     },
     manual_parameters=[
         openapi.Parameter(
@@ -1114,16 +1653,29 @@ class FirmKYCView(APIView):
             required=True  # Make Authorization header required
         ),
     ],
-    operation_description="Updates the user fields like email, mobile number, or user type of the currently authenticated user. Only the fields provided will be updated."
+    operation_description="Updates the user fields like email, mobile number, or user type of the currently authenticated user. Only the fields provided will be updated. If `id` is passed, updates the user with that ID."
 )
-@api_view(['PATCH'])
 @permission_classes([IsAuthenticated])  # Ensure only authenticated users can access this endpoint
+@api_view(['PATCH'])
 def partial_update_user(request):
     """
-    Handle partial update of user profile, allowing only specified fields to be updated.
+    Handle partial update of user profile. If `id` is passed, update that user;
+    otherwise, update the currently authenticated user.
     """
     try:
-        user = request.user  # Get the currently authenticated user
+        user_id = request.data.get('id', None)  # Get the 'id' from request data
+
+        if user_id:
+            # If `id` is passed, fetch the user with the provided `id`
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            # If no `id` is passed, update the currently authenticated user
+            user = request.user  # Get the currently authenticated user
+
+        # Create a serializer instance with partial update flag
         serializer = UserUpdateSerializer(user, data=request.data, partial=True)
 
         if serializer.is_valid():
@@ -1171,6 +1723,129 @@ def partial_update_user(request):
 #             return Response(serializer.data, status=status.HTTP_201_CREATED)
 #         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def business_list_by_client(request):
+    client_id = request.user.id
+
+    # Filter businesses by client_id
+    businesses = Business.objects.filter(client=client_id)
+
+    # Check if businesses are found for the client
+    if not businesses.exists():
+        return Response({'message': 'No businesses found for this client.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Serialize the data
+    serializer = BusinessSerializer(businesses, many=True)
+
+    # Return the serialized data
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def business_list(request):
+    if request.method == 'GET':
+        businesses = Business.objects.all()
+        serializer = BusinessSerializer(businesses, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        request_data = request.data
+        request_data['nameOfBusiness'] = request_data.get('nameOfBusiness', '').title()
+
+        if request_data.get('entityType') != 'individual':
+            qs = Business.objects.filter(nameOfBusiness__iexact=request_data.get('nameOfBusiness'))
+            if qs.exists():
+                return Response({'error_message': 'Business already exists'}, status=status.HTTP_400_BAD_REQUEST)
+            qs = Business.objects.filter(pan=request_data.get('pan'))
+            if qs.exists():
+                return Response({'error_message': 'Business with PAN already exists'},
+                                status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = BusinessSerializer(data=request_data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def business_detail(request, pk):
+    business = get_object_or_404(Business, pk=pk)
+
+    if request.method == 'GET':
+        serializer = BusinessSerializer(business)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = BusinessSerializer(business, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        business.delete()
+        return Response({'message': 'Business deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def gst_details_list_create(request):
+    """
+    List all GST details or create a new GST detail.
+    """
+    if request.method == 'GET':
+        gst_details = GSTDetails.objects.all()
+        serializer = GSTDetailsSerializer(gst_details, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = GSTDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+def gst_details_detail(request, pk):
+    """
+    Retrieve, update or delete a GST detail by ID.
+    """
+    try:
+        gst_detail = GSTDetails.objects.get(pk=pk)
+    except GSTDetails.DoesNotExist:
+        return Response({"error": "GST Detail not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = GSTDetailsSerializer(gst_detail)
+        return Response(serializer.data)
+
+    elif request.method in ['PUT', 'PATCH']:
+        serializer = GSTDetailsSerializer(gst_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        gst_detail.delete()
+        return Response({"message": "GST Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def business_with_gst_details(request, business_id):
+    """
+    Retrieve a Business along with all its associated GST details using serializers.
+    """
+    try:
+        business = Business.objects.prefetch_related('gst_details').get(id=business_id)
+    except Business.DoesNotExist:
+        return Response({"error": "Business not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = BusinessWithGSTSerializer(business)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 class ServicesMasterDataListAPIView(APIView):
     permission_classes = [AllowAny]
@@ -1324,7 +1999,8 @@ class ServicesMasterDataDetailAPIView(APIView):
 
 
 class VisaApplicationDetailAPIView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [GroupPermission]
+    permission_required = "VS_Task_View"
 
     @swagger_auto_schema(
         operation_description="Retrieve details of a specific visa application by ID.",
@@ -1332,7 +2008,16 @@ class VisaApplicationDetailAPIView(APIView):
         responses={
             200: "Visa application details retrieved successfully.",
             404: "Visa application not found."
-        }
+        },
+        manual_parameters=[
+                    openapi.Parameter(
+                        'Authorization',
+                        openapi.IN_HEADER,
+                        description="Bearer <JWT Token>",
+                        type=openapi.TYPE_STRING,
+                        required=True,
+                    ),
+                ]
     )
     def get(self, request, pk):
         try:
@@ -1398,6 +2083,7 @@ class VisaApplicationDetailAPIView(APIView):
         except VisaApplications.DoesNotExist:
             return Response({"error": "Visa application not found"}, status=status.HTTP_404_NOT_FOUND)
 
+    permission_required = "VS_Task_Edit"
     @swagger_auto_schema(
         operation_description="Update an existing visa application by ID.",
         tags=["VisaApplication"],
@@ -1420,6 +2106,8 @@ class VisaApplicationDetailAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    # For DELETE
+    permission_required = "VS_Task_Delete"  # Define the required permission for DELETE method
     @swagger_auto_schema(
         operation_description="Delete a visa application by ID.",
         tags=["VisaApplication"],
@@ -1535,7 +2223,8 @@ class VisaApplicationDetailAPIView(APIView):
     }
 )
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([AllowAny])  # Add 'GroupPermission' if necessary for handling role-based permission
+@has_group_permission('VS_Task_Create')
 def manage_visa_applications(request):
     try:
         # Authorization check
@@ -1630,10 +2319,11 @@ def manage_visa_applications(request):
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@has_group_permission('VS_Task_View')
 def get_visa_clients_users_list(request):
     try:
         # Check if the user is a ServiceProvider_Admin with the correct type
-        print("*****")
+        print("****************")
         if request.user.user_role == "ServiceProvider_Admin" and request.user.user_type == "ServiceProvider":
             # Get all users created by the current ServiceProviderAdmin
             created_by_id = request.user.id
@@ -1745,6 +2435,7 @@ def get_visa_clients_users_list(request):
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@has_group_permission('VS_Task_View')
 def service_status(request):
     try:
         # Check if the user has the appropriate role and type
@@ -1932,6 +2623,7 @@ def collect_service_data(serializer_data, user_role):
 )
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+@has_group_permission('VS_Task_View')
 def all_service_data(request):
     user_role = request.user.user_role
 
@@ -1981,6 +2673,7 @@ auth_header = openapi.Parameter(
 
 class ServiceDetailsAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    permission_required = "VS_Task_View"
 
     def has_permission(self, user):
         """
@@ -2044,6 +2737,8 @@ class ServiceDetailsAPIView(APIView):
         required=['visa_application', 'service']
     )
 
+    permission_required = "VS_Task_Edit"
+
     @swagger_auto_schema(
         operation_description="Partially update a specific ServiceDetails instance (partial=True).",
         tags=["VisaServiceTasks"],
@@ -2100,6 +2795,7 @@ class ServiceDetailsAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    permission_required = "VS_Task_Delete"
     @swagger_auto_schema(
         operation_description="Delete a specific ServiceDetails instance by ID.",
         tags=["VisaServiceTasks"],

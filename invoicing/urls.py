@@ -10,11 +10,11 @@ urlpatterns = [
     path('customer_profiles/create/', create_customer_profile, name='create-customer-profile'),
     path('customer_profiles/', get_customer_profile, name='get-customer-profile'),
     path('invoicing/customer_profiles/update/<int:id>/', update_customer_profile, name='update_customer_profile'),
-    path('customer_profiles/delete/', delete_customer_profile, name='delete-customer-profile'),
+    path('customer_profiles/delete/<int:id>', delete_customer_profile, name='delete-customer-profile'),
     path('api/v1/goods-services/create/', create_goods_service, name='create-goods-service'),
 
     # Retrieve a specific goods or service entry
-    path('goods-services/', retrieve_goods_service, name='retrieve-goods-service'),
+    path('goods-services/<int:pk>', retrieve_goods_service, name='retrieve-goods-service'),
 
     # Update an existing goods or service entry
     path('goods-services/<int:id>/update/', update_goods_service, name='update-goods-service'),
@@ -29,6 +29,28 @@ urlpatterns = [
     path('invoice-update/<int:invoice_id>/', update_invoice, name='update_invoice'),
 
     path('invoice-delete/<int:invoice_id>/', delete_invoice, name='delete_invoice'),
+
+    path('create-pdf/<int:id>',views.createDocument),
+
+    path('invoice-stats', get_invoice_stats, name='invoice-stats'),
+
+    path('detail-invoice', get_invoices, name='get_invoices'),
+
+    path('individual-invoice/<int:id>/', get_invoice_by_id, name='get_invoice_by_id'),
+
+    path('latest/<int:invoicing_profile_id>/', latest_invoice_id, name='latest-invoice-number'),
+
+    path('filter-invoices', filter_invoices, name='filter_invoices'),
+
+    path('receipt', create_customer_invoice_receipt, name='create_customer_invoice_receipt'),
+
+    path('receipt-get/', get_customer_invoice_receipts, name='get_customer_invoice_receipts'),
+
+    path('receipt-update/<int:receipt_id>/', update_customer_invoice_receipt, name='update_customer_invoice_receipt'),
+
+    path('receipt-delete/<int:receipt_id>/', delete_customer_invoice_receipt, name='delete_customer_invoice_receipt'),
+
+    path('invoice-wave-off/<int:invoice_id>', wave_off_invoice, name='wave_off_invoice')
 
 ]
 

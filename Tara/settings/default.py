@@ -33,7 +33,7 @@ SECRET_KEY = 'l$03&@y2zwp$uf3xj14=5whvkl6t)j2#9-=7l73x6t0@x3#=s%'
 
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG')
+DEBUG = False
 
 ALLOWED_HOSTS = [
     'localhost',  # Local development
@@ -64,6 +64,8 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'invoicing',
+    'django_celery_beat',
+    'payroll'
 ]
 
 MIDDLEWARE = [
@@ -192,7 +194,7 @@ REST_FRAMEWORK = {
 
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=12),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
     'ROTATE_REFRESH_TOKENS': False,
     'BLACKLIST_AFTER_ROTATION': True,
@@ -306,6 +308,7 @@ AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 
+S3_BUCKET_NAME = "tarafirstdevelopment"
 
 # database connections
 userName = os.getenv('database_username')
@@ -333,11 +336,37 @@ DATABASES = {
 }
 
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-    }
-}
-
-
 Reference_link = "http://dev.tarafirst.com/"
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [str(BASE_DIR)+'/templates'],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+# settings.py
+
+# Celery settings
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_ENABLE_UTC = False
+CELERY_TIMEZONE = 'Asia/Kolkata'
+
+SANDBOX_API_KEY = 'key_live_KAbyGU4p0Hu4bkkTuZCUJb9HyEiaGxcu'
+SANDBOX_API_SECRET = 'secret_live_ZTyQBPYUHJtU3aLDtcH6ofRMMlrjmjKD'
+SANDBOX_API_URL = 'https://api.sandbox.co.in'
+SANDBOX_API_VERSION = '1.0'
+

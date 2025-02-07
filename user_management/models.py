@@ -5,9 +5,14 @@ from cryptography.fernet import Fernet
 from django.db import models
 from djongo.models import ArrayField, EmbeddedField
 from Tara.settings.default import *
+import json
+from djongo.models import ArrayField, EmbeddedField, JSONField
+from django.dispatch import receiver
+from django.db.models.signals import post_save, post_delete
 
 
-KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='
+KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='  # Fernet key
+
 class EncryptedField(models.Field):
     def __init__(self, *args, **kwargs):
         self.cipher = Fernet(KEY)
@@ -17,19 +22,20 @@ class EncryptedField(models.Field):
         """Override to encrypt data before saving to the database"""
         if value is None:
             return None
-        return self.cipher.encrypt(value.encode()).decode()
+        try:
+            # Encrypt and decode to ensure it's a string
+            encrypted_value = self.cipher.encrypt(value.encode()).decode()
+            return encrypted_value
+        except Exception as e:
+            print(f"Encryption failed with error: {str(e)}")
+            return None
 
     def from_db_value(self, value, expression, connection):
         """Override to decrypt data when retrieving from the database"""
         if value is None:
             return None
-        return self.cipher.decrypt(value.encode()).decode()
-
-    def to_python(self, value):
-        """Override to decrypt data when deserializing from the database"""
-        if value is None:
-            return None
         try:
+            # Decrypt the value before returning it
             decrypted_value = self.cipher.decrypt(value.encode()).decode()
             return decrypted_value
         except Exception as e:
@@ -37,29 +43,37 @@ class EncryptedField(models.Field):
             return None
 
 
+class CustomPermission(models.Model):
+    codename = models.CharField(max_length=100, unique=True)
+    name = models.CharField(max_length=255)
+    description = models.CharField(max_length=255, null=False, blank=False)
+
+    def __str__(self):
+        return self.name
+
+class CustomGroup(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    permissions = models.ManyToManyField(CustomPermission, related_name='groups')
+
+    def __str__(self):
+        return self.name
+
 class CustomAccountManager(BaseUserManager):
-    def create_user(self, email=None, password=None, mobile_number=None, created_by=None, **extra_fields):
+    def create_user(self, email=None, password=None, mobile_number=None, user_name=None, created_by=None, **extra_fields):
         # Normalize email if provided
         email = self.normalize_email(email) if email else None
 
-        # Ensure at least one identifier is provided
-        if not email and not mobile_number:
-            raise ValueError("At least one of email or mobile number must be provided.")
-
-        # Check for existing users
-        if email and self.model.objects.filter(email=email).exists():
-            raise ValueError("A user with this email already exists.")
-        if mobile_number and self.model.objects.filter(mobile_number=mobile_number).exists():
-            raise ValueError("A user with this mobile number already exists.")
-
-        # Dynamically set email_or_mobile
-        email_or_mobile = email or mobile_number
+        # Ensure a username is provided and is unique
+        if not user_name:
+            raise ValueError("Username must be provided.")
+        if self.model.objects.filter(user_name=user_name).exists():
+            raise ValueError("A user with this username already exists.")
 
         # Create user instance
         user = self.model(
             email=email,
             mobile_number=mobile_number,
-            email_or_mobile=email_or_mobile,
+            user_name=user_name,
             created_by=created_by,
             **extra_fields
         )
@@ -67,10 +81,11 @@ class CustomAccountManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email=None, password=None, **extra_fields):
-        # Set fields for superuser creation
-        extra_fields.setdefault('user_type', 'superuser')
-        return self.create_user(email=email, password=password, **extra_fields)
+    def create_superuser(self, user_name, email=None, password=None, **extra_fields):
+        # Ensure required fields for superuser
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_staff', True)
+        return self.create_user(user_name=user_name, email=email, password=password, **extra_fields)
 
 
 class AddressModel(models.Model):
@@ -108,22 +123,20 @@ USER_ROLE_CHOICES = [
 ]
 
 
-class User(AbstractBaseUser, PermissionsMixin):
+class User(AbstractBaseUser):
     USER_TYPE_CHOICES = [
         ('Individual', 'Individual'),
         ('CA', 'Chartered Accountant Firm'),
         ('Business', 'Business/Corporate'),
         ('ServiceProvider', 'ServiceProvider')
     ]
-    email_or_mobile = models.CharField(max_length=120, unique=True, null=True, blank=True)
+    user_name = models.CharField(max_length=120, unique=True, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
     mobile_number = models.CharField(max_length=15, null=True, blank=True)
     first_name = models.CharField(max_length=40, null=True, blank=True)
     last_name = models.CharField(max_length=40, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
-    user_kyc = models.BooleanField(default=False)
-    otp = models.IntegerField(null=True)
     user_type = models.CharField(
         max_length=40,
         choices=USER_TYPE_CHOICES,
@@ -131,13 +144,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         null=True,  # Allows storing NULL in the database
         blank=True  # Allows leaving the field blank in forms
     )
-    user_role = models.CharField(
-        max_length=40,
-        choices=USER_ROLE_CHOICES,
-        default=None,  # Default value set to None
-        null=True,  # Allows storing NULL in the database
-        blank=True  # Allows leaving the field blank in forms
-    )
+
     created_by = models.ForeignKey(
         AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -148,36 +155,157 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     objects = CustomAccountManager()
 
-    USERNAME_FIELD = 'email_or_mobile'
+    USERNAME_FIELD = 'user_name'
     REQUIRED_FIELDS = []
 
     def __str__(self):
-        return self.email_or_mobile or "User"
+        return self.user_name or "User"
+@receiver(post_save, sender=User)
+def create_user_affiliation_summary(sender, instance, created, **kwargs):
+    if created:
+        ca_firm_affiliated = []
+        individual_affiliated = []
+        business_affiliated = []
+        service_provider_affiliated = []
+
+        # Helper function to get user data in the required format
+        def get_user_data(user):
+            return {
+                "id": user.id,
+                "user_name": user.user_name,
+                "full_name": f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+            }
+
+        user_data = get_user_data(instance)  # Get data for the newly created user
+
+        if instance.created_by:
+            created_by = instance.created_by
+            created_by_data = get_user_data(created_by)  # Get data for the creator
+
+            if created_by.user_type == "CA":
+                if instance.user_type == "Business":
+                    business_affiliated.append(user_data)
+                    ca_firm_affiliated.append(created_by_data)
+                elif instance.user_type == "Individual":
+                    ca_firm_affiliated.append(created_by_data)
+                    individual_affiliated.append(user_data)
+                elif instance.user_type == "ServiceProvider":
+                    ca_firm_affiliated.append(created_by_data)
+                    service_provider_affiliated.append(user_data)
+                else:
+                    ca_firm_affiliated.append(created_by_data)
+
+            elif created_by.user_type == "Individual":
+                if instance.user_type == "Business":
+                    business_affiliated.append(user_data)
+                    individual_affiliated.append(created_by_data)
+
+            elif created_by.user_type == "Business":
+                if instance.user_type == "Business":
+                    business_affiliated.append(created_by_data)
+
+            elif created_by.user_type == "ServiceProvider":
+                if instance.user_type == "ServiceProvider":
+                    service_provider_affiliated.append(created_by_data)
+        else:
+            if instance.user_type == "CA":
+                ca_firm_affiliated.append(user_data)
+            elif instance.user_type == "Individual":
+                individual_affiliated.append(user_data)
+            elif instance.user_type == "Business":
+                business_affiliated.append(user_data)
+            elif instance.user_type == "ServiceProvider":
+                service_provider_affiliated.append(user_data)
+
+        # Create UserAffiliationSummary instance
+        UserAffiliationSummary.objects.create(
+            user=instance,
+            ca_firm_affiliated=ca_firm_affiliated,
+            individual_affiliated=individual_affiliated,
+            business_affiliated=business_affiliated,
+            service_provider_affiliated=service_provider_affiliated
+        )
+
+        # Update created_by_user's affiliation summary if exists
+        created_by_user = UserAffiliationSummary.objects.filter(user=instance.created_by).first()
+        if created_by_user:
+            created_by_user.business_affiliated = list(created_by_user.business_affiliated)
+            created_by_user.individual_affiliated = list(created_by_user.individual_affiliated)
+            created_by_user.service_provider_affiliated = list(created_by_user.service_provider_affiliated)
+            created_by_user.ca_firm_affiliated = list(created_by_user.ca_firm_affiliated)
+
+            if created_by_user.user.user_type == "CA":
+                if instance.user_type == "Business":
+                    created_by_user.business_affiliated.append(user_data)
+                elif instance.user_type == "Individual":
+                    created_by_user.individual_affiliated.append(user_data)
+                elif instance.user_type == "ServiceProvider":
+                    created_by_user.service_provider_affiliated.append(user_data)
+
+            elif created_by_user.user.user_type == "Individual":
+                if instance.user_type == "Business":
+                    created_by_user.business_affiliated.append(user_data)
+
+            created_by_user.save()
+
+
+class UserAffiliatedRole(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="affiliated_roles")
+    affiliated = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_roles")
+
+    group = models.ForeignKey(
+        CustomGroup,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="user_groups"
+    )  # Each user belongs to one CustomGroup
+    custom_permissions = models.ManyToManyField(
+        CustomPermission,
+        related_name="user_groups",
+        blank=True,
+        help_text="User-specific custom permissions."
+    )
+
+    added_on = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.user_name} - {self.group} under {self.affiliated.user_name}"
+
+class UserAffiliationSummary(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="affiliation_summary")
+    individual_affiliated = JSONField(default=list, blank=True)
+    ca_firm_affiliated = JSONField(default=list, blank=True)
+    service_provider_affiliated = JSONField(default=list, blank=True)
+    business_affiliated = JSONField(default=list, blank=True)
+
+    def __str__(self):
+        return f"Affiliations for {self.user.email} - {self.user.user_type}"
 
 
 class UserKYC(models.Model):
-
-    user = models.OneToOneField(User, on_delete=models.CASCADE)  # ForeignKey to User
-    # Encrypted Fields for sensitive data
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='userkyc')  # Added `related_name='userkyc'`
     name = models.CharField(max_length=40, blank=False, null=False)
-    pan_number = EncryptedField(max_length=20, blank=True, null=True)  # Encrypted PAN
-    aadhaar_number = EncryptedField(max_length=20, blank=True, null=True)  # Encrypted Aadhaar
+    pan_number = EncryptedField(max_length=20, blank=True, null=True)
+    aadhaar_number = EncryptedField(max_length=20, blank=True, null=True)
     date = models.DateField(null=True, blank=True)
-    # Fields specific to CA Firm
-    icai_number = models.CharField(max_length=15, blank=True, null=True)  # Only for CA Firm
-    address = EmbeddedField(model_container=AddressModel, default={})
+    icai_number = models.CharField(max_length=15, blank=True, null=True)
+    address = models.JSONField(default=dict, null=True, blank=True)
     have_firm = models.BooleanField(default=False)
 
     @property
     def is_completed(self):
-        """
-        Check if all mandatory KYC fields are filled for completion.
-        """
         required_fields = [self.name, self.pan_number, self.aadhaar_number, self.date]
+
         if self.have_firm:
             required_fields.append(self.icai_number)
 
-        # Return True if all required fields are filled
+        if self.address:
+            required_address_fields = ['address_line1', 'address_line2', 'state', 'city', 'country']
+            for field in required_address_fields:
+                if not self.address.get(field):
+                    return False  # If any required address field is missing or empty, return False
+
         return all(field is not None and field != "" for field in required_fields)
 
     def __str__(self):
@@ -191,7 +319,7 @@ class FirmKYC(models.Model):
     firm_email = models.EmailField(unique=True, null=True, blank=True)
     firm_mobile_number = models.CharField(max_length=40, blank=True, null=True)
     number_of_firm_partners = models.IntegerField()
-    address = EmbeddedField(model_container=AddressModel, default={})
+    address = models.JSONField(default=dict, null=True, blank=True)
 
     def __str__(self):
         return f"{self.user.email} - {self.firm_registration_number}"
@@ -203,6 +331,75 @@ class ServicesMasterData(models.Model):
     def __str__(self):
         return f"{self.service_name}"
 
+
+class BaseModel(models.Model):
+    createdAt = models.DateTimeField(auto_now_add=True)
+    updatedAt = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        abstract = True
+
+
+class Business(BaseModel):
+    entity_choices = [
+        ('soleProprietor', 'Sole Proprietor'),
+        ('partnershipUnregistered', 'Partnership Unregistered'),
+        ('partnershipRegistered', 'Partnership Registered'),
+        ('llp', 'LLP'),
+        ('huf', 'HUF'),
+        ('privateLimitedCompany', 'Private Limited Company'),
+        ('publicCompanyListed', 'Public Company Listed'),
+        ('publicCompanyUnlisted', 'Public Company Unlisted'),
+        ('trust', 'Trust'),
+        ('society', 'Society'),
+        ('opc', 'OPC'),
+        ('others', 'Others (Specify)'),
+    ]
+
+    business_nature_choices = [
+        ('service_provider', 'Service Provider'),
+        ('trading_business', 'Trading Business'),
+        ('manufacturing_business', 'Manufacturing Business'),
+        ('consultancy', 'Consultancy'),
+        ('freelancing', 'Freelancing'),
+        ('e_commerce', 'E-commerce'),
+        ('real_estate', 'Real Estate'),
+        ('financial_services', 'Financial Services'),
+        ('healthcare', 'Healthcare'),
+        ('education', 'Education'),
+        ('information_technology', 'Information Technology'),
+        ('hospitality', 'Hospitality'),
+        ('transportation_logistics', 'Transportation and Logistics'),
+        ('agriculture', 'Agriculture'),
+        ('retail', 'Retail'),
+    ]
+    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='business_clients_id')
+    nameOfBusiness = models.CharField(max_length=200, unique=True, db_index=True, null=False, blank=False)
+    registrationNumber = models.CharField(max_length=120, null=True, blank=True)
+    entityType = models.CharField(max_length=50)
+    headOffice = JSONField(default=dict, null=True, blank=True)
+    pan = models.CharField(max_length=15, unique=True, null=False, blank=False)
+    business_nature = models.CharField(max_length=50, choices=business_nature_choices, null=True,
+                                       blank=True)  # Choices field
+    trade_name = models.CharField(max_length=100, null=True, blank=True)  # New field
+    mobile_number = models.CharField(max_length=15, null=True, blank=True)  # New field
+    email = models.EmailField(null=True, blank=True)
+    dob_or_incorp_date = models.DateField(null=False)
+
+    class Meta:
+        unique_together = ('nameOfBusiness', 'pan')
+
+    def __str__(self):
+        return str(self.nameOfBusiness)
+
+
+class GSTDetails(BaseModel):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='gst_details')
+    gstin = models.CharField(max_length=120, null=True, blank=True)
+    address = JSONField(default=dict, null=True, blank=True)
+
+    def __str__(self):
+        return f"GST Details for {self.business.nameOfBusiness}"
 
 class ServiceDetails(models.Model):
     STATUS_CHOICES = [
