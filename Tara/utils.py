@@ -9,35 +9,57 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
-from user_management.models import CustomGroup, CustomPermission, UserGroup, Business
+from user_management.models import CustomGroup, CustomPermission, UserAffiliatedRole, Business, UserAffiliationSummary
+from rest_framework.fields import CharField
+from django.contrib.auth.hashers import check_password
 
 
 User = get_user_model()  # Fetch the custom user model
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username_field = 'email_or_mobile'
+    username_field = 'email_or_user_name'
+    user_type = CharField(required=True)
 
     def validate(self, attrs):
         # Get email or mobile from the input data
-        email_or_mobile = attrs.get("email_or_mobile")
+        email_or_user_name = attrs.get("email_or_user_name")
         password = attrs.get("password")
+        user_type = attrs.get("user_type")
 
         # Ensure email_or_mobile and password are provided
-        if not email_or_mobile or not password:
+        if not email_or_user_name or not password:
             raise AuthenticationFailed("Email/Mobile and password are required.")
 
         # Attempt to find the user by email or mobile
-        try:
-            if "@" in email_or_mobile:  # Check if input is an email
-                user = User.objects.get(email=email_or_mobile)
-            else:  # Otherwise, treat it as a mobile number
-                user = User.objects.get(mobile_number=email_or_mobile)
-        except User.DoesNotExist:
-            raise AuthenticationFailed("No user found with the provided email or mobile.")
+        if "@" in email_or_user_name:
+            users = User.objects.filter(email=email_or_user_name)
+            if not users.exists():
+                raise AuthenticationFailed("No user found with the provided email.")
+            users = users.filter(user_type=user_type)
+            if not users.exists():
+                raise AuthenticationFailed("No user found with the provided user type.")
+        else:
+            users = User.objects.filter(user_name=email_or_user_name)
+            if not users.exists():
+                raise AuthenticationFailed("No user found with the provided username.")
+            users = users.filter(user_type=user_type)
+            if not users.exists():
+                raise AuthenticationFailed("No user found with the provided user type.")
 
-        # Check if the password is correct
-        if not user.check_password(password):
+            # Iterate over the users to check the password
+        for user in users:
+            if check_password(password, user.password):
+                # If password matches, proceed
+                break
+        else:
+            # If no valid password match is found, raise error
             raise AuthenticationFailed("Invalid password. Please try again.")
+
+        if not user.is_active:
+            raise AuthenticationFailed("User account is not active. Please verify your email or mobile.")
+
+        # if not user.check_password(password):
+        #     raise AuthenticationFailed("Invalid password. Please try again.")
 
         # Ensure the user is active
         if not user.is_active:
@@ -61,19 +83,24 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         created_on_date = user.date_joined.date()
 
         # Retrieve the user's group
-        try:
-            user_group = UserGroup.objects.get(user=user)  # Fetch a single UserGroup instance
-        except UserGroup.DoesNotExist:
-            user_group = None
+        # try:
+        #     user_group = UserAffiliatedRole.objects.get(user=user)  # Fetch a single UserGroup instance
+        # except UserAffiliatedRole.DoesNotExist:
+        #     user_group = None
+        #
+        # if user_group:
+        #     # Retrieve the user's groups and associated permissions
+        #     # group_names = [group.get('name') for group in user_group.group if 'name' in group]
+        #     group_name = user_group.group.name
+        #     associated_services = list(user_group.custom_permissions.values_list('name', flat=True).distinct())
+        # else:
+        #     group_name = None  # No groups assigned
+        #     associated_services = []  # No permissions assigned
 
-        if user_group:
-            # Retrieve the user's groups and associated permissions
-            # group_names = [group.get('name') for group in user_group.group if 'name' in group]
-            group_name = user_group.group.name
-            associated_services = list(user_group.custom_permissions.values_list('name', flat=True).distinct())
-        else:
-            group_name = None  # No groups assigned
-            associated_services = []  # No permissions assigned
+        try:
+            user_affiliation_summary = UserAffiliationSummary.objects.get(user=user)  # Fetch a single UserGroup instance
+        except UserAffiliationSummary.DoesNotExist:
+            raise ValueError("Something Wrong with this User, Please Connect Admin Team To Solve the Issue")
 
         business_exits = False
 
@@ -82,12 +109,15 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'id': user.id,
             'email': user.email,
             'mobile_number': user.mobile_number,
+            'user_name': user_name,
             'name': user.first_name + ' ' + user.last_name,
             'created_on': created_on_date,
             'user_type': user.user_type,
             'user_kyc': user_kyc,
-            'group_name': group_name,
-            'associated_services': associated_services,
+            'individual_affiliated': list(user_affiliation_summary.individual_affiliated),
+            'ca_firm_affiliated': list(user_affiliation_summary.ca_firm_affiliated),
+            'service_provider_affiliated': list(user_affiliation_summary.service_provider_affiliated),
+            'business_affiliated':list(user_affiliation_summary.business_affiliated),
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }
@@ -103,6 +133,7 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
     def post(self, request, *args, **kwargs):
         # Serialize the incoming request data
+        print(request.data)
         serializer = self.get_serializer(data=request.data)
 
         # Prevent schema generation errors with Swagger

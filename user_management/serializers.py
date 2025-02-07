@@ -18,10 +18,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     first_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     last_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     is_active = serializers.BooleanField(default=False)
+    user_name = serializers.CharField(max_length=120, allow_null=False, allow_blank=False)
 
     class Meta:
         model = User
-        fields = ('email', 'mobile_number', 'password', 'created_by', 'user_type'
+        fields = ('id', 'email', 'mobile_number', 'password', 'created_by', 'user_type', 'user_name'
                   , 'first_name', 'last_name', 'is_active')
 
     def validate(self, attrs):
@@ -34,25 +35,18 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if not email and not mobile_number:
             raise serializers.ValidationError("At least one of email or mobile number must be provided.")
 
-        # Check if email is already registered
-        if email and User.objects.filter(email=email).exists():
-            raise serializers.ValidationError({"email": "A user with this email already exists."})
-
-        # Check if mobile number is already registered
-        if mobile_number and User.objects.filter(mobile_number=mobile_number).exists():
-            raise serializers.ValidationError({"mobile_number": "A user with this mobile number already exists."})
-
         return attrs
 
     def create(self, validated_data):
         # Extract created_by if present; default to None
-        created_by = validated_data.pop('created_by', None)
+        created_by = validated_data.get('created_by', None)
         email = validated_data.get('email', None)
         mobile_number = validated_data.get('mobile_number', None)
         password = validated_data.get('password')
         user_type = validated_data.get('user_type', None)
         first_name = validated_data.get('first_name', '')
         last_name = validated_data.get('last_name', '')
+        user_name = validated_data.get('user_name')
 
         # Create the user with the provided data
         user = User.objects.create_user(
@@ -61,13 +55,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             mobile_number=mobile_number,
             user_type=user_type,
             first_name=first_name,
-            last_name=last_name
+            last_name=last_name,
+            user_name=user_name,
+            created_by=created_by
         )
-
-        # Assign created_by to the user
-        if created_by:
-            user.created_by = created_by
-            user.save()
 
         return user
 
@@ -75,7 +66,7 @@ class UserSerializer(serializers.ModelSerializer):
     date_joined = serializers.SerializerMethodField()
     class Meta:
         model = User
-        fields = ['id', 'email_or_mobile', 'email', 'mobile_number',
+        fields = ['id', 'user_name', 'email', 'mobile_number',
                   'first_name', 'last_name', 'user_type', 'is_active', 'date_joined']
 
     def get_date_joined(self, obj):
@@ -126,7 +117,7 @@ class UserGroupSerializer(serializers.ModelSerializer):
     custom_permissions = CustomPermissionSerializer(many=True, required=False)
 
     class Meta:
-        model = UserGroup
+        model = UserAffiliatedRole
         fields = ['id', 'user', 'group', 'custom_permissions', 'added_on']
 
     def create(self, validated_data):
@@ -338,7 +329,7 @@ class FirmKYCSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['email_or_mobile', 'email', 'mobile_number', 'user_type', 'first_name', 'last_name', 'is_active']
+        fields = ['user_name', 'email', 'mobile_number', 'user_type', 'first_name', 'last_name', 'is_active']
         # You can modify this list based on the fields you want to allow updating
 
     def update(self, instance, validated_data):

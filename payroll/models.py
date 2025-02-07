@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from djongo.models import ArrayField, EmbeddedField, JSONField
+from user_management.models import *
 
 
 def validate_pincode(value):
@@ -9,18 +10,11 @@ def validate_pincode(value):
 
 
 class PayrollOrg(models.Model):
-    business_id = models.IntegerField()
+    business = models.OneToOneField(Business, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)  # Use auto_now_add for creation timestamp
-    org_name = models.CharField(max_length=150)  # Use snake_case for consistency
     logo = models.CharField(max_length=200, null=True, blank=True)
-    industry = models.CharField(max_length=60, null=True, blank=True)
     contact_email = models.EmailField(max_length=120, null=True, blank=True)
     sender_email = models.EmailField(max_length=120, null=True, blank=True)
-    org_address_line1 = models.CharField(max_length=150, null=True, blank=True)
-    org_address_line2 = models.CharField(max_length=150, null=True, blank=True)
-    org_address_state = models.CharField(max_length=150, null=True, blank=True)
-    org_address_city = models.CharField(max_length=150, null=True, blank=True)
-    org_address_pincode = models.PositiveIntegerField(null=True, validators=[validate_pincode])  # No max_length
     filling_address_line1 = models.CharField(max_length=150, null=True, blank=True)
     filling_address_line2 = models.CharField(max_length=150, null=True, blank=True)
     filling_address_state = models.CharField(max_length=150, null=True, blank=True)

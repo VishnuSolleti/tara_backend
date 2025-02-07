@@ -1,7 +1,7 @@
 # visa/permissions.py
 
 from rest_framework.permissions import BasePermission
-from .models import UserGroup
+from .models import UserAffiliatedRole
 from functools import wraps
 from rest_framework.response import Response
 from rest_framework import status
@@ -18,8 +18,8 @@ class GroupPermission(BasePermission):
 
         # Get the single user group (assuming one group per user)
         try:
-            user_group = UserGroup.objects.get(user=request.user)
-        except UserGroup.DoesNotExist:
+            user_group = UserAffiliatedRole.objects.get(user=request.user)
+        except UserAffiliatedRole.DoesNotExist:
             return Response({"error": "User is not part of any group."}, status=status.HTTP_403_FORBIDDEN)
 
         permission_needed = getattr(view, 'permission_required', None)  # Get permission(s) required for the view
@@ -52,8 +52,8 @@ def has_group_permission(*permissions_needed):
 
             # Check if the user belongs to any group (get one group per user)
             try:
-                user_group = UserGroup.objects.get(user=request.user)
-            except UserGroup.DoesNotExist:
+                user_group = UserAffiliatedRole.objects.get(user=request.user)
+            except UserAffiliatedRole.DoesNotExist:
                 return Response({"error": "User is not part of any group."}, status=status.HTTP_403_FORBIDDEN)
 
             # Check if the group has the required permissions

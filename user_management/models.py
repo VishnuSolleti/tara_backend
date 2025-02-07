@@ -7,6 +7,8 @@ from djongo.models import ArrayField, EmbeddedField
 from Tara.settings.default import *
 import json
 from djongo.models import ArrayField, EmbeddedField, JSONField
+from django.dispatch import receiver
+from django.db.models.signals import post_save, post_delete
 
 
 KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='  # Fernet key
@@ -57,28 +59,21 @@ class CustomGroup(models.Model):
         return self.name
 
 class CustomAccountManager(BaseUserManager):
-    def create_user(self, email=None, password=None, mobile_number=None, created_by=None, **extra_fields):
+    def create_user(self, email=None, password=None, mobile_number=None, user_name=None, created_by=None, **extra_fields):
         # Normalize email if provided
         email = self.normalize_email(email) if email else None
 
-        # Ensure at least one identifier is provided
-        if not email and not mobile_number:
-            raise ValueError("At least one of email or mobile number must be provided.")
-
-        # Check for existing users
-        if email and self.model.objects.filter(email=email).exists():
-            raise ValueError("A user with this email already exists.")
-        if mobile_number and self.model.objects.filter(mobile_number=mobile_number).exists():
-            raise ValueError("A user with this mobile number already exists.")
-
-        # Dynamically set email_or_mobile
-        email_or_mobile = email or mobile_number
+        # Ensure a username is provided and is unique
+        if not user_name:
+            raise ValueError("Username must be provided.")
+        if self.model.objects.filter(user_name=user_name).exists():
+            raise ValueError("A user with this username already exists.")
 
         # Create user instance
         user = self.model(
             email=email,
             mobile_number=mobile_number,
-            email_or_mobile=email_or_mobile,
+            user_name=user_name,
             created_by=created_by,
             **extra_fields
         )
@@ -86,10 +81,11 @@ class CustomAccountManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email=None, password=None, **extra_fields):
-        # Set fields for superuser creation
-        extra_fields.setdefault('user_type', 'superuser')
-        return self.create_user(email=email, password=password, **extra_fields)
+    def create_superuser(self, user_name, email=None, password=None, **extra_fields):
+        # Ensure required fields for superuser
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_staff', True)
+        return self.create_user(user_name=user_name, email=email, password=password, **extra_fields)
 
 
 class AddressModel(models.Model):
@@ -134,7 +130,7 @@ class User(AbstractBaseUser):
         ('Business', 'Business/Corporate'),
         ('ServiceProvider', 'ServiceProvider')
     ]
-    email_or_mobile = models.CharField(max_length=120, unique=True, null=True, blank=True)
+    user_name = models.CharField(max_length=120, unique=True, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
     mobile_number = models.CharField(max_length=15, null=True, blank=True)
     first_name = models.CharField(max_length=40, null=True, blank=True)
@@ -159,15 +155,104 @@ class User(AbstractBaseUser):
 
     objects = CustomAccountManager()
 
-    USERNAME_FIELD = 'email_or_mobile'
+    USERNAME_FIELD = 'user_name'
     REQUIRED_FIELDS = []
 
     def __str__(self):
-        return self.email_or_mobile or "User"
+        return self.user_name or "User"
+@receiver(post_save, sender=User)
+def create_user_affiliation_summary(sender, instance, created, **kwargs):
+    if created:
+        ca_firm_affiliated = []
+        individual_affiliated = []
+        business_affiliated = []
+        service_provider_affiliated = []
+
+        # Helper function to get user data in the required format
+        def get_user_data(user):
+            return {
+                "id": user.id,
+                "user_name": user.user_name,
+                "full_name": f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
+            }
+
+        user_data = get_user_data(instance)  # Get data for the newly created user
+
+        if instance.created_by:
+            created_by = instance.created_by
+            created_by_data = get_user_data(created_by)  # Get data for the creator
+
+            if created_by.user_type == "CA":
+                if instance.user_type == "Business":
+                    business_affiliated.append(user_data)
+                    ca_firm_affiliated.append(created_by_data)
+                elif instance.user_type == "Individual":
+                    ca_firm_affiliated.append(created_by_data)
+                    individual_affiliated.append(user_data)
+                elif instance.user_type == "ServiceProvider":
+                    ca_firm_affiliated.append(created_by_data)
+                    service_provider_affiliated.append(user_data)
+                else:
+                    ca_firm_affiliated.append(created_by_data)
+
+            elif created_by.user_type == "Individual":
+                if instance.user_type == "Business":
+                    business_affiliated.append(user_data)
+                    individual_affiliated.append(created_by_data)
+
+            elif created_by.user_type == "Business":
+                if instance.user_type == "Business":
+                    business_affiliated.append(created_by_data)
+
+            elif created_by.user_type == "ServiceProvider":
+                if instance.user_type == "ServiceProvider":
+                    service_provider_affiliated.append(created_by_data)
+        else:
+            if instance.user_type == "CA":
+                ca_firm_affiliated.append(user_data)
+            elif instance.user_type == "Individual":
+                individual_affiliated.append(user_data)
+            elif instance.user_type == "Business":
+                business_affiliated.append(user_data)
+            elif instance.user_type == "ServiceProvider":
+                service_provider_affiliated.append(user_data)
+
+        # Create UserAffiliationSummary instance
+        UserAffiliationSummary.objects.create(
+            user=instance,
+            ca_firm_affiliated=ca_firm_affiliated,
+            individual_affiliated=individual_affiliated,
+            business_affiliated=business_affiliated,
+            service_provider_affiliated=service_provider_affiliated
+        )
+
+        # Update created_by_user's affiliation summary if exists
+        created_by_user = UserAffiliationSummary.objects.filter(user=instance.created_by).first()
+        if created_by_user:
+            created_by_user.business_affiliated = list(created_by_user.business_affiliated)
+            created_by_user.individual_affiliated = list(created_by_user.individual_affiliated)
+            created_by_user.service_provider_affiliated = list(created_by_user.service_provider_affiliated)
+            created_by_user.ca_firm_affiliated = list(created_by_user.ca_firm_affiliated)
+
+            if created_by_user.user.user_type == "CA":
+                if instance.user_type == "Business":
+                    created_by_user.business_affiliated.append(user_data)
+                elif instance.user_type == "Individual":
+                    created_by_user.individual_affiliated.append(user_data)
+                elif instance.user_type == "ServiceProvider":
+                    created_by_user.service_provider_affiliated.append(user_data)
+
+            elif created_by_user.user.user_type == "Individual":
+                if instance.user_type == "Business":
+                    created_by_user.business_affiliated.append(user_data)
+
+            created_by_user.save()
 
 
-class UserGroup(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+class UserAffiliatedRole(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="affiliated_roles")
+    affiliated = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_roles")
+
     group = models.ForeignKey(
         CustomGroup,
         on_delete=models.SET_NULL,
@@ -175,7 +260,6 @@ class UserGroup(models.Model):
         blank=True,
         related_name="user_groups"
     )  # Each user belongs to one CustomGroup
-
     custom_permissions = models.ManyToManyField(
         CustomPermission,
         related_name="user_groups",
@@ -186,7 +270,18 @@ class UserGroup(models.Model):
     added_on = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.user.email} - {self.group.name if self.group else 'No Group'}"
+        return f"{self.user.user_name} - {self.group} under {self.affiliated.user_name}"
+
+class UserAffiliationSummary(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="affiliation_summary")
+    individual_affiliated = JSONField(default=list, blank=True)
+    ca_firm_affiliated = JSONField(default=list, blank=True)
+    service_provider_affiliated = JSONField(default=list, blank=True)
+    business_affiliated = JSONField(default=list, blank=True)
+
+    def __str__(self):
+        return f"Affiliations for {self.user.email} - {self.user.user_type}"
+
 
 class UserKYC(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='userkyc')  # Added `related_name='userkyc'`

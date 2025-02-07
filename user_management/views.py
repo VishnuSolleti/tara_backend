@@ -17,7 +17,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.core.mail import send_mail
 from django.contrib.auth import get_user_model
 from django.conf import settings
-from .models import User, UserKYC, FirmKYC, CustomPermission, CustomGroup, UserGroup, GSTDetails
+from .models import User, UserKYC, FirmKYC, CustomPermission, CustomGroup, UserAffiliatedRole, GSTDetails
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ValidationError
@@ -40,7 +40,7 @@ from django.contrib.auth.decorators import permission_required
 from django.db.models.functions import Coalesce
 from django.db.models import Count, F, Value
 from collections import defaultdict
-
+from django.core.exceptions import ObjectDoesNotExist
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
 
@@ -223,7 +223,7 @@ def assign_group_with_permissions(request):
         return Response({"error": "Group not found"}, status=status.HTTP_404_NOT_FOUND)
 
     # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
-    user_group, created = UserGroup.objects.get_or_create(user=user)
+    user_group, created = UserAffiliatedRole.objects.get_or_create(user=user)
     user_group.group = group  # Assigning a single group
 
     # Assign permissions
@@ -244,23 +244,72 @@ def assign_group_with_permissions(request):
         "message": "Group assigned successfully with custom permissions."
     }, status=status.HTTP_201_CREATED)
 
+
+def assign_permissions(data):
+    """
+    Assign a single group to a user with optional customization of permissions.
+    Raises ValueError for missing users or groups instead of returning a Response.
+    """
+    created_by = data.get('created_by')
+    user_id = data.get('id')
+
+    if not created_by:
+        user_type = data.get('user_type')
+
+        group_id_mapping = {
+            "Individual": 10,
+            "Business": 11,
+            "ServiceProvider": 1,
+            "CA": 26
+        }
+
+        if user_type not in group_id_mapping:
+            raise ValueError("Invalid user type provided.")
+
+        try:
+            group = CustomGroup.objects.get(id=group_id_mapping[user_type])
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id_mapping[user_type]} not found.")
+
+        try:
+            user = User.objects.get(id=user_id)
+        except ObjectDoesNotExist:
+            raise ValueError(f"User with ID {user_id} not found.")
+
+        # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
+        user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user)
+        user_group.group = group  # Assigning a single group
+        user_group.custom_permissions.set(group.permissions.all())  # Default permissions
+        user_group.save()
+
+        return UserGroupSerializer(user_group).data
+
+
 @api_view(['GET'])
 def get_user_group_permissions(request):
     """
     Retrieve the group and custom permissions associated with a User based on the user_id and/or permission name.
     """
     user_id = request.query_params.get('user_id')
+    affiliated_id = request.query_params.get('affiliated_id')
     permission_name = request.query_params.get('name')
+
+    # Ensure mandatory parameters are provided
+    if not user_id or not affiliated_id:
+        return Response(
+            {"error": "Both 'user_id' and 'affiliated_id' are required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     # Ensure the user is authenticated
     if not request.user.is_authenticated:
         return Response({"error": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
 
     # If user_id is provided, fetch the UserGroup entry
-    if user_id:
+    if user_id and affiliated_id:
         try:
-            user_group = UserGroup.objects.get(user_id=user_id)
-        except UserGroup.DoesNotExist:
+            user_group = UserAffiliatedRole.objects.get(user_id=user_id, affiliated_id = affiliated_id)
+        except UserAffiliatedRole.DoesNotExist:
             return Response({"error": "No UserGroup found for the given user."}, status=status.HTTP_404_NOT_FOUND)
 
         # If permission_name is provided, filter custom permissions
@@ -307,8 +356,8 @@ def update_group_permissions(request, user_group_id):
     This allows updating the group and custom permissions.
     """
     try:
-        user_group = UserGroup.objects.get(id=user_group_id)
-    except UserGroup.DoesNotExist:
+        user_group = UserAffiliatedRole.objects.get(id=user_group_id)
+    except UserAffiliatedRole.DoesNotExist:
         return Response({"error": "UserGroup not found"}, status=status.HTTP_404_NOT_FOUND)
 
     group_id = request.data.get('group')  # Expecting a single group ID
@@ -379,7 +428,9 @@ def user_registration(request):
             serializer = UserRegistrationSerializer(data=request_data)
             if serializer.is_valid():
                 user = serializer.save()
+                user_data = serializer.data
                 logger.info(f"User created successfully: {user.pk}")
+                useraffiliated_role = assign_permissions(user_data)
 
                 # Handle Email Verification
                 if email:
@@ -462,6 +513,53 @@ def user_registration(request):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+def assign_group_with_affiliated_permissions(user_group_permission_data):
+    """
+    Assign a single group to a user with optional customization of permissions.
+    Raises ValueError for missing users, groups, or invalid custom permissions.
+    """
+    user_id = user_group_permission_data.get('id')
+    group_id = user_group_permission_data.get('group')  # Expecting only one group now
+    custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+    created_by = user_group_permission_data.get('created_by')
+
+    # Validate User
+    try:
+        user = User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        raise ValueError(f"User with ID {user_id} not found.")
+
+    # Validate Created By User
+    try:
+        created_by_user = User.objects.get(id=created_by)
+    except ObjectDoesNotExist:
+        raise ValueError(f"Created By User with ID {created_by} not found.")
+
+    # Validate Group
+    try:
+        group = CustomGroup.objects.get(id=group_id)
+    except ObjectDoesNotExist:
+        raise ValueError(f"Group with ID {group_id} not found.")
+
+    # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
+    user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+    user_group.group = group  # Assigning a single group
+
+    # Assign permissions
+    if custom_permissions_ids:
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if not custom_permissions.exists():
+            raise ValueError("Invalid custom permissions provided.")
+        user_group.custom_permissions.set(custom_permissions)
+    else:
+        # Default to the group's permissions if no custom permissions are provided
+        user_group.custom_permissions.set(group.permissions.all())  # Fetch default permissions
+
+    user_group.save()
+
+    return UserGroupSerializer(user_group).data
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def user_registration_by_admin(request):
@@ -474,7 +572,11 @@ def user_registration_by_admin(request):
 
     if request.method == 'POST':
         try:
-            request_data = request.data
+            request_data = request.data.copy()
+
+            group = request_data.pop('group', None)
+            custom_permissions = request_data.pop('custom_permissions', [])
+
             email = request_data.get('email', '').lower()
             mobile_number = request_data.get('mobile_number', '')
 
@@ -490,12 +592,16 @@ def user_registration_by_admin(request):
 
             # Prepare request data for serializer
             password = request_data['password']
-            request_data['created_by'] = request.user.id
+            # request_data['created_by'] = request.user.id
             serializer = UserRegistrationSerializer(data=request_data)
 
             if serializer.is_valid():
                 user = serializer.save()
+                user_data = serializer.data
                 logger.info(f"User created successfully by superadmin: {user.pk}")
+                user_data['group'] = group
+                user_data['custom_permissions'] = custom_permissions
+                user_affiliated_role = assign_group_with_affiliated_permissions(user_data)
 
                 # Send email with the username and password
                 if email:
@@ -505,7 +611,7 @@ def user_registration_by_admin(request):
                                     <body>
                                         <h1>Welcome to Our Platform</h1>
                                         <p>Your account has been created by the superadmin.</p>
-                                        <p><strong>Username:</strong> {user.email}</p>
+                                        <p><strong>Username:</strong> {user.user_name}</p>
                                         <p><strong>Password:</strong> {password}</p>
                                     </body>
                                     </html>
@@ -1585,7 +1691,7 @@ class FirmKYCView(APIView):
                 description='ID of the user to update. If not provided, the currently authenticated user will be updated.',
                 example=1
             ),
-            'email_or_mobile': openapi.Schema(
+            'user_name': openapi.Schema(
                 type=openapi.TYPE_STRING,
                 description='Email or Mobile Number of the user (optional).',
                 example='example@example.com'
@@ -2084,6 +2190,7 @@ class VisaApplicationDetailAPIView(APIView):
             return Response({"error": "Visa application not found"}, status=status.HTTP_404_NOT_FOUND)
 
     permission_required = "VS_Task_Edit"
+
     @swagger_auto_schema(
         operation_description="Update an existing visa application by ID.",
         tags=["VisaApplication"],
@@ -2108,6 +2215,7 @@ class VisaApplicationDetailAPIView(APIView):
 
     # For DELETE
     permission_required = "VS_Task_Delete"  # Define the required permission for DELETE method
+
     @swagger_auto_schema(
         operation_description="Delete a visa application by ID.",
         tags=["VisaApplication"],
@@ -2115,7 +2223,7 @@ class VisaApplicationDetailAPIView(APIView):
             204: "Visa application deleted successfully.",
             404: "Visa application not found."
         }
-    )
+     )
     def delete(self, request, pk):
         try:
             visa_application = VisaApplications.objects.get(pk=pk)
@@ -2159,7 +2267,8 @@ class VisaApplicationDetailAPIView(APIView):
             ),
             'destination_country': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description="Destination country for the visa application (required for creating a new visa application)."
+                description="Destination country for the visa application "
+                            "(required for creating a new visa application)."
             ),
             'services': openapi.Schema(
                 type=openapi.TYPE_ARRAY,
