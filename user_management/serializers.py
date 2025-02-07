@@ -76,7 +76,7 @@ class UserSerializer(serializers.ModelSerializer):
 class CustomPermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomPermission
-        fields = ['id', 'codename', 'name', 'description']
+        fields = ['id', 'action_name', 'module_name', 'description']
 
 class CustomGroupSerializer(serializers.ModelSerializer):
     permissions = serializers.SerializerMethodField()
