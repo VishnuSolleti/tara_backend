@@ -95,11 +95,11 @@ def custom_permission_list_create(request):
         for perm in serializer.data:
             action = {
                 "id": perm['id'],
-                "key": perm['codename'],
-                "label": perm['codename'].replace('_', ' ').title(),  # Generate label from codename
+                "key": perm['action_name'],
+                "label": perm['action_name'].replace('_', ' ').title(),  # Generate label from codename
                 "description": perm['description']
             }
-            grouped_permissions[perm['name']].append(action)
+            grouped_permissions[perm['module_name']].append(action)
 
         return Response(grouped_permissions)
 
@@ -308,24 +308,24 @@ def get_user_group_permissions(request):
     # If user_id is provided, fetch the UserGroup entry
     if user_id and affiliated_id:
         try:
-            user_group = UserAffiliatedRole.objects.get(user_id=user_id, affiliated_id = affiliated_id)
+            user_group = UserAffiliatedRole.objects.get(user_id=user_id, affiliated_id=affiliated_id)
         except UserAffiliatedRole.DoesNotExist:
             return Response({"error": "No UserGroup found for the given user."}, status=status.HTTP_404_NOT_FOUND)
 
         # If permission_name is provided, filter custom permissions
         if permission_name:
-            filtered_permissions = user_group.custom_permissions.filter(name=permission_name)
+            filtered_permissions = user_group.custom_permissions.filter(module_name=permission_name)
         else:
             filtered_permissions = user_group.custom_permissions.all()
 
         # Organize permissions by their 'name' field
         permissions_by_group = {}
         for perm in filtered_permissions:
-            group_name = perm.name  # Group by the 'name' of the permission
+            group_name = perm.module_name  # Group by the 'module_name' of the permission
             permission_data = {
                 "id": perm.id,
-                "key": perm.codename,
-                "label": perm.codename.replace("_", " ").title(),
+                "key": perm.action_name,
+                "label": perm.action_name.replace("_", " ").title(),
                 "description": perm.description
             }
             if group_name not in permissions_by_group:

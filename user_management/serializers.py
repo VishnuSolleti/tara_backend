@@ -91,8 +91,8 @@ class CustomGroupSerializer(serializers.ModelSerializer):
             # Format each permission
             grouped_permissions[perm.name].append({
                 "id": perm.id,
-                "key": perm.codename,
-                "label": perm.codename.replace('_', ' ').title(),
+                "key": perm.module_name,
+                "label": perm.module_name.replace('_', ' ').title(),
                 "description": perm.description,
             })
         return grouped_permissions

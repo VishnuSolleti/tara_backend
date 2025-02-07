@@ -29,11 +29,11 @@ class GroupPermission(BasePermission):
             if isinstance(permission_needed, list):
                 for perm in permission_needed:
                     # Check if the user group has the required permission
-                    if user_group.custom_permissions.filter(codename=perm).exists():
+                    if user_group.custom_permissions.filter(action_name=perm).exists():
                         return True
             else:
                 # If it's a single permission, check if the user group has it
-                if user_group.custom_permissions.filter(codename=permission_needed).exists():
+                if user_group.custom_permissions.filter(action_name=permission_needed).exists():
                     return True
 
         return False
@@ -60,7 +60,7 @@ def has_group_permission(*permissions_needed):
             permissions_found = set()
 
             for permission_needed in permissions_needed:
-                if user_group.custom_permissions.filter(codename=permission_needed).exists():
+                if user_group.custom_permissions.filter(action_name=permission_needed).exists():
                     permissions_found.add(permission_needed)
 
             # Check if all required permissions are found
