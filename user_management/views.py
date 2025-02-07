@@ -535,11 +535,30 @@ def assign_group_with_affiliated_permissions(user_group_permission_data):
     except ObjectDoesNotExist:
         raise ValueError(f"Created By User with ID {created_by} not found.")
 
-    # Validate Group
-    try:
-        group = CustomGroup.objects.get(id=group_id)
-    except ObjectDoesNotExist:
-        raise ValueError(f"Group with ID {group_id} not found.")
+    if group_id:
+        # Validate Group
+        try:
+            group = CustomGroup.objects.get(id=group_id)
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id} not found.")
+
+    else:
+        user_type = user_group_permission_data.get('user_type')
+
+        group_id_mapping = {
+            "Individual": 10,
+            "Business": 11,
+            "ServiceProvider": 1,
+            "CA": 26
+        }
+
+        if user_type not in group_id_mapping:
+            raise ValueError("Invalid user type provided.")
+
+        try:
+            group = CustomGroup.objects.get(id=group_id_mapping[user_type])
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id_mapping[user_type]} not found.")
 
     # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
     user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
