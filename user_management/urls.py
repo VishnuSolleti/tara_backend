@@ -60,7 +60,9 @@ urlpatterns = [
     path('businesses-by-client/', views.business_list_by_client, name='business-list-by-client'),
 
     # Manage Corporate Entities
-    path('corporate-entities', manage_corporate_entities, name='manage_corporate_entities'),
+    # path('corporate-entity/', manage_corporate_entity, name='manage_corporate_entities'),
+
+    path('corporate_entities/', manage_corporate_entity, name='manage_corporate_entity'),
 
 
 
