@@ -2012,6 +2012,25 @@ def business_list_by_client(request):
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def manage_corporate_entities(request):
+    """
+    API to retrieve business users created by the authenticated user.
+    Ignores users with user_type='SuperAdmin'.
+    """
+    try:
+        users = User.objects.filter(created_by=request.user.id, user_type="Business")
+
+        if not users.exists():
+            return Response({"message": "No business users found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"users": UserSerializer(users, many=True).data}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def business_list(request):
