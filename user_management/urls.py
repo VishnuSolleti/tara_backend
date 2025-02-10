@@ -14,6 +14,8 @@ urlpatterns = [
     path('groups/<int:group_id>/permissions/', views.assign_permissions_to_group, name='assign_permissions_to_group'),
 
     # path('users/by-type/', UserListByTypeAPIView.as_view(), name='users-by-type')
+    #account-switch
+    path('account-switch', get_user_details, name='get_user_details'),
 
     path('users/stats/', DynamicUserStatsAPIView.as_view(), name='user-stats'),
     path('users/by-type/', UsersByDynamicTypeAPIView.as_view(), name='users-by-type'),
@@ -56,6 +58,8 @@ urlpatterns = [
     path('businesses/<int:pk>/', views.business_detail, name='business-detail'),
     # Business list By Client
     path('businesses-by-client/', views.business_list_by_client, name='business-list-by-client'),
+
+
 
     # Adding GST Details
     path('gst-details/', gst_details_list_create, name='gst-details-list-create'),

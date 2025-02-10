@@ -940,6 +940,102 @@ def visa_users_creation(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+@permission_classes([IsAuthenticated])
+@api_view(['POST'])
+def serviceproviders_user_creation(request):
+    """
+    Handles the creation of a visa user by ServiceProvider_Admin.
+    Creates a user first and associates visa application details with them.
+    """
+    if request.method != 'POST':
+        return Response({"error": "Invalid HTTP method."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    service_provider_admin_roles = [
+        'ServiceProvider_Owner', 'ServiceProvider_Admin',
+        'Tara_SuperAdmin', 'Tara_Admin'
+    ]
+
+    if request.user.user_role not in service_provider_admin_roles:
+        return Response(
+            {'error_message': 'Unauthorized Access. Only ServiceProviderAdmin can create visa users.', 'status_cd': 1},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    try:
+        # Step 1: Create the user
+        email = request.data.get('email', '').lower()
+        mobile_number = request.data.get('mobile_number', '')
+        user_name = request.data.get('user_name')
+        group = request.data.pop('group', None)
+        custom_permissions = request.data.pop('custom_permissions', [])
+        if not email and not mobile_number and not user_name:
+            return Response(
+                {"error": "Either email or mobile number must be provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_data = {
+            'email': email,
+            'mobile_number': mobile_number,
+            'password': Autogenerate_password(),
+            'created_by': request.data.get('created_by'),
+            'user_type': 'ServiceProvider',
+            'first_name': request.data.get('first_name'),
+            'last_name': request.data.get('last_name'),
+            'user_name': request.data.get('user_name')
+        }
+
+        with transaction.atomic():
+            # Validate and save user
+            user_serializer = UserRegistrationSerializer(data=user_data)
+            if user_serializer.is_valid():
+                user_instance = user_serializer.save()
+                user_data = user_serializer.data
+                user_data['group'] = group
+                user_data['custom_permissions'] = custom_permissions
+                user_affiliated_role = assign_group_with_affiliated_permissions(user_data)
+            else:
+                return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Step 2: Create visa application details
+            visa_applications_data = {
+                'passport_number': request.data.get('passport_number', ''),
+                'purpose': request.data.get('purpose'),
+                'visa_type': request.data.get('visa_type'),
+                'destination_country': request.data.get('destination_country'),
+                'user': user_instance.id,
+            }
+
+            visa_serializer = VisaApplicationsSerializer(data=visa_applications_data)
+            if visa_serializer.is_valid():
+                visa_serializer.save()
+            else:
+                return Response(visa_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Send email or OTP for the created user
+            if email:
+                send_user_email(email, user_data['password'])
+            elif mobile_number:
+                if not send_user_otp(mobile_number):
+                    raise Exception("Failed to send OTP to mobile number.")
+
+        return Response(
+            {"message": "Visa user registered successfully."},
+            status=status.HTTP_201_CREATED,
+        )
+    except IntegrityError as e:
+        logger.error(f"Integrity error: {str(e)}")
+        return Response(
+            {"error": "User with this email or mobile already exists."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return Response(
+            {"error": "An unexpected error occurred.", "details": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
 class DynamicUserStatsAPIView(APIView):
     """
     API View to fetch dynamic user statistics grouped by user_type.
@@ -1022,6 +1118,54 @@ class UserListByTypeAPIView(APIView):
             user_groups[user_type].append(UserSerializer(user).data)
 
         return Response(user_groups)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def get_user_details(request):
+    user_id = request.query_params.get("user_id")
+
+    if not user_id:
+        return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        return Response({"error": "No user found with the provided details."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Generate JWT tokens
+    refresh = RefreshToken.for_user(user)
+
+    # Extract user details
+    user_kyc = hasattr(user, "userkyc")
+    user_name = user.userkyc.name if user_kyc else None
+    created_on_date = user.date_joined.date()
+
+    try:
+        user_affiliation_summary = UserAffiliationSummary.objects.get(user=user)
+    except UserAffiliationSummary.DoesNotExist:
+        return Response({"error": "User affiliation data not found."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    data = {
+        "id": user.id,
+        "email": user.email,
+        "mobile_number": user.mobile_number,
+        "user_name": user.user_name,
+        "name": f"{user.first_name} {user.last_name}",
+        "created_on": created_on_date,
+        "user_type": user.user_type,
+        "user_kyc": user_kyc,
+        "individual_affiliated": list(user_affiliation_summary.individual_affiliated),
+        "ca_firm_affiliated": list(user_affiliation_summary.ca_firm_affiliated),
+        "service_provider_affiliated": list(user_affiliation_summary.service_provider_affiliated),
+        "business_affiliated": list(user_affiliation_summary.business_affiliated),
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+    }
+    if user.user_type == "Business":
+        business_exists = Business.objects.filter(client=user).exists()
+        data['business_exists'] = business_exists
+
+    return Response(data, status=status.HTTP_200_OK)
 
 def send_user_email(email, password):
     """Sends autogenerated credentials to user's email."""
@@ -1851,7 +1995,8 @@ def partial_update_user(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def business_list_by_client(request):
-    client_id = request.user.id
+    client_id = request.query_params.get('user_id')
+    # client_id = request.user.id
 
     # Filter businesses by client_id
     businesses = Business.objects.filter(client=client_id)
