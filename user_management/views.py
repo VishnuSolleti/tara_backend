@@ -260,7 +260,7 @@ def assign_permissions(data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 26
+            "CA": 25
         }
 
         if user_type not in group_id_mapping:
@@ -549,7 +549,7 @@ def assign_group_with_affiliated_permissions(user_group_permission_data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 26
+            "CA": 25
         }
 
         if user_type not in group_id_mapping:
