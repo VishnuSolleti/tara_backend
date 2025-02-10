@@ -561,8 +561,15 @@ def assign_group_with_affiliated_permissions(user_group_permission_data):
             raise ValueError(f"Group with ID {group_id_mapping[user_type]} not found.")
 
     # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
+
     user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
     user_group.group = group  # Assigning a single group
+
+    self_account, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user)
+    self_account.group = group
+
+    affiliated_account, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+    affiliated_account.group = group
 
     # Assign permissions
     if custom_permissions_ids:
@@ -570,13 +577,84 @@ def assign_group_with_affiliated_permissions(user_group_permission_data):
         if not custom_permissions.exists():
             raise ValueError("Invalid custom permissions provided.")
         user_group.custom_permissions.set(custom_permissions)
+        self_account.custom_permissions.set(custom_permissions)
+        affiliated_account.custom_permissions.set(custom_permissions)
+
     else:
         # Default to the group's permissions if no custom permissions are provided
         user_group.custom_permissions.set(group.permissions.all())  # Fetch default permissions
+        self_account.custom_permissions.set(group.permissions.all())
+        affiliated_account.custom_permissions.set(group.permissions.all())
 
     user_group.save()
+    self_account.save()
+    affiliated_account.save()
 
     return UserGroupSerializer(user_group).data
+
+# def assign_group_with_affiliated_permissions(user_group_permission_data):
+#     """
+#     Assign a single group to a user with optional customization of permissions.
+#     Raises ValueError for missing users, groups, or invalid custom permissions.
+#     """
+#     user_id = user_group_permission_data.get('id')
+#     group_id = user_group_permission_data.get('group')  # Expecting only one group now
+#     custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+#     created_by = user_group_permission_data.get('created_by')
+#
+#     # Validate User and Created By User
+#     user = get_object_or_404(User, id=user_id)
+#     created_by_user = get_object_or_404(User, id=created_by)
+#
+#     # Validate Group
+#     group = get_group_for_user(user_group_permission_data, group_id)
+#
+#     # Assign User to Group with Permissions
+#     user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+#     self_account, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user)
+#     affiliated_account, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+#
+#     # Set permissions for all related accounts
+#     set_permissions(user_group, custom_permissions_ids, group)
+#     set_permissions(self_account, custom_permissions_ids, group)
+#     set_permissions(affiliated_account, custom_permissions_ids, group)
+#
+#     # Save updated roles
+#     UserAffiliatedRole.objects.bulk_update([user_group, self_account, affiliated_account], ['group', 'custom_permissions'])
+#
+#     return UserGroupSerializer(user_group).data
+#
+# def get_group_for_user(user_group_permission_data, group_id):
+#     """
+#     Returns the appropriate group for a user based on provided data.
+#     """
+#     if group_id:
+#         return get_object_or_404(CustomGroup, id=group_id)
+#
+#     # Default to a group mapping if no group ID is provided
+#     user_type = user_group_permission_data.get('user_type')
+#     group_id_mapping = {
+#         "Individual": 10,
+#         "Business": 11,
+#         "ServiceProvider": 1,
+#         "CA": 25
+#     }
+#     group_id = group_id_mapping.get(user_type)
+#     if not group_id:
+#         raise ValueError("Invalid user type provided.")
+#
+#     return get_object_or_404(CustomGroup, id=group_id)
+#
+# def set_permissions(user_group, custom_permissions_ids, group):
+#     """
+#     Assign custom permissions to a user group. Default to group permissions if no custom ones are provided.
+#     """
+#     if custom_permissions_ids:
+#         custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+#         user_group.custom_permissions.set(custom_permissions)
+#     else:
+#         user_group.custom_permissions.set(group.permissions.all())
+
 
 
 @api_view(['POST'])
