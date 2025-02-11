@@ -62,9 +62,9 @@ urlpatterns = [
     # Manage Corporate Entities
     # path('corporate-entity/', manage_corporate_entity, name='manage_corporate_entities'),
 
-    path('corporate_entities/', manage_corporate_entity, name='manage_corporate_entity'),
+    path('corporate', manage_corporate_entity, name='manage_corporate_entity'),
 
-
+    path('corporate-details', corporate_details, name='corporate_details'),
 
     # Adding GST Details
     path('gst-details/', gst_details_list_create, name='gst-details-list-create'),

@@ -2039,6 +2039,39 @@ def partial_update_user(request):
         return Response({"error": "An unexpected error occurred while updating user info."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def corporate_details(request):
+    """
+    API to retrieve business users created by the authenticated user.
+    Ignores users with user_type='SuperAdmin'.
+    """
+    try:
+        user_id = request.query_params.get('user_id')
+
+        if not user_id:
+            return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Log the user_id to debug
+        print(f"Received user_id: {user_id}")
+
+        try:
+            # Check if the user exists
+            created_by_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": f"User with ID {user_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Fetch business users created by the user
+        users = User.objects.filter(created_by=user_id, user_type="Business")
+
+        if not users.exists():
+            return Response({"message": "No business users found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"users": UserSerializer(users, many=True).data}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": f"An unexpected error occurred: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 # class PermissionListView(APIView):
 #     permission_classes = [AllowAny]
 #     def get(self, request):
@@ -2121,8 +2154,8 @@ def manage_corporate_entity(request):
         return Response({"users": UserSerializer(users, many=True).data}, status=status.HTTP_200_OK)
 
     except Exception as e:
-        return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
+        return Response({"error": f"An unexpected error occurred: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET', 'POST'])
