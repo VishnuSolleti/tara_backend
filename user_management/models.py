@@ -135,7 +135,7 @@ class User(AbstractBaseUser):
     mobile_number = models.CharField(max_length=15, null=True, blank=True)
     first_name = models.CharField(max_length=40, null=True, blank=True)
     last_name = models.CharField(max_length=40, null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
     user_type = models.CharField(
         max_length=40,

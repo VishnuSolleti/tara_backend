@@ -76,7 +76,8 @@ urlpatterns = [
     path('services/<int:pk>/', ServicesMasterDataDetailAPIView.as_view()),  # For GET (detail), PUT, DELETE
 
     # Endpoint for specific visa application actions (GET, PUT, DELETE)
-    path('visa-applicants/<int:pk>/', VisaApplicationDetailAPIView.as_view(), name='visa-applications-detail-update-delete'),
+    path('visa-applicants/<int:pk>/', VisaApplicationDetailAPIView.as_view(),
+         name='visa-applications-detail-update-delete'),
 
     path('visa-servicetasks/', manage_visa_applications, name='manage_visa_applications'),
 
