@@ -168,6 +168,57 @@ class PayrollOrgBusinessDetail(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
+class PayrollOrgBusinessDetailView(APIView):
+    def get(self, request, business_id):
+        try:
+            # Check if PayrollOrg exists
+            payroll_org = PayrollOrg.objects.get(business_id=business_id)
+
+            response_data = {
+                "id": payroll_org.id,
+                "created_at": payroll_org.created_at,
+                "logo": payroll_org.logo,
+                "contact_email": payroll_org.contact_email,
+                "sender_email": payroll_org.sender_email,
+                "filling_address_line1": payroll_org.filling_address_line1,
+                "filling_address_line2": payroll_org.filling_address_line2,
+                "filling_address_state": payroll_org.filling_address_state,
+                "filling_address_city": payroll_org.filling_address_city,
+                "filling_address_pincode": payroll_org.filling_address_pincode,
+                "business": payroll_org.business.id,
+                "organisation_name": payroll_org.business.nameOfBusiness,
+                "organisation_address":payroll_org.business.headOffice,
+
+                # Checking existence of related objects
+                "work_locations": WorkLocations.objects.filter(
+                    payroll=payroll_org.id).exists() or payroll_org.work_location,
+                "departments": Departments.objects.filter(payroll=payroll_org.id).exists() or payroll_org.department,
+                "designations": Designation.objects.filter(payroll=payroll_org.id).exists() or payroll_org.designation,
+
+                # Checking statutory components
+                "statutory_component": True if payroll_org.statutory_component is True else {
+                    "EPF": EPF.objects.filter(payroll=payroll_org.id).exists(),
+                    "ESI": ESI.objects.filter(payroll=payroll_org.id).exists(),
+                    "PF": PF.objects.filter(payroll=payroll_org.id).exists(),
+                },
+
+                # Checking salary components
+                "salary_component": True if payroll_org.salary_component is True else{
+                    "Earnings": Earnings.objects.filter(payroll=payroll_org.id).exists(),
+                    "Benefits": Benefits.objects.filter(payroll=payroll_org.id).exists(),
+                    "Deduction": Deduction.objects.filter(payroll=payroll_org.id).exists(),
+                    "Reimbursement": Reimbursement.objects.filter(payroll=payroll_org.id).exists(),
+                }
+            }
+
+            return Response(response_data,  status=status.HTTP_200_OK)
+
+        except PayrollOrg.DoesNotExist:
+            return Response({"error": "Payroll for these Business not found"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 # List all WorkLocations
 @api_view(['GET'])
 def work_location_list(request):

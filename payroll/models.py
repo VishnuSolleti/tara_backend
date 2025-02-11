@@ -20,9 +20,15 @@ class PayrollOrg(models.Model):
     filling_address_state = models.CharField(max_length=150, null=True, blank=True)
     filling_address_city = models.CharField(max_length=150, null=True, blank=True)
     filling_address_pincode = models.PositiveIntegerField(null=True, validators=[validate_pincode]) # No max_length
+    work_location = models.BooleanField(default=False)
+    department = models.BooleanField(default=False)
+    designation = models.BooleanField(default=False)
+    # JSONFields should have a default empty dictionary
+    statutory_component = models.BooleanField(default=False)
+    salary_component = models.BooleanField(default=False)
 
     def __str__(self):
-        return self.org_name
+        return f"PayrollOrg {self.business.id}"
 
 
 class WorkLocations(models.Model):
