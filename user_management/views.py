@@ -2122,6 +2122,34 @@ def affiliated_summary_details(request):
     except Exception as e:
         return Response({"error": f"An unexpected error occurred: {str(e)}"},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_search(request):
+    """
+    API to search for users by email.
+    Returns a single object if only one user is found, otherwise returns a list.
+    """
+    try:
+        email = request.query_params.get('email')
+
+        if not email:
+            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        users = User.objects.filter(email=email)
+
+        if not users.exists():
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # If only one user exists, return it as an object; otherwise, return a list
+        if users.count() == 1:
+            return Response(UserSerializer(users.first()).data, status=status.HTTP_200_OK)
+        else:
+            return Response(UserSerializer(users, many=True).data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": f"An unexpected error occurred: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 # class PermissionListView(APIView):
 #     permission_classes = [AllowAny]
 #     def get(self, request):
