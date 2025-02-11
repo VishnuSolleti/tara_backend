@@ -66,6 +66,8 @@ urlpatterns = [
 
     path('corporate-details', corporate_details, name='corporate_details'),
 
+    path('affiliated-details', affiliated_summary_details, name='affiliated_summary_details'),
+
     # Adding GST Details
     path('gst-details/', gst_details_list_create, name='gst-details-list-create'),
     path('gst-details/<int:pk>/', gst_details_detail, name='gst-details-detail'),
