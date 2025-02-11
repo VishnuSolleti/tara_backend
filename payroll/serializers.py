@@ -75,7 +75,7 @@ class DepartmentsSerializer(serializers.ModelSerializer):
 class DesignationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Designation
-        fields = ['id', 'payroll', 'designation_name', 'description']
+        fields = ['id', 'payroll', 'designation_name']
 
     def create(self, validated_data):
         """

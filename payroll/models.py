@@ -61,7 +61,6 @@ class Departments(models.Model):
 class Designation(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='designations')
     designation_name = models.CharField(max_length=150)
-    description = models.CharField(max_length=220, null=True, blank=True)
 
     class Meta:
         constraints = [
