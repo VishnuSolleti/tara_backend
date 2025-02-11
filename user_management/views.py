@@ -2184,21 +2184,27 @@ def user_search(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def business_list_by_client(request):
-    client_id = request.query_params.get('user_id')
-    # client_id = request.user.id
+    """
+    API to retrieve a business by client ID.
+    """
+    try:
+        client_id = request.query_params.get('user_id')
 
-    # Filter businesses by client_id
-    businesses = Business.objects.filter(client=client_id)
+        if not client_id:
+            return Response({'error': 'User ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Check if businesses are found for the client
-    if not businesses.exists():
-        return Response({'message': 'No businesses found for this client.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            business = Business.objects.get(client=client_id)  # Using get() instead of filter()
+        except Business.DoesNotExist:
+            return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Serialize the data
-    serializer = BusinessSerializer(businesses, many=True)
+        # Serialize and return the business data
+        serializer = BusinessSerializer(business)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # Return the serialized data
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': f'An unexpected error occurred: {str(e)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
