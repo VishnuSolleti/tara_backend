@@ -95,12 +95,27 @@ class PayrollOrgDetail(APIView):
     """
     def get(self, request, pk):
         try:
-            payroll_org = PayrollOrg.objects.get(pk=pk)
-        except PayrollOrg.DoesNotExist:
-            return Response({"error": "PayrollOrg not found."}, status=status.HTTP_404_NOT_FOUND)
+            # Fetch PayrollOrg or return 404
+            payroll_org = get_object_or_404(PayrollOrg, pk=pk)
 
-        serializer = PayrollOrgSerializer(payroll_org)
-        return Response(serializer.data)
+            # Fetch associated Business
+            business = payroll_org.business
+
+            # Serialize PayrollOrg
+            serializer = PayrollOrgSerializer(payroll_org)
+
+            # Construct response with additional business details
+            response_data = serializer.data  # Get serialized data
+            response_data.update({
+                "business": business.id,
+                "organisation_name": business.nameOfBusiness,
+                "organisation_address": business.headOffice
+            })
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk):
         try:
