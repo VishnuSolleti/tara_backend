@@ -81,12 +81,11 @@ class Designation(models.Model):
 class EPF(models.Model):
     payroll = models.OneToOneField('PayrollOrg', on_delete=models.CASCADE, related_name='epf_details')
     epf_number = models.CharField(max_length=100)  # Adjust max_length as needed
-    employee_actual_pf_wage = models.DecimalField(max_digits=10, decimal_places=2)  # Wage amount
-    employee_actual_restricted_wage = models.DecimalField(max_digits=10, decimal_places=2)  # Restricted wage
-    employer_actual_pf_wage = models.DecimalField(max_digits=10, decimal_places=2)  # Wage amount
-    employer_actual_restricted_wage = models.DecimalField(max_digits=10, decimal_places=2)  # Restricted wage
-    employer_edli_contribution_in_ctc = models.BooleanField()  # EDLI contribution included
+    employee_contribution_rate = models.CharField(max_length=240, null=False, blank=False)
+    employer_contribution_rate = models.CharField(max_length=240, null=False, blank=False)
+    employer_edil_contribution_in_ctc = models.BooleanField()  # EDLI contribution included
     # in CTC Employees' Deposit Linked Insurance
+    include_employer_contribution_in_ctc = models.BooleanField()
     admin_charge_in_ctc = models.BooleanField()  # Admin charge included in CTC
     allow_employee_level_override = models.BooleanField()  # Can employee override PF?
     prorate_restricted_pf_wage = models.BooleanField()  # Prorate restricted PF wage?

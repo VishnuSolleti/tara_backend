@@ -97,8 +97,8 @@ class DesignationSerializer(serializers.ModelSerializer):
 class EPFSerializer(serializers.ModelSerializer):
     class Meta:
         model = EPF
-        fields = ['id', 'payroll', 'epf_number', 'epf_contribution_rate', 'employer_actual_pf_wage',
-                  'employer_actual_restricted_wage', 'employer_edli_contribution_in_ctc',
+        fields = ['id', 'payroll', 'epf_number', 'employee_contribution_rate', 'employer_contribution_rate',
+                  'employer_edil_contribution_in_ctc', 'include_employer_contribution_in_ctc',
                   'admin_charge_in_ctc', 'allow_employee_level_override', 'prorate_restricted_pf_wage']
 
     def create(self, validated_data):

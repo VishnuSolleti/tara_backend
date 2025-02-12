@@ -266,19 +266,26 @@ class PayrollOrgBusinessDetailView(APIView):
                 if organisation_details else False,
 
                 # Checking statutory components
-                "statutory_component": True if payroll_org.statutory_component is True else {
-                    "EPF": EPF.objects.filter(payroll=payroll_org.id).exists(),
-                    "ESI": ESI.objects.filter(payroll=payroll_org.id).exists(),
-                    "PF": PF.objects.filter(payroll=payroll_org.id).exists(),
-                } if organisation_details else False,
+                "statutory_component": (
+                    payroll_org.statutory_component
+                    if payroll_org.statutory_component is True
+                    else (
+                            EPF.objects.filter(payroll=payroll_org.id).exists()
+                            and ESI.objects.filter(payroll=payroll_org.id).exists()
+                            and PF.objects.filter(payroll=payroll_org.id).exists()
+                    )
+                ) if organisation_details else False,
 
-                # Checking salary components
-                "salary_component": True if payroll_org.salary_component is True else{
-                    "Earnings": Earnings.objects.filter(payroll=payroll_org.id).exists(),
-                    "Benefits": Benefits.objects.filter(payroll=payroll_org.id).exists(),
-                    "Deduction": Deduction.objects.filter(payroll=payroll_org.id).exists(),
-                    "Reimbursement": Reimbursement.objects.filter(payroll=payroll_org.id).exists(),
-                } if organisation_details else False
+                "salary_component": (
+                    payroll_org.salary_component
+                    if payroll_org.salary_component is True
+                    else (
+                            Earnings.objects.filter(payroll=payroll_org.id).exists()
+                            and Benefits.objects.filter(payroll=payroll_org.id).exists()
+                            and Deduction.objects.filter(payroll=payroll_org.id).exists()
+                            and Reimbursement.objects.filter(payroll=payroll_org.id).exists()
+                    )
+                ) if organisation_details else False
             }
 
             return Response(response_data,  status=status.HTTP_200_OK)
