@@ -11,6 +11,7 @@ import csv
 import pandas as pd
 from io import TextIOWrapper
 from django.shortcuts import get_object_or_404
+from user_management.serializers import *
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -88,6 +89,63 @@ class PayrollOrgList(APIView):
 
         # Handle validation errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def business_payroll_check(request):
+    """
+    API to retrieve a business by client ID.
+    """
+    try:
+        client_id = request.query_params.get('user_id')
+
+        if not client_id:
+            return Response({'error': 'User ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            business = Business.objects.get(client=client_id)  # Using get() instead of filter()
+        except Business.DoesNotExist:
+            return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize business data
+        serializer = BusinessSerializer(business)
+        response_data = serializer.data
+
+        # Check if PayrollOrg exists for this business
+        organisation_details = PayrollOrg.objects.filter(business=business).exists()
+
+        if organisation_details:
+            payroll_org = PayrollOrg.objects.get(business=business)
+
+            # Check if all necessary components exist
+            all_components = all([
+                WorkLocations.objects.filter(payroll=payroll_org.id).exists() or payroll_org.work_location,
+                Departments.objects.filter(payroll=payroll_org.id).exists() or payroll_org.department,
+                Designation.objects.filter(payroll=payroll_org.id).exists() or payroll_org.designation,
+                payroll_org.statutory_component or any([
+                    EPF.objects.filter(payroll=payroll_org.id).exists(),
+                    ESI.objects.filter(payroll=payroll_org.id).exists(),
+                    PF.objects.filter(payroll=payroll_org.id).exists()
+                ]),
+                payroll_org.salary_component or any([
+                    Earnings.objects.filter(payroll=payroll_org.id).exists(),
+                    Benefits.objects.filter(payroll=payroll_org.id).exists(),
+                    Deduction.objects.filter(payroll=payroll_org.id).exists(),
+                    Reimbursement.objects.filter(payroll=payroll_org.id).exists()
+                ])
+            ])
+        else:
+            all_components = False  # If PayrollOrg does not exist, setup is incomplete
+
+        # Add payroll setup status to the response
+        response_data["payroll_setup"] = all_components
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({'error': f'An unexpected error occurred: {str(e)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class PayrollOrgDetail(APIView):
     """

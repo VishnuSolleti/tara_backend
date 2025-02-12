@@ -13,6 +13,8 @@ urlpatterns = [
     path('business-payroll/<int:business_id>/', views.PayrollOrgBusinessDetailView.as_view(),
          name='payroll-org-business-detail'),
 
+    path('payroll-setup-status', views.business_payroll_check, name='business_payroll_check'),
+
     # URL for listing and creating WorkLocation instances
     path('work-locations/', views.work_location_list, name='work_location_list'),
 
