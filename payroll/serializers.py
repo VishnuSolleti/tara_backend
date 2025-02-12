@@ -105,7 +105,7 @@ class EPFSerializer(serializers.ModelSerializer):
         """
         Create and return a new `WorkLocations` instance, given the validated data.
         """
-        instance = WorkLocations(**validated_data)
+        instance = EPF(**validated_data)
         instance.save()
         return instance
 
@@ -128,7 +128,7 @@ class ESISerializer(serializers.ModelSerializer):
         """
         Create and return a new `WorkLocations` instance, given the validated data.
         """
-        instance = WorkLocations(**validated_data)
+        instance = ESI(**validated_data)
         instance.save()
         return instance
 
