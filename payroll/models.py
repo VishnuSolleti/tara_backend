@@ -91,7 +91,7 @@ class EPF(models.Model):
     prorate_restricted_pf_wage = models.BooleanField()  # Prorate restricted PF wage?
 
     def __str__(self):
-        return f"EPF Details for Payroll: {self.payroll.orgName} (EPF No: {self.epf_number})"
+        return f"EPF Details for Payroll: {self.payroll.business.nameOfBusiness} (EPF No: {self.epf_number})"
 
 
 class ESI(models.Model):
@@ -102,7 +102,7 @@ class ESI(models.Model):
     include_employer_contribution_in_ctc = models.BooleanField()  # Include employer contribution in CTC?
 
     def __str__(self):
-        return f"ESI Details for Payroll: {self.payroll.orgName} (ESI No: {self.esi_number})"
+        return f"ESI Details for Payroll: {self.payroll.business.nameOfBusiness} (ESI No: {self.esi_number})"
 
 
 class PF(models.Model):
@@ -113,7 +113,7 @@ class PF(models.Model):
     slab = JSONField(default=list, blank=True)  # JSONField for flexible storage of slab data
 
     def __str__(self):
-        return f"PF Details for Payroll: {self.payroll.orgName} (Location: {self.location})"
+        return f"PF Details for Payroll: {self.payroll.business.nameOfBusiness} (Location: {self.location})"
 
 
 class Earnings(models.Model):
