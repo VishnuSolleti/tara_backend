@@ -188,8 +188,8 @@ class PayrollOrgBusinessDetailView(APIView):
                 "filling_address_pincode": payroll_org.filling_address_pincode,
                 "business": payroll_org.business.id,
                 "organisation_name": payroll_org.business.nameOfBusiness,
-                "organisation_address":payroll_org.business.headOffice,
-
+                "organisation_address": payroll_org.business.headOffice,
+                "industry": payroll_org.industry,
                 # Checking existence of related objects
                 "work_locations": WorkLocations.objects.filter(
                     payroll=payroll_org.id).exists() or payroll_org.work_location,

@@ -656,7 +656,6 @@ def assign_group_with_affiliated_permissions(user_group_permission_data):
 #         user_group.custom_permissions.set(group.permissions.all())
 
 
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def user_registration_by_admin(request):
@@ -748,6 +747,38 @@ def user_registration_by_admin(request):
             logger.warning("Registration failed: Validation errors.")
             logger.debug(f"Validation errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except IntegrityError as e:
+            logger.error(f"Integrity error during registration: {str(e)}")
+            return Response({"error": "A user with this email or mobile number already exists."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}")
+            return Response({"error": "Database error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}")
+            return Response({"error": "An unexpected error occurred.", "details": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def business_affiliation(request):
+    """
+    Handle user registration by superadmin without activation link,
+    and send username and password to the user via email.
+    """
+    logger.info("Received a superadmin user registration request.")
+    print("*********************")
+
+    if request.method == 'POST':
+        try:
+            request_data = request.data.copy()
+            group = request_data.pop('group', None)
+            custom_permissions = request_data.pop('custom_permissions', [])
+            affiliated_id = request.data.get('affiliated_id')
+            user_id = request.data.get('user_id')
+
 
         except IntegrityError as e:
             logger.error(f"Integrity error during registration: {str(e)}")
@@ -2900,8 +2931,6 @@ def get_visa_clients_users_list(request):
 
     except Exception as e:
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 
 
 
