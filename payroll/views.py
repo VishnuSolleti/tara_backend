@@ -613,7 +613,7 @@ def epf_list(request):
         if payroll_id:
             # Since payroll is a OneToOneField, there will be at most one EPF record for a given payroll_id
             try:
-                epf_details = EPF.objects.get(payroll_id=payroll_id)  # Fetch EPF details for the specific payroll
+                epf_details = EPF.objects.get(payroll=payroll_id)  # Fetch EPF details for the specific payroll
                 serializer = EPFSerializer(epf_details)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             except EPF.DoesNotExist:
