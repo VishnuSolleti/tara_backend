@@ -53,8 +53,8 @@ urlpatterns = [
     path('epf/<int:pk>', views.epf_detail, name='epf_detail'),
 
     # ESI Endpoints
-    path('esi/', views.esi_list, name='esi_list'),
-    path('esi/<int:pk>/', views.esi_detail, name='esi_detail'),
+    path('esi', views.esi_list, name='esi_list'),
+    path('esi/<int:pk>', views.esi_detail, name='esi_detail'),
 
     # URL for listing and creating PF records
     path('pf/', views.pf_list, name='pf_list'),
