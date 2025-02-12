@@ -49,8 +49,8 @@ urlpatterns = [
 
     path('designations/bulk-designations-upload/', views.bulk_designation_upload, name='bulk_designation_upload'),
 
-    path('epf/', views.epf_list, name='epf_list'),
-    path('epf/<int:pk>/', views.epf_detail, name='epf_detail'),
+    path('epf', views.epf_list, name='epf_list'),
+    path('epf/<int:pk>', views.epf_detail, name='epf_detail'),
 
     # ESI Endpoints
     path('esi/', views.esi_list, name='esi_list'),
