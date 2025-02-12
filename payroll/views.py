@@ -10,6 +10,7 @@ from botocore.exceptions import ClientError
 import csv
 import pandas as pd
 from io import TextIOWrapper
+from django.shortcuts import get_object_or_404
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -172,36 +173,31 @@ class PayrollOrgBusinessDetail(APIView):
 class PayrollOrgBusinessDetailView(APIView):
     def get(self, request, business_id):
         try:
+            business = get_object_or_404(Business, id=business_id)
             # Check if PayrollOrg exists
-            payroll_org = PayrollOrg.objects.get(business_id=business_id)
+            payroll_org = PayrollOrg.objects.filter(business=business_id).first()
+            organisation_details = bool(payroll_org)
 
             response_data = {
-                "id": payroll_org.id,
-                "created_at": payroll_org.created_at,
-                "logo": payroll_org.logo,
-                "contact_email": payroll_org.contact_email,
-                "sender_email": payroll_org.sender_email,
-                "filling_address_line1": payroll_org.filling_address_line1,
-                "filling_address_line2": payroll_org.filling_address_line2,
-                "filling_address_state": payroll_org.filling_address_state,
-                "filling_address_city": payroll_org.filling_address_city,
-                "filling_address_pincode": payroll_org.filling_address_pincode,
-                "business": payroll_org.business.id,
-                "organisation_name": payroll_org.business.nameOfBusiness,
-                "organisation_address": payroll_org.business.headOffice,
-                "industry": payroll_org.industry,
+                "business": business.id,
+                "organisation_name": business.nameOfBusiness,
+                "organisation_address": business.headOffice,
                 # Checking existence of related objects
+                "organisation_details": organisation_details,
+                "payroll_id": payroll_org.id if organisation_details else None,
                 "work_locations": WorkLocations.objects.filter(
-                    payroll=payroll_org.id).exists() or payroll_org.work_location,
-                "departments": Departments.objects.filter(payroll=payroll_org.id).exists() or payroll_org.department,
-                "designations": Designation.objects.filter(payroll=payroll_org.id).exists() or payroll_org.designation,
+                    payroll=payroll_org.id).exists() or payroll_org.work_location if organisation_details else False,
+                "departments": Departments.objects.filter(payroll=payroll_org.id).exists() or payroll_org.department
+                if organisation_details else False,
+                "designations": Designation.objects.filter(payroll=payroll_org.id).exists() or payroll_org.designation
+                if organisation_details else False,
 
                 # Checking statutory components
                 "statutory_component": True if payroll_org.statutory_component is True else {
                     "EPF": EPF.objects.filter(payroll=payroll_org.id).exists(),
                     "ESI": ESI.objects.filter(payroll=payroll_org.id).exists(),
                     "PF": PF.objects.filter(payroll=payroll_org.id).exists(),
-                },
+                } if organisation_details else False,
 
                 # Checking salary components
                 "salary_component": True if payroll_org.salary_component is True else{
@@ -209,13 +205,13 @@ class PayrollOrgBusinessDetailView(APIView):
                     "Benefits": Benefits.objects.filter(payroll=payroll_org.id).exists(),
                     "Deduction": Deduction.objects.filter(payroll=payroll_org.id).exists(),
                     "Reimbursement": Reimbursement.objects.filter(payroll=payroll_org.id).exists(),
-                }
+                } if organisation_details else False
             }
 
             return Response(response_data,  status=status.HTTP_200_OK)
 
-        except PayrollOrg.DoesNotExist:
-            return Response({"error": "Payroll for these Business not found"}, status=404)
+        except Business.DoesNotExist:
+            return Response({"error": "Business does not exists, Please set up the Business"}, status=404)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
