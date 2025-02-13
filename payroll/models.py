@@ -121,11 +121,10 @@ class PT(models.Model):
 
 class Earnings(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='earnings')
-    earning_name = models.CharField(max_length=150)  # Name of the earning
-    earning_type = models.CharField(max_length=60)  # Type of earning
-    payslip_name = models.CharField(max_length=60, unique=True)  # Display name in the payslip
+    component_name = models.CharField(max_length=150)  # Name of the earning
+    component_type = models.CharField(max_length=60)  # Type of earning
     is_flat_amount = models.BooleanField(default=False)  # Indicates if the earning is a flat amount
-    is_basic_percentage = models.BooleanField(default=False)  # Indicates if it's based on a percentage of the basic salary
+    is_basic_percentage = models.BooleanField(default=False)  # Indicates it's based on a percentage of the basic salary
     amount_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Value of the amount
     is_active = models.BooleanField(default=True)  # Whether the earning is active
     is_part_of_employee_salary_structure = models.BooleanField(default=False)  # Part of salary structure
@@ -135,25 +134,28 @@ class Earnings(models.Model):
     includes_epf_contribution = models.BooleanField(default=False)  # EPF contribution
     includes_esi_contribution = models.BooleanField(default=False)  # ESI contribution
     is_included_in_payslip = models.BooleanField(default=True)  # Included in payslip
+    tax_deduction_preference = models.CharField(max_length=120, null=True, blank=True)
+    is_scheduled_earning = models.BooleanField(default=True)
 
     def clean(self):
         # Enforce mutually exclusive fields
         if self.is_flat_amount and self.is_basic_percentage:
-            raise ValidationError(
-                "Both 'is_flat_amount' and 'is_basic_percentage' cannot be True at the same time."
-            )
+            raise ValidationError("Both 'is_flat_amount' and 'is_basic_percentage' cannot be True at the same time.")
+
         if not self.is_flat_amount and not self.is_basic_percentage:
-            raise ValidationError(
-                "Either 'is_flat_amount' or 'is_basic_percentage' must be True."
-            )
+            raise ValidationError("Either 'is_flat_amount' or 'is_basic_percentage' must be True.")
+
+        # Ensure tax_deduction_preference is required if component_name is "Bonus"
+        if self.component_name.lower() == "bonus" and not self.tax_deduction_preference:
+            raise ValidationError({"tax_deduction_preference": "This field is required when component name is 'Bonus'."})
 
     def save(self, *args, **kwargs):
-        # Call the clean method to validate the model
+        # Call the clean method to validate the model before saving
         self.clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
-        return f"Earning: {self.earning_name} ({self.payslip_name})"
+        return f"Earning: {self.component_name} ({self.component_type})"
 
 
 class Benefits(models.Model):
@@ -190,6 +192,51 @@ class Reimbursement(models.Model):
 
     def __str__(self):
         return f"{self.reimbursement_type} ({self.payslip_name})"
+
+
+class SalaryTemplate(models.Model):
+    payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='salary_templates')
+    template_name = models.CharField(max_length=150, null=False, blank=False)
+    description = models.CharField(max_length=250, null=True, blank=True)
+    annual_ctc = models.IntegerField()
+
+    # Fields for earnings, benefits, deductions that should contain specific structures
+    earnings = JSONField(default=list, blank=True)
+    gross_salary = JSONField(default=dict, blank=True)
+    benefits = JSONField(default=list, blank=True)
+    total_ctc = JSONField(default=dict, blank=True)
+    deductions = JSONField(default=list, blank=True)
+    net_salary = JSONField(default=dict, blank=True)
+
+    def clean(self):
+        # Ensure earnings, benefits, and deductions contain required fields when present
+        for section in [self.earnings, self.benefits, self.deductions]:
+            for item in section:
+                if not isinstance(item, dict):
+                    raise ValidationError(f"Each item in {section} must be a dictionary.")
+                if ('salary_component' not in item or 'calculation_type' not in item or 'monthly'
+                        not in item or 'annually' not in item):
+                    raise ValidationError(f"Each item in {section} "
+                                          f"must contain 'salary_component', 'calculation_type', "
+                                          f"'monthly', and 'annually'.")
+
+        # Validate structure for gross_salary, total_ctc, and net_salary
+        for field_name in ['gross_salary', 'total_ctc', 'net_salary']:
+            field_data = getattr(self, field_name)
+            if not isinstance(field_data, dict):
+                raise ValidationError(f"{field_name} must be a dictionary containing 'monthly' and 'annually'.")
+            if 'monthly' not in field_data or 'annually' not in field_data:
+                raise ValidationError(f"{field_name} must contain 'monthly' and 'annually' fields.")
+
+    def save(self, *args, **kwargs):
+        # Call clean method to validate the model before saving
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Salary Template: {self.template_name}"
+
+
 
 
 

@@ -166,6 +166,10 @@ class PTSerializer(serializers.ModelSerializer):
 class PTSerializerRetrieval(serializers.ModelSerializer):
     work_location_name = serializers.CharField(source='work_location.location_name', read_only=True)
     state = serializers.CharField(source='work_location.address_state', read_only=True)
+    slab = serializers.ListField(
+        child=serializers.DictField(),  # Each element inside the list is a dictionary (object)
+        allow_empty=True  # Allow the list to be empty, if necessary
+    )
 
     class Meta:
         model = PT
@@ -175,10 +179,11 @@ class PTSerializerRetrieval(serializers.ModelSerializer):
 class EarningsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Earnings
-        fields = ['id', 'payroll', 'earning_name', 'earning_type', 'payslip_name', 'is_flat_amount',
+        fields = ['id', 'payroll', 'component_name', 'component_type', 'is_flat_amount',
                   'is_basic_percentage', 'amount_value', 'is_active', 'is_part_of_employee_salary_structure',
                   'is_taxable', 'is_pro_rate_basis', 'is_flexible_benefit_plan', 'includes_epf_contribution',
-                  'includes_esi_contribution', 'is_included_in_payslip']
+                  'includes_esi_contribution', 'is_included_in_payslip', 'tax_deduction_preference',
+                  'is_scheduled_earning']
 
     def create(self, validated_data):
         """

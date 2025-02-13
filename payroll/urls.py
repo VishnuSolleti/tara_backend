@@ -63,10 +63,10 @@ urlpatterns = [
     path('pt/<int:pk>', views.pt_detail, name='pf_detail'),
 
     # URL for listing and creating Earnings records
-    path('earnings/', views.earnings_list, name='earnings_list'),
+    path('earnings', views.earnings_list, name='earnings_list'),
 
     # URL for retrieving, updating, or deleting a specific Earnings record by its ID
-    path('earnings/<int:pk>/', views.earnings_detail, name='earnings_detail'),
+    path('earnings/<int:pk>', views.earnings_detail, name='earnings_detail'),
 
 
     path('deductions/', views.deduction_list_create, name='deduction-list-create'),
