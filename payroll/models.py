@@ -105,7 +105,7 @@ class ESI(models.Model):
         return f"ESI Details for Payroll: {self.payroll.business.nameOfBusiness} (ESI No: {self.esi_number})"
 
 
-class PF(models.Model):
+class PT(models.Model):
     payroll = models.OneToOneField('PayrollOrg', on_delete=models.CASCADE, related_name='pf_details')
     location = models.CharField(max_length=150)  # Added max_length to restrict the size of the location
     state = models.CharField(max_length=100)

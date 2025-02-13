@@ -125,7 +125,7 @@ def business_payroll_check(request):
                 payroll_org.statutory_component or any([
                     EPF.objects.filter(payroll=payroll_org.id).exists(),
                     ESI.objects.filter(payroll=payroll_org.id).exists(),
-                    PF.objects.filter(payroll=payroll_org.id).exists()
+                    PT.objects.filter(payroll=payroll_org.id).exists()
                 ]),
                 payroll_org.salary_component or any([
                     Earnings.objects.filter(payroll=payroll_org.id).exists(),
@@ -272,7 +272,7 @@ class PayrollOrgBusinessDetailView(APIView):
                     else (
                             EPF.objects.filter(payroll=payroll_org.id).exists()
                             and ESI.objects.filter(payroll=payroll_org.id).exists()
-                            and PF.objects.filter(payroll=payroll_org.id).exists()
+                            and PT.objects.filter(payroll=payroll_org.id).exists()
                     )
                 ) if organisation_details else False,
 
@@ -725,7 +725,7 @@ def esi_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
-def pf_list(request):
+def pt_list(request):
     """
     List PF records or create a new one, based on payroll_id.
     """
@@ -735,24 +735,24 @@ def pf_list(request):
         if payroll_id:
             # Since PF is a OneToOneField, there will be at most one PF record for a given payroll_id
             try:
-                pf_instance = PF.objects.get(payroll_id=payroll_id)  # Fetch PF details for the specific payroll
-                serializer = PFSerializer(pf_instance)
+                pt_instance = PT.objects.get(payroll_id=payroll_id)  # Fetch PF details for the specific payroll
+                serializer = PTSerializer(pt_instance)
                 return Response(serializer.data, status=status.HTTP_200_OK)
-            except PF.DoesNotExist:
+            except PT.DoesNotExist:
                 return Response({"error": "PF details not found for the given payroll ID."}, status=status.HTTP_404_NOT_FOUND)
         else:
             # Retrieve all PF details if no payroll_id is provided
-            pf_instances = PF.objects.all()
-            serializer = PFSerializer(pf_instances, many=True)
+            pf_instances = PT.objects.all()
+            serializer = PTSerializer(pf_instances, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
-        serializer = PFSerializer(data=request.data)
+        serializer = PTSerializer(data=request.data)
         if serializer.is_valid():
             try:
                 # Ensure there is no existing PF record for the given payroll_id
                 payroll_id = serializer.validated_data.get('payroll').id
-                if PF.objects.filter(payroll_id=payroll_id).exists():
+                if PT.objects.filter(payroll_id=payroll_id).exists():
                     return Response({"error": "PF details already exist for this payroll ID."}, status=status.HTTP_400_BAD_REQUEST)
 
                 serializer.save()
@@ -763,28 +763,28 @@ def pf_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
-def pf_detail(request, pk):
+def pt_detail(request, pk):
     """
     Retrieve, update or delete a PF record.
     """
     try:
-        pf_instance = PF.objects.get(pk=pk)
-    except PF.DoesNotExist:
+        pt_instance = PT.objects.get(pk=pk)
+    except PT.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = PFSerializer(pf_instance)
+        serializer = PTSerializer(pt_instance)
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        serializer = PFSerializer(pf_instance, data=request.data)
+        serializer = PTSerializer(pt_instance, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        pf_instance.delete()
+        pt_instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 

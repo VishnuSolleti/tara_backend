@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from .models import (PayrollOrg, WorkLocations, Departments,
-                     Designation, EPF, ESI, PF, Earnings, Benefits, Deduction, Reimbursement)
+                     Designation, EPF, ESI, PT, Earnings, Benefits, Deduction, Reimbursement)
 
 class PayrollOrgSerializer(serializers.ModelSerializer):
     class Meta:
@@ -142,16 +142,16 @@ class ESISerializer(serializers.ModelSerializer):
         return instance
 
 
-class PFSerializer(serializers.ModelSerializer):
+class PTSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PF
+        model = PT
         fields = ['id', 'payroll', 'location', 'state', 'pt_number', 'slab']
 
     def create(self, validated_data):
         """
         Create and return a new `PF` instance, given the validated data.
         """
-        instance = PF.objects.create(**validated_data)
+        instance = PT.objects.create(**validated_data)
         return instance
 
     def update(self, instance, validated_data):
