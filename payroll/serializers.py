@@ -145,7 +145,7 @@ class ESISerializer(serializers.ModelSerializer):
 class PTSerializer(serializers.ModelSerializer):
     class Meta:
         model = PT
-        fields = ['id', 'payroll', 'location', 'state', 'pt_number', 'slab']
+        fields = ['id', 'payroll', 'work_location', 'pt_number', 'slab']
 
     def create(self, validated_data):
         """

@@ -106,14 +106,17 @@ class ESI(models.Model):
 
 
 class PT(models.Model):
-    payroll = models.OneToOneField('PayrollOrg', on_delete=models.CASCADE, related_name='pf_details')
-    location = models.CharField(max_length=150)  # Added max_length to restrict the size of the location
-    state = models.CharField(max_length=100)
-    pt_number = models.CharField(max_length=100)  # Adjusted name and added max_length for clarity
-    slab = JSONField(default=list, blank=True)  # JSONField for flexible storage of slab data
+    payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='pt_details')
+    work_location = models.ForeignKey('WorkLocations', on_delete=models.CASCADE, related_name='pt_records')
+    pt_number = models.CharField(max_length=100, unique=True)  # Added unique constraint
+    slab = JSONField(default=list, blank=True)  # Flexible JSON storage for slab data
+
+    class Meta:
+        unique_together = ('payroll', 'work_location')  # Ensures one PT per payroll-location pair
 
     def __str__(self):
-        return f"PF Details for Payroll: {self.payroll.business.nameOfBusiness} (Location: {self.location})"
+        return (f"PT Details - Payroll: {self.payroll.business.nameOfBusiness}, "
+                f"Location: {self.work_location.location_name}")
 
 
 class Earnings(models.Model):
