@@ -749,11 +749,8 @@ def pt_list(request):
     elif request.method == 'POST':
         serializer = PTSerializer(data=request.data)
         if serializer.is_valid():
-            try:
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
