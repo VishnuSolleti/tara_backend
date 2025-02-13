@@ -57,10 +57,10 @@ urlpatterns = [
     path('esi/<int:pk>', views.esi_detail, name='esi_detail'),
 
     # URL for listing and creating PF records
-    path('pt/', views.pt_list, name='pf_list'),
+    path('pt', views.pt_list, name='pf_list'),
 
     # URL for retrieving, updating, or deleting a specific PF record by its ID
-    path('pt/<int:pk>/', views.pt_detail, name='pf_detail'),
+    path('pt/<int:pk>', views.pt_detail, name='pf_detail'),
 
     # URL for listing and creating Earnings records
     path('earnings/', views.earnings_list, name='earnings_list'),
