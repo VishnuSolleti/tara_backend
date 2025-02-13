@@ -733,17 +733,17 @@ def pt_list(request):
         payroll_id = request.query_params.get('payroll_id')  # Get payroll_id from query parameters
 
         if payroll_id:
-            # Since PF is a OneToOneField, there will be at most one PF record for a given payroll_id
-            try:
-                pt_instance = PT.objects.get(payroll_id=payroll_id)  # Fetch PF details for the specific payroll
-                serializer = PTSerializer(pt_instance)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            except PT.DoesNotExist:
-                return Response({"error": "PF details not found for the given payroll ID."}, status=status.HTTP_404_NOT_FOUND)
+            pt_instances = PT.objects.filter(payroll_id=payroll_id)
+
+            if not pt_instances.exists():
+                return Response({"error": "PT details not found for the given payroll ID."},
+                                status=status.HTTP_404_NOT_FOUND)
+
+            serializer = PTSerializerRetrieval(pt_instances, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            # Retrieve all PF details if no payroll_id is provided
-            pf_instances = PT.objects.all()
-            serializer = PTSerializer(pf_instances, many=True)
+            pt_instances = PT.objects.all()
+            serializer = PTSerializerRetrieval(pt_instances, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':

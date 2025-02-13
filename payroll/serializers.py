@@ -163,6 +163,14 @@ class PTSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+class PTSerializerRetrieval(serializers.ModelSerializer):
+    work_location_name = serializers.CharField(source='work_location.location_name', read_only=True)
+    state = serializers.CharField(source='work_location.address_state', read_only=True)
+
+    class Meta:
+        model = PT
+        fields = ['id', 'payroll', 'work_location', 'work_location_name', 'state', 'pt_number', 'slab']
+
 
 class EarningsSerializer(serializers.ModelSerializer):
     class Meta:
