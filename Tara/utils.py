@@ -32,14 +32,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Attempt to find the user by email or mobile
         if "@" in email_or_user_name:
-            users = User.objects.filter(email=email_or_user_name)
+            users = User.objects.filter(email__iexact=email_or_user_name)
             if not users.exists():
                 raise AuthenticationFailed("No user found with the provided email.")
             users = users.filter(user_type=user_type)
             if not users.exists():
                 raise AuthenticationFailed("No user found with the provided user type.")
         else:
-            users = User.objects.filter(user_name=email_or_user_name)
+            users = User.objects.filter(user_name__iexact=email_or_user_name)
             if not users.exists():
                 raise AuthenticationFailed("No user found with the provided username.")
             users = users.filter(user_type=user_type)
