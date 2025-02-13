@@ -773,7 +773,7 @@ def pt_detail(request, pk):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = PTSerializer(pt_instance)
+        serializer = PTSerializerRetrieval(pt_instance)
         return Response(serializer.data)
 
     elif request.method == 'PUT':
