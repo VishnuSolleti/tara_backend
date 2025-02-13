@@ -750,11 +750,6 @@ def pt_list(request):
         serializer = PTSerializer(data=request.data)
         if serializer.is_valid():
             try:
-                # Ensure there is no existing PF record for the given payroll_id
-                payroll_id = serializer.validated_data.get('payroll').id
-                if PT.objects.filter(payroll_id=payroll_id).exists():
-                    return Response({"error": "PF details already exist for this payroll ID."}, status=status.HTTP_400_BAD_REQUEST)
-
                 serializer.save()
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
             except Exception as e:
@@ -986,3 +981,62 @@ def reimbursement_detail(request, id):
     if request.method == 'DELETE':
         reimbursement.delete()
         return Response({"message": "Reimbursement deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def salary_template_list_create(request):
+    """
+    Handles GET (list) and POST (create) for Salary Templates.
+    - GET: Returns a list of all Salary Templates, optionally filtered by `payroll` or `template_name`.
+    - POST: Creates a new Salary Template entry.
+    """
+    if request.method == 'GET':
+        payroll_id = request.query_params.get('payroll_id')
+        template_name = request.query_params.get('template_name')
+
+        if payroll_id:
+            salary_templates = SalaryTemplate.objects.filter(payroll_id=payroll_id)
+
+        serializer = SalaryTemplateSerializer(salary_templates, many=True)
+        return Response({"data": serializer.data, "message": "Salary Templates retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = SalaryTemplateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Salary Template created successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def salary_template_detail_update_delete(request, template_id):
+    """
+    Handles GET, PUT, and DELETE for a single Salary Template based on its ID.
+    - GET: Retrieves details of a specific Salary Template.
+    - PUT: Updates a specific Salary Template.
+    - DELETE: Deletes a specific Salary Template.
+    """
+    try:
+        salary_template = SalaryTemplate.objects.get(id=template_id)
+    except SalaryTemplate.DoesNotExist:
+        return Response({"error": "Salary Template not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = SalaryTemplateSerializer(salary_template)
+        return Response({"data": serializer.data, "message": "Salary Template retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = SalaryTemplateSerializer(salary_template, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Salary Template updated successfully."},
+                            status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        salary_template.delete()
+        return Response({"message": "Salary Template deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+

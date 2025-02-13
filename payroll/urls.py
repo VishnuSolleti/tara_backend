@@ -68,7 +68,6 @@ urlpatterns = [
     # URL for retrieving, updating, or deleting a specific Earnings record by its ID
     path('earnings/<int:pk>', views.earnings_detail, name='earnings_detail'),
 
-
     path('deductions/', views.deduction_list_create, name='deduction-list-create'),
     path('deductions/<int:id>/', views.deduction_detail, name='deduction-detail'),
 
@@ -80,5 +79,9 @@ urlpatterns = [
     path('benefits/', views.benefits_list_create, name='benefit-list-create'),
     path('benefits/<int:id>/', views.benefits_detail_update_delete, name='benefit-detail'),
 
+    # Salary Template Endpoints
+    path('salary-templates', views.salary_template_list_create, name='salary_template_list_create'),
+    path('salary-templates/<int:template_id>', views.salary_template_detail_update_delete,
+         name='salary_template_detail_update_delete'),
 
 ]

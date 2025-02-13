@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import (PayrollOrg, WorkLocations, Departments,
+from .models import (PayrollOrg, WorkLocations, Departments, SalaryTemplate,
                      Designation, EPF, ESI, PT, Earnings, Benefits, Deduction, Reimbursement)
 
 class PayrollOrgSerializer(serializers.ModelSerializer):
@@ -264,3 +264,25 @@ class ReimbursementSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("Reimbursement amount must be greater than zero.")
         return value
+
+
+class SalaryTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalaryTemplate
+        fields = '__all__'
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Earnings` instance, given the validated data.
+        """
+        instance = SalaryTemplate.objects.create(**validated_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Earnings` instance, given the validated data.
+        """
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
