@@ -12,6 +12,7 @@ import pandas as pd
 from io import TextIOWrapper
 from django.shortcuts import get_object_or_404
 from user_management.serializers import *
+from django.db import transaction, DatabaseError
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -784,9 +785,10 @@ default_earnings = [
                     {
                         "component_name": "Basic",
                         "component_type": "Fixed",
-                        "amount_value": 0,
-                        "is_flat_amount": False,
-                        "percentage": True,
+                        "calculation_type": {
+                            "type": "Percentage of Basic",
+                            "value": 50
+                        },
                         "is_active": True,
                         "is_part_of_employee_salary_structure": True,
                         "is_taxable": True,
@@ -800,9 +802,10 @@ default_earnings = [
                     {
                         "component_name": "HRA",
                         "component_type": "Fixed",
-                        "amount_value": 0,
-                        "is_flat_amount": False,
-                        "percentage": True,
+                        "calculation_type": {
+                            "type": "Percentage of Basic",
+                            "value": 50
+                        },
                         "is_active": True,
                         "is_part_of_employee_salary_structure": True,
                         "is_taxable": True,
@@ -816,9 +819,10 @@ default_earnings = [
                     {
                         "component_name": "Special Allowance",
                         "component_type": "Fixed",
-                        "amount_value": 0,
-                        "is_flat_amount": False,
-                        "percentage": True,
+                        "calculation_type": {
+                            "type": "Remaining balance pf CTC",
+                            "value": 0
+                        },
                         "is_active": True,
                         "is_part_of_employee_salary_structure": True,
                         "is_taxable": True,
@@ -832,9 +836,10 @@ default_earnings = [
                     {
                         "component_name": "Conveyance Allowance",
                         "component_type": "Fixed",
-                        "amount_value": 0,
-                        "is_flat_amount": False,
-                        "percentage": True,
+                        "calculation_type": {
+                            "type": "Flat",
+                            "value": 50000
+                        },
                         "is_active": True,
                         "is_part_of_employee_salary_structure": True,
                         "is_taxable": True,
@@ -846,8 +851,6 @@ default_earnings = [
                         "is_scheduled_earning": True
                     }
                 ]
-
-from django.db import transaction, DatabaseError
 
 @api_view(['GET', 'POST'])
 def earnings_list(request):
