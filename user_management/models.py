@@ -13,6 +13,7 @@ from django.db.models.signals import post_save, post_delete
 
 KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='  # Fernet key
 
+
 class EncryptedField(models.Field):
     def __init__(self, *args, **kwargs):
         self.cipher = Fernet(KEY)
@@ -51,6 +52,7 @@ class CustomPermission(models.Model):
     def __str__(self):
         return self.module_name
 
+
 class CustomGroup(models.Model):
     name = models.CharField(max_length=255, unique=True)
     permissions = models.ManyToManyField(CustomPermission, related_name='groups')
@@ -58,8 +60,10 @@ class CustomGroup(models.Model):
     def __str__(self):
         return self.name
 
+
 class CustomAccountManager(BaseUserManager):
-    def create_user(self, email=None, password=None, mobile_number=None, user_name=None, created_by=None, **extra_fields):
+    def create_user(self, email=None, password=None, mobile_number=None, user_name=None,
+                    created_by=None, **extra_fields):
         # Normalize email if provided
         email = self.normalize_email(email) if email else None
 
@@ -160,6 +164,8 @@ class User(AbstractBaseUser):
 
     def __str__(self):
         return self.user_name or "User"
+
+
 @receiver(post_save, sender=User)
 def create_user_affiliation_summary(sender, instance, created, **kwargs):
     if created:
@@ -272,6 +278,7 @@ class UserAffiliatedRole(models.Model):
     def __str__(self):
         return f"{self.user.user_name} - {self.group} under {self.affiliated.user_name}"
 
+
 class UserAffiliationSummary(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="affiliation_summary")
     individual_affiliated = JSONField(default=list, blank=True)
@@ -284,7 +291,7 @@ class UserAffiliationSummary(models.Model):
 
 
 class UserKYC(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='userkyc')  # Added `related_name='userkyc'`
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='userkyc')  # `related_name='userkyc'`
     name = models.CharField(max_length=40, blank=False, null=False)
     pan_number = EncryptedField(max_length=20, blank=True, null=True)
     aadhaar_number = EncryptedField(max_length=20, blank=True, null=True)
@@ -401,6 +408,7 @@ class GSTDetails(BaseModel):
     def __str__(self):
         return f"GST Details for {self.business.nameOfBusiness}"
 
+
 class ServiceDetails(models.Model):
     STATUS_CHOICES = [
         ('in progress', 'In Progress'),
@@ -437,7 +445,3 @@ class VisaApplications(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.visa_type}"
-
-
-
-
