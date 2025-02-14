@@ -138,16 +138,14 @@ class Earnings(models.Model):
     is_scheduled_earning = models.BooleanField(default=True)
 
     def clean(self):
-        # Enforce mutually exclusive fields
+        # Ensure 'is_flat_amount' and 'percentage' are not both True
         if self.is_flat_amount and self.percentage:
-            raise ValidationError("Both 'is_flat_amount' and 'is_basic_percentage' cannot be True at the same time.")
-
-        if not self.is_flat_amount and not self.percentage:
-            raise ValidationError("Either 'is_flat_amount' or 'is_basic_percentage' must be True.")
+            raise ValidationError("Both 'is_flat_amount' and 'percentage' cannot be True at the same time.")
 
         # Ensure tax_deduction_preference is required if component_name is "Bonus"
         if self.component_name.lower() == "bonus" and not self.tax_deduction_preference:
-            raise ValidationError({"tax_deduction_preference": "This field is required when component name is 'Bonus'."})
+            raise ValidationError(
+                {"tax_deduction_preference": "This field is required when component name is 'Bonus'."})
 
     def save(self, *args, **kwargs):
         # Call the clean method to validate the model before saving
