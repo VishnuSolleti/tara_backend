@@ -180,7 +180,7 @@ class EarningsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Earnings
         fields = ['id', 'payroll', 'component_name', 'component_type', 'is_flat_amount',
-                  'is_basic_percentage', 'amount_value', 'is_active', 'is_part_of_employee_salary_structure',
+                  'percentage', 'amount_value', 'is_active', 'is_part_of_employee_salary_structure',
                   'is_taxable', 'is_pro_rate_basis', 'is_flexible_benefit_plan', 'includes_epf_contribution',
                   'includes_esi_contribution', 'is_included_in_payslip', 'tax_deduction_preference',
                   'is_scheduled_earning']

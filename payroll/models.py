@@ -124,7 +124,7 @@ class Earnings(models.Model):
     component_name = models.CharField(max_length=150)  # Name of the earning
     component_type = models.CharField(max_length=60)  # Type of earning
     is_flat_amount = models.BooleanField(default=False)  # Indicates if the earning is a flat amount
-    is_basic_percentage = models.BooleanField(default=False)  # Indicates it's based on a percentage of the basic salary
+    percentage = models.BooleanField(default=False)  # Indicates it's based on a percentage of the basic salary
     amount_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Value of the amount
     is_active = models.BooleanField(default=True)  # Whether the earning is active
     is_part_of_employee_salary_structure = models.BooleanField(default=False)  # Part of salary structure
@@ -139,10 +139,10 @@ class Earnings(models.Model):
 
     def clean(self):
         # Enforce mutually exclusive fields
-        if self.is_flat_amount and self.is_basic_percentage:
+        if self.is_flat_amount and self.percentage:
             raise ValidationError("Both 'is_flat_amount' and 'is_basic_percentage' cannot be True at the same time.")
 
-        if not self.is_flat_amount and not self.is_basic_percentage:
+        if not self.is_flat_amount and not self.percentage:
             raise ValidationError("Either 'is_flat_amount' or 'is_basic_percentage' must be True.")
 
         # Ensure tax_deduction_preference is required if component_name is "Bonus"
