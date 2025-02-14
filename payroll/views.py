@@ -906,7 +906,7 @@ def earnings_list(request):
 
     elif request.method == 'POST':
         data = request.data.copy()
-        payroll_id = data.get('payroll_id')
+        payroll_id = data.get('payroll')
         if not payroll_id:
             return Response({"error": "payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
