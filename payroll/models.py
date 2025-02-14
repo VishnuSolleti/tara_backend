@@ -123,9 +123,7 @@ class Earnings(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='earnings')
     component_name = models.CharField(max_length=150)  # Name of the earning
     component_type = models.CharField(max_length=60)  # Type of earning
-    is_flat_amount = models.BooleanField(default=False)  # Indicates if the earning is a flat amount
-    percentage = models.BooleanField(default=False)  # Indicates it's based on a percentage of the basic salary
-    amount_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Value of the amount
+    calculation_type = JSONField(default=dict)  # Stores calculation details
     is_active = models.BooleanField(default=True)  # Whether the earning is active
     is_part_of_employee_salary_structure = models.BooleanField(default=False)  # Part of salary structure
     is_taxable = models.BooleanField(default=True)  # Taxable earning
@@ -138,14 +136,11 @@ class Earnings(models.Model):
     is_scheduled_earning = models.BooleanField(default=True)
 
     def clean(self):
-        # Ensure 'is_flat_amount' and 'percentage' are not both True
-        if self.is_flat_amount and self.percentage:
-            raise ValidationError("Both 'is_flat_amount' and 'percentage' cannot be True at the same time.")
-
         # Ensure tax_deduction_preference is required if component_name is "Bonus"
         if self.component_name.lower() == "bonus" and not self.tax_deduction_preference:
             raise ValidationError(
-                {"tax_deduction_preference": "This field is required when component name is 'Bonus'."})
+                {"tax_deduction_preference": "This field is required when component name is 'Bonus'."}
+            )
 
     def save(self, *args, **kwargs):
         # Call the clean method to validate the model before saving
