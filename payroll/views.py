@@ -786,7 +786,7 @@ default_earnings = [
                         "component_name": "Basic",
                         "component_type": "Fixed",
                         "calculation_type": {
-                            "type": "Percentage of Basic",
+                            "type": "Percentage of CTC",
                             "value": 50
                         },
                         "is_active": True,
