@@ -837,7 +837,7 @@ default_earnings = [
                         "component_name": "Conveyance Allowance",
                         "component_type": "Fixed",
                         "calculation_type": {
-                            "type": "Flat",
+                            "type": "Flat Amount",
                             "value": 50000
                         },
                         "is_active": True,
