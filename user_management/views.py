@@ -139,9 +139,12 @@ def custom_permission_retrieve_update_destroy(request, pk):
 @api_view(['GET', 'POST'])
 def custom_group_list_create(request):
     if request.method == 'GET':
-        groups = CustomGroup.objects.all()
-        serializer = CustomGroupSerializer(groups, many=True)
-        return Response(serializer.data)
+        try:
+            groups = CustomGroup.objects.all()
+            serializer = CustomGroupSerializer(groups, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     elif request.method == 'POST':
         serializer = CustomGroupSerializer(data=request.data)

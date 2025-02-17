@@ -89,7 +89,7 @@ class CustomGroupSerializer(serializers.ModelSerializer):
         grouped_permissions = defaultdict(list)
         for perm in obj.permissions.all():
             # Format each permission
-            grouped_permissions[perm.name].append({
+            grouped_permissions[perm.module_name].append({
                 "id": perm.id,
                 "key": perm.module_name,
                 "label": perm.module_name.replace('_', ' ').title(),
@@ -102,6 +102,7 @@ class CustomGroupSerializer(serializers.ModelSerializer):
         group = CustomGroup.objects.create(**validated_data)
         group.permissions.set(permissions)  # Assign permissions
         return group
+
 
 class CustomGroupSerializerData(serializers.ModelSerializer):
     class Meta:
