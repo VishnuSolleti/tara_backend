@@ -116,6 +116,7 @@ class AddressSerializer(serializers.Serializer):
     country = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
     pincode = serializers.IntegerField()
 
+
 class DetailedItemSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
     quantity = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
@@ -265,6 +266,7 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
     address_line2 = serializers.CharField(source='business.headOffice.address_line2', default="")
     pinCode = serializers.CharField(source='business.headOffice.pinCode', default="")
     mobile_number = serializers.CharField(source='business.mobile_number', default="")
+    pan = serializers.CharField(source='business.pan', default="")
 
     class Meta:
         model = InvoicingProfile
@@ -288,6 +290,7 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
             'customer_profiles',
             'invoice_format',
             'gst_details',  # Add this field to include gst_details
+            'pan'
         ]
 
 
