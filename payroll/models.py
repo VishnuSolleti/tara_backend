@@ -26,7 +26,12 @@ class PayrollOrg(models.Model):
     # JSONFields should have a default empty dictionary
     statutory_component = models.BooleanField(default=False)
     salary_component = models.BooleanField(default=False)
+    salary_template = models.BooleanField(default=False)
+    pay_schedule = models.BooleanField(default=False)
     industry = models.CharField(max_length=150, null=False, blank=False)
+    leave_management = models.BooleanField(default=False)
+    holiday_management = models.BooleanField(default=False)
+    employee_master = models.BooleanField(default=False)
 
     def __str__(self):
         return f"PayrollOrg {self.business.id}"

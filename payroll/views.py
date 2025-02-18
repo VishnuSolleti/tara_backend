@@ -136,7 +136,10 @@ def business_payroll_check(request):
                     Reimbursement.objects.filter(payroll=payroll_org.id).exists()
                 ]),
                 payroll_org.salary_template or SalaryTemplate.objects.filter(payroll=payroll_org.id).exists(),
-                payroll_org.PaySchedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists()
+                payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists(),
+                payroll_org.leave_management or False,
+                payroll_org.holiday_management or False,
+                payroll_org.employee_master or False,
             ])
         else:
             all_components = False  # If PayrollOrg does not exist, setup is incomplete

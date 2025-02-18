@@ -2,6 +2,8 @@ from rest_framework import serializers
 from .models import (PayrollOrg, WorkLocations, Departments, SalaryTemplate, PaySchedule,
                      Designation, EPF, ESI, PT, Earnings, Benefits, Deduction, Reimbursement,
                      HolidayManagement, LeaveManagement)
+
+
 class PayrollOrgSerializer(serializers.ModelSerializer):
     class Meta:
         model = PayrollOrg
@@ -94,6 +96,7 @@ class DesignationSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class EPFSerializer(serializers.ModelSerializer):
     class Meta:
         model = EPF
@@ -117,6 +120,7 @@ class EPFSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
 
 class ESISerializer(serializers.ModelSerializer):
     class Meta:
@@ -163,6 +167,7 @@ class PTSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class PTSerializerRetrieval(serializers.ModelSerializer):
     work_location_name = serializers.CharField(source='work_location.location_name', read_only=True)
     state = serializers.CharField(source='work_location.address_state', read_only=True)
@@ -203,6 +208,7 @@ class EarningsSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
 
 class BenefitsSerializer(serializers.ModelSerializer):
     class Meta:
