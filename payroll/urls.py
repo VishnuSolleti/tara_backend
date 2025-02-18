@@ -84,4 +84,18 @@ urlpatterns = [
     path('salary-templates/<int:template_id>', views.salary_template_detail_update_delete,
          name='salary_template_detail_update_delete'),
 
+    # pay-schedules Endpoints
+    path('pay-schedules',  views.pay_schedule_list_create, name='pay_schedule_list_create'),
+    path('pay-schedules/<int:schedule_id>',  views.pay_schedule_detail_update_delete,
+         name='pay_schedule_detail_update_delete'),
+
+    path('leave-management', views.leave_management_list_create, name='leave-management-list-create'),
+    path('leave-management/<int:leave_id>', views.leave_management_detail_update_delete,
+         name='leave-management-detail-update-delete'),
+
+    # Holiday Management URLs
+    path('holiday-management', views.holiday_management_list_create, name='holiday-management-list-create'),
+    path('holiday-management/<int:holiday_id>', views.holiday_management_detail_update_delete,
+         name='holiday-management-detail-update-delete'),
+
 ]

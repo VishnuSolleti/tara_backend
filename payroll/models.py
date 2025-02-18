@@ -164,6 +164,7 @@ class Benefits(models.Model):
     def __str__(self):
         return f"{self.benefit_type} ({self.payslip_name})"
 
+
 class Deduction(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='deductions')
     deduction_type = models.CharField(max_length=150)  # Type of deduction (e.g., tax, insurance)
@@ -173,6 +174,7 @@ class Deduction(models.Model):
 
     def __str__(self):
         return f"{self.deduction_type} ({self.payslip_name})"
+
 
 class Reimbursement(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='reimbursements')
@@ -228,6 +230,72 @@ class SalaryTemplate(models.Model):
 
     def __str__(self):
         return f"Salary Template: {self.template_name}"
+
+
+class PaySchedule(BaseModel):
+    payroll = models.OneToOneField('PayrollOrg', on_delete=models.CASCADE, related_name='payroll_scheduling')
+    payroll_start_month = models.CharField(max_length=60, null=False, blank=False)
+    sunday = models.BooleanField(default=False)
+    monday = models.BooleanField(default=False)
+    tuesday = models.BooleanField(default=False)
+    wednesday = models.BooleanField(default=False)
+    thursday = models.BooleanField(default=False)
+    friday = models.BooleanField(default=False)
+    saturday = models.BooleanField(default=False)
+    second_saturday = models.BooleanField(default=False)
+    fourth_saturday = models.BooleanField(default=False)
+
+    def clean(self):
+        """ Ensure at least two days are selected """
+        selected_days = sum([
+            self.sunday, self.monday, self.tuesday, self.wednesday, self.thursday,
+            self.friday, self.saturday, self.second_saturday, self.fourth_saturday
+        ])
+        if selected_days < 2:
+            raise ValidationError("At least two days must be selected for the pay schedule.")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
+
+class LeaveManagement(models.Model):
+    payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='leave_managements')
+    name_of_leave = models.CharField(max_length=120)
+    code = models.CharField(max_length=20, unique=True)  # Ensuring code uniqueness
+    leave_type = models.CharField(max_length=60)  # Renamed from `type` to `leave_type`
+    employee_leave_period = models.CharField(max_length=80)
+    number_of_leaves = models.IntegerField(default=0)
+    pro_rate_leave_balance_of_new_joinees_based_on_doj = models.BooleanField(default=False)
+    reset_leave_balance = models.CharField(max_length=80)
+
+    class Meta:
+        verbose_name = "Leave Management"
+        verbose_name_plural = "Leave Managements"
+
+    def __str__(self):
+        return f"{self.name_of_leave} ({self.code})"
+
+
+class HolidayManagement(models.Model):
+    payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='holiday_managements')
+    financial_year = models.CharField(max_length=20)  # Format: "2024-2025"
+    holiday_name = models.CharField(max_length=120)
+    date = models.DateField()
+    description = models.TextField(blank=True, null=True)  # Optional
+    applicable_for = models.CharField(max_length=60)
+
+    class Meta:
+        verbose_name = "Holiday Management"
+        verbose_name_plural = "Holiday Managements"
+
+    def __str__(self):
+        return f"{self.holiday_name} ({self.financial_year})"
+
+
+
+
+
 
 
 

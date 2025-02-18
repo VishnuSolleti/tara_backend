@@ -14,6 +14,7 @@ from django.shortcuts import get_object_or_404
 from user_management.serializers import *
 from django.db import transaction, DatabaseError
 
+
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
         # Save the PDF to an S3 bucket
@@ -123,17 +124,19 @@ def business_payroll_check(request):
                 WorkLocations.objects.filter(payroll=payroll_org.id).exists() or payroll_org.work_location,
                 Departments.objects.filter(payroll=payroll_org.id).exists() or payroll_org.department,
                 Designation.objects.filter(payroll=payroll_org.id).exists() or payroll_org.designation,
-                payroll_org.statutory_component or any([
+                payroll_org.statutory_component or all([
                     EPF.objects.filter(payroll=payroll_org.id).exists(),
                     ESI.objects.filter(payroll=payroll_org.id).exists(),
                     PT.objects.filter(payroll=payroll_org.id).exists()
                 ]),
-                payroll_org.salary_component or any([
+                payroll_org.salary_component or all([
                     Earnings.objects.filter(payroll=payroll_org.id).exists(),
                     Benefits.objects.filter(payroll=payroll_org.id).exists(),
                     Deduction.objects.filter(payroll=payroll_org.id).exists(),
                     Reimbursement.objects.filter(payroll=payroll_org.id).exists()
-                ])
+                ]),
+                payroll_org.salary_template or SalaryTemplate.objects.filter(payroll=payroll_org.id).exists(),
+                payroll_org.PaySchedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists()
             ])
         else:
             all_components = False  # If PayrollOrg does not exist, setup is incomplete
@@ -1149,4 +1152,191 @@ def salary_template_detail_update_delete(request, template_id):
     elif request.method == 'DELETE':
         salary_template.delete()
         return Response({"message": "Salary Template deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def pay_schedule_list_create(request):
+    """
+    Handles GET (list) and POST (create) for Pay Schedules.
+    - GET: Returns a list of all Pay Schedules, optionally filtered by `payroll`.
+    - POST: Creates a new Pay Schedule entry ensuring at least two days are selected.
+    """
+    if request.method == 'GET':
+        payroll_id = request.query_params.get('payroll_id')
+        pay_schedules = PaySchedule.objects.all()
+
+        if payroll_id:
+            pay_schedules = pay_schedules.filter(payroll_id=payroll_id)
+
+        serializer = PayScheduleSerializer(pay_schedules, many=True)
+        return Response({"data": serializer.data, "message": "Pay Schedules retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = PayScheduleSerializer(data=request.data)
+        if serializer.is_valid():
+            days_selected = sum([
+                serializer.validated_data.get(day, False) for day in [
+                    'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'second_saturday',
+                    'fourth_saturday'
+                ]
+            ])
+            if days_selected < 2:
+                return Response({"error": "At least two days must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Pay Schedule created successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def pay_schedule_detail_update_delete(request, schedule_id):
+    """
+    Handles GET, PUT, and DELETE for a single Pay Schedule based on its ID.
+    - GET: Retrieves details of a specific Pay Schedule.
+    - PUT: Updates a specific Pay Schedule ensuring at least two days are selected.
+    - DELETE: Deletes a specific Pay Schedule.
+    """
+    try:
+        pay_schedule = PaySchedule.objects.get(id=schedule_id)
+    except PaySchedule.DoesNotExist:
+        return Response({"error": "Pay Schedule not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = PayScheduleSerializer(pay_schedule)
+        return Response({"data": serializer.data, "message": "Pay Schedule retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = PayScheduleSerializer(pay_schedule, data=request.data)
+        if serializer.is_valid():
+            days_selected = sum([
+                serializer.validated_data.get(day, False) for day in [
+                    'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'second_saturday',
+                    'fourth_saturday'
+                ]
+            ])
+            if days_selected < 2:
+                return Response({"error": "At least two days must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Pay Schedule updated successfully."},
+                            status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        pay_schedule.delete()
+        return Response({"message": "Pay Schedule deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def leave_management_list_create(request):
+    """
+    API for listing and creating Leave Management records.
+    - GET: Retrieves all leave policies.
+    - POST: Creates a new leave policy.
+    """
+    if request.method == 'GET':
+        payroll_id = request.query_params.get('payroll_id')
+        leaves = LeaveManagement.objects.all()
+        if payroll_id:
+            leaves = leaves.filter(payroll_id=payroll_id)
+
+        serializer = LeaveManagementSerializer(leaves, many=True)
+        return Response({"data": serializer.data, "message": "Leave Management data retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = LeaveManagementSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Leave Management record created successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def leave_management_detail_update_delete(request, leave_id):
+    """
+    API for retrieving, updating, and deleting a single Leave Management record.
+    """
+    try:
+        leave = LeaveManagement.objects.get(id=leave_id)
+    except LeaveManagement.DoesNotExist:
+        return Response({"error": "Leave Management record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = LeaveManagementSerializer(leave)
+        return Response({"data": serializer.data, "message": "Leave Management record retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = LeaveManagementSerializer(leave, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Leave Management record updated successfully."},
+                            status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        leave.delete()
+        return Response({"message": "Leave Management record deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def holiday_management_list_create(request):
+    """
+    API for listing and creating Holiday Management records.
+    - GET: Retrieves all holidays.
+    - POST: Creates a new holiday entry.
+    """
+    if request.method == 'GET':
+        payroll_id = request.query_params.get('payroll_id')
+        holidays = HolidayManagement.objects.all()
+        if payroll_id:
+            holidays = holidays.filter(payroll_id=payroll_id)
+
+        serializer = HolidayManagementSerializer(holidays, many=True)
+        return Response({"data": serializer.data, "message": "Holiday Management data retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = HolidayManagementSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data,
+                             "message": "Holiday Management record created successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def holiday_management_detail_update_delete(request, holiday_id):
+    """
+    API for retrieving, updating, and deleting a single Holiday Management record.
+    """
+    try:
+        holiday = HolidayManagement.objects.get(id=holiday_id)
+    except HolidayManagement.DoesNotExist:
+        return Response({"error": "Holiday Management record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = HolidayManagementSerializer(holiday)
+        return Response({"data": serializer.data, "message": "Holiday Management record retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = HolidayManagementSerializer(holiday, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data,
+                             "message": "Holiday Management record updated successfully."},
+                            status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        holiday.delete()
+        return Response({"message": "Holiday Management record deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
 

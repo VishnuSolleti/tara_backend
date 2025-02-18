@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from .models import (PayrollOrg, WorkLocations, Departments, SalaryTemplate,
-                     Designation, EPF, ESI, PT, Earnings, Benefits, Deduction, Reimbursement)
-
+from .models import (PayrollOrg, WorkLocations, Departments, SalaryTemplate, PaySchedule,
+                     Designation, EPF, ESI, PT, Earnings, Benefits, Deduction, Reimbursement,
+                     HolidayManagement, LeaveManagement)
 class PayrollOrgSerializer(serializers.ModelSerializer):
     class Meta:
         model = PayrollOrg
@@ -289,3 +289,76 @@ class SalaryTemplateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
+
+class PayScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaySchedule
+        fields = '__all__'
+
+    def validate(self, data):
+        """ Custom validation to ensure at least two days are selected """
+        selected_days = sum([
+            data.get('sunday', False), data.get('monday', False), data.get('tuesday', False),
+            data.get('wednesday', False), data.get('thursday', False), data.get('friday', False),
+            data.get('saturday', False), data.get('second_saturday', False), data.get('fourth_saturday', False)
+        ])
+        if selected_days < 2:
+            raise serializers.ValidationError("At least two days must be selected.")
+        return data
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Earnings` instance, given the validated data.
+        """
+        instance = PaySchedule.objects.create(**validated_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Earnings` instance, given the validated data.
+        """
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+
+class LeaveManagementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LeaveManagement
+        fields = '__all__'
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Earnings` instance, given the validated data.
+        """
+        instance = LeaveManagement.objects.create(**validated_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Earnings` instance, given the validated data.
+        """
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+
+class HolidayManagementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HolidayManagement
+        fields = '__all__'
+        
+    def create(self, validated_data):
+        """
+        Create and return a new `Earnings` instance, given the validated data.
+        """
+        instance = HolidayManagement.objects.create(**validated_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Earnings` instance, given the validated data.
+        """
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
