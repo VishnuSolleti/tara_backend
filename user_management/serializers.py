@@ -110,6 +110,12 @@ class CustomGroupSerializerData(serializers.ModelSerializer):
         fields = ['id', 'name']
 
 
+class UserAffiliatedDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'user_name', 'user_type']
+
+
 class UserGroupSerializer(serializers.ModelSerializer):
     # group = serializers.PrimaryKeyRelatedField(
     #     queryset=CustomGroup.objects.all(), required=False, allow_null=True
@@ -138,6 +144,25 @@ class UserGroupSerializer(serializers.ModelSerializer):
         return instance
 
 
+class UserGroupSerializer(serializers.ModelSerializer):
+    affiliated = UserAffiliatedDataSerializer()  # Use the UserSerializer for the affiliated field
+    custom_permissions = CustomPermissionSerializer(many=True, required=False)
+
+    class Meta:
+        model = UserAffiliatedRole
+        fields = ['id', 'user', 'affiliated', 'group', 'custom_permissions', 'added_on', 'flag']
+
+    def to_representation(self, instance):
+        # Get the standard representation first
+        representation = super().to_representation(instance)
+
+        # Custom handling for affiliated if needed
+        affiliated_data = representation.get('affiliated', {})
+        # Optionally, manipulate or modify `affiliated_data` here if needed
+
+        return representation
+
+
 class UserActivationSerializer(serializers.Serializer):
     token = serializers.CharField()
 
@@ -153,6 +178,7 @@ class AddressSerializer(serializers.Serializer):
 class BusinessSerializer(serializers.ModelSerializer):
     entityType = serializers.CharField(max_length=50, required=False)
     pan = serializers.CharField(max_length=15, required=True)
+
 
     class Meta:
         model = Business
@@ -183,6 +209,7 @@ class BusinessSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class GSTDetailsSerializer(serializers.ModelSerializer):
     address = AddressSerializer(default={}, required=False)
 
@@ -205,6 +232,17 @@ class GSTDetailsSerializer(serializers.ModelSerializer):
         [setattr(instance, k, v) for k, v in validated_data.items()]
         instance.save()
         return instance
+
+
+class BusinessUserSerializer(serializers.ModelSerializer):
+    entityType = serializers.CharField(max_length=50, required=False)
+    pan = serializers.CharField(max_length=15, required=True)
+    headOffice = serializers.JSONField(default=dict)
+    gst_details = GSTDetailsSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Business
+        fields = '__all__'
 
 
 class BusinessWithGSTSerializer(serializers.ModelSerializer):

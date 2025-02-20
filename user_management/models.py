@@ -166,95 +166,6 @@ class User(AbstractBaseUser):
         return self.user_name or "User"
 
 
-@receiver(post_save, sender=User)
-def create_user_affiliation_summary(sender, instance, created, **kwargs):
-    if created:
-        ca_firm_affiliated = []
-        individual_affiliated = []
-        business_affiliated = []
-        service_provider_affiliated = []
-
-        # Helper function to get user data in the required format
-        def get_user_data(user):
-            return {
-                "id": user.id,
-                "user_name": user.user_name,
-                "full_name": f"{getattr(user, 'first_name', '')} {getattr(user, 'last_name', '')}".strip()
-            }
-
-        user_data = get_user_data(instance)  # Get data for the newly created user
-
-        if instance.created_by:
-            created_by = instance.created_by
-            created_by_data = get_user_data(created_by)  # Get data for the creator
-
-            if created_by.user_type == "CA":
-                if instance.user_type == "Business":
-                    business_affiliated.append(user_data)
-                    ca_firm_affiliated.append(created_by_data)
-                elif instance.user_type == "Individual":
-                    ca_firm_affiliated.append(created_by_data)
-                    individual_affiliated.append(user_data)
-                elif instance.user_type == "ServiceProvider":
-                    ca_firm_affiliated.append(created_by_data)
-                    service_provider_affiliated.append(user_data)
-                else:
-                    ca_firm_affiliated.append(created_by_data)
-
-            elif created_by.user_type == "Individual":
-                if instance.user_type == "Business":
-                    business_affiliated.append(user_data)
-                    individual_affiliated.append(created_by_data)
-
-            elif created_by.user_type == "Business":
-                if instance.user_type == "Business":
-                    business_affiliated.append(created_by_data)
-
-            elif created_by.user_type == "ServiceProvider":
-                if instance.user_type == "ServiceProvider":
-                    service_provider_affiliated.append(created_by_data)
-        else:
-            if instance.user_type == "CA":
-                ca_firm_affiliated.append(user_data)
-            elif instance.user_type == "Individual":
-                individual_affiliated.append(user_data)
-            elif instance.user_type == "Business":
-                business_affiliated.append(user_data)
-            elif instance.user_type == "ServiceProvider":
-                service_provider_affiliated.append(user_data)
-
-        # Create UserAffiliationSummary instance
-        UserAffiliationSummary.objects.create(
-            user=instance,
-            ca_firm_affiliated=ca_firm_affiliated,
-            individual_affiliated=individual_affiliated,
-            business_affiliated=business_affiliated,
-            service_provider_affiliated=service_provider_affiliated
-        )
-
-        # Update created_by_user's affiliation summary if exists
-        created_by_user = UserAffiliationSummary.objects.filter(user=instance.created_by).first()
-        if created_by_user:
-            created_by_user.business_affiliated = list(created_by_user.business_affiliated)
-            created_by_user.individual_affiliated = list(created_by_user.individual_affiliated)
-            created_by_user.service_provider_affiliated = list(created_by_user.service_provider_affiliated)
-            created_by_user.ca_firm_affiliated = list(created_by_user.ca_firm_affiliated)
-
-            if created_by_user.user.user_type == "CA":
-                if instance.user_type == "Business":
-                    created_by_user.business_affiliated.append(user_data)
-                elif instance.user_type == "Individual":
-                    created_by_user.individual_affiliated.append(user_data)
-                elif instance.user_type == "ServiceProvider":
-                    created_by_user.service_provider_affiliated.append(user_data)
-
-            elif created_by_user.user.user_type == "Individual":
-                if instance.user_type == "Business":
-                    created_by_user.business_affiliated.append(user_data)
-
-            created_by_user.save()
-
-
 class UserAffiliatedRole(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="affiliated_roles")
     affiliated = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_roles")
@@ -274,6 +185,7 @@ class UserAffiliatedRole(models.Model):
     )
 
     added_on = models.DateTimeField(auto_now_add=True)
+    flag = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.user.user_name} - {self.group} under {self.affiliated.user_name}"

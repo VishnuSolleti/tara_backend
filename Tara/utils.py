@@ -10,6 +10,7 @@ from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
 from user_management.models import CustomGroup, CustomPermission, UserAffiliatedRole, Business, UserAffiliationSummary
+from user_management.serializers import *
 from rest_framework.fields import CharField
 from django.contrib.auth.hashers import check_password
 
@@ -85,24 +86,29 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         created_on_date = user.date_joined.date()
 
         # Retrieve the user's group
-        # try:
-        #     user_group = UserAffiliatedRole.objects.get(user=user)  # Fetch a single UserGroup instance
-        # except UserAffiliatedRole.DoesNotExist:
-        #     user_group = None
-        #
-        # if user_group:
-        #     # Retrieve the user's groups and associated permissions
-        #     # group_names = [group.get('name') for group in user_group.group if 'name' in group]
-        #     group_name = user_group.group.name
-        #     associated_services = list(user_group.custom_permissions.values_list('name', flat=True).distinct())
-        # else:
-        #     group_name = None  # No groups assigned
-        #     associated_services = []  # No permissions assigned
+        user_roles = UserAffiliatedRole.objects.filter(
+            user=user.id)
+        # Map user types to their respective lists
+        user_type_map = {
+            'Individual': [],
+            'CA': [],
+            'ServiceProvider': [],
+            'Business': [],
+        }
 
-        try:
-            user_affiliation_summary = UserAffiliationSummary.objects.get(user=user)  # Fetch a single UserGroup instance
-        except UserAffiliationSummary.DoesNotExist:
-            raise ValueError("Something Wrong with this User, Please Connect Admin Team To Solve the Issue")
+        # Serialize and categorize data
+        for item in UserGroupSerializer(user_roles, many=True).data:
+            affiliated_data = item.get('affiliated', {})
+            affiliated_data['flag'] = item.get('flag')
+            user_type = affiliated_data.get('user_type')
+
+            if user_type in user_type_map:
+                user_type_map[user_type].append(affiliated_data)
+
+        # try:
+        #     user_affiliation_summary = UserAffiliationSummary.objects.get(user=user)  # Fetch a single UserGroup instance
+        # except UserAffiliationSummary.DoesNotExist:
+        #     raise ValueError("Something Wrong with this User, Please Connect Admin Team To Solve the Issue")
 
         business_exits = False
 
@@ -116,10 +122,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'created_on': created_on_date,
             'user_type': user.user_type,
             'user_kyc': user_kyc,
-            'individual_affiliated': list(user_affiliation_summary.individual_affiliated),
-            'ca_firm_affiliated': list(user_affiliation_summary.ca_firm_affiliated),
-            'service_provider_affiliated': list(user_affiliation_summary.service_provider_affiliated),
-            'business_affiliated':list(user_affiliation_summary.business_affiliated),
+            'individual_affiliated': list(user_type_map['Individual']),
+            'ca_firm_affiliated': list(user_type_map['CA']),
+            'service_provider_affiliated': list(user_type_map['ServiceProvider']),
+            'business_affiliated': list(user_type_map['Business']),
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }

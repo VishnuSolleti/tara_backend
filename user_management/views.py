@@ -280,11 +280,10 @@ def assign_permissions(data):
             raise ValueError(f"User with ID {user_id} not found.")
 
         # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
-        user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user)
+        user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user, flag=False)
         user_group.group = group  # Assigning a single group
         user_group.custom_permissions.set(group.permissions.all())  # Default permissions
         user_group.save()
-
         return UserGroupSerializer(user_group).data
 
 
@@ -516,6 +515,101 @@ def user_registration(request):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+def assign_group_with_user_affiliated_permissions(user_group_permission_data):
+    """
+    Assign a single group to a user with optional customization of permissions.
+    Raises ValueError for missing users, groups, or invalid custom permissions.
+    """
+    user_id = user_group_permission_data.get('id')
+    group_id = user_group_permission_data.get('group')  # Expecting only one group now
+    custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+    created_by = user_group_permission_data.get('created_by')
+
+    # Validate User
+    try:
+        user = User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        raise ValueError(f"User with ID {user_id} not found.")
+
+    # Validate Created By User
+    try:
+        created_by_user = User.objects.get(id=created_by)
+    except ObjectDoesNotExist:
+        raise ValueError(f"Created By User with ID {created_by} not found.")
+
+    if user.created_by.user_type == "Individual":
+        if user.user_type == "Business":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+            group = CustomGroup.objects.get(id=11)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+        elif user.user_type == "CA":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+            group = CustomGroup.objects.get(id=25)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+        elif user.user_type == "ServiceProvider":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+            group = CustomGroup.objects.get(id=1)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+    if user.created_by.user_type == "Business":
+        if user.user_type == "Individual":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+            group = CustomGroup.objects.get(id=11)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+        elif user.user_type == "CA":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+            group = CustomGroup.objects.get(id=11)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+
+    if group_id:
+        # Validate Group
+        try:
+            group = CustomGroup.objects.get(id=group_id)
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id} not found.")
+
+    else:
+        user_type = user_group_permission_data.get('user_type')
+
+        group_id_mapping = {
+            "Individual": 10,
+            "Business": 11,
+            "ServiceProvider": 1,
+            "CA": 25
+        }
+
+        if user_type not in group_id_mapping:
+            raise ValueError("Invalid user type provided.")
+
+        try:
+            group = CustomGroup.objects.get(id=group_id_mapping[user_type])
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id_mapping[user_type]} not found.")
+
+    # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
+
+    self_account, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user)
+    self_account.group = group
+
+    # Assign permissions
+    if custom_permissions_ids:
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if not custom_permissions.exists():
+            raise ValueError("Invalid custom permissions provided.")
+        self_account.custom_permissions.set(custom_permissions)
+
+    else:
+        # Default to the group's permissions if no custom permissions are provided
+        self_account.custom_permissions.set(group.permissions.all())
+    self_account.save()
+
+    return UserGroupSerializer(user_group).data
+
+
 def assign_group_with_affiliated_permissions(user_group_permission_data):
     """
     Assign a single group to a user with optional customization of permissions.
@@ -700,7 +794,8 @@ def user_registration_by_admin(request):
                 logger.info(f"User created successfully by superadmin: {user.pk}")
                 user_data['group'] = group
                 user_data['custom_permissions'] = custom_permissions
-                user_affiliated_role = assign_group_with_affiliated_permissions(user_data)
+                # user_affiliated_role = assign_group_with_affiliated_permissions(user_data)
+                user_affiliated_role =  assign_group_with_user_affiliated_permissions(user_data)
 
                 # Send email with the username and password
                 if email:
@@ -833,6 +928,40 @@ def get_conditional_schema(user_type):
         )
 
 
+def assign_group_with_affiliated_permissions_team_management(user_group_permission_data):
+    user_id = user_group_permission_data.get('id')
+    group_id = user_group_permission_data.get('group')  # Expecting only one group now
+    custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+    created_by = user_group_permission_data.get('created_by')
+
+    # Validate User
+    try:
+        user = User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        raise ValueError(f"User with ID {user_id} not found.")
+
+    # Validate Created By User
+    try:
+        created_by_user = User.objects.get(id=created_by)
+    except ObjectDoesNotExist:
+        raise ValueError(f"Created By User with ID {created_by} not found.")
+
+    user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+    group = CustomGroup.objects.get(id=group_id)
+    user_group.group = group
+    if custom_permissions_ids:
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if not custom_permissions.exists():
+            raise ValueError("Invalid custom permissions provided.")
+        user_group.custom_permissions.set(custom_permissions)
+    else:
+        # Default to the group's permissions if no custom permissions are provided
+        user_group.custom_permissions.set(group.permissions.all())
+    user_group.save()
+
+    return UserGroupSerializer(user_group).data
+
+
 # Swagger schema dynamically based on user type
 @swagger_auto_schema(
     method='post',
@@ -862,73 +991,110 @@ def get_conditional_schema(user_type):
 )
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
-def users_creation(request):
+def AdminOwnerUserCreation(request):
     """
-    Handles normal user registration by admin with autogenerated password.
-    Sends credentials via email or OTP based on availability.
+    Handle user registration by superadmin without activation link,
+    and send username and password to the user via email.
     """
-    if request.method != 'POST':
-        return Response({"error": "Invalid HTTP method."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-    admin_roles = [
-        'Business_Owner', 'CA_Admin', 'Business_Admin',
-        'ServiceProvider_Owner', 'ServiceProvider_Admin',
-        'Tara_SuperAdmin', 'Tara_Admin'
-    ]
+    logger.info("Received a superadmin user registration request.")
+    print("*********************")
 
-    if request.user.user_role not in admin_roles:
-        return Response(
-            {'error_message': 'Unauthorized Access. Only admins can create users.', 'status_cd': 1},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
+    if request.method == 'POST':
+        try:
+            request_data = request.data.copy()
 
-    email = request.data.get('email', '').lower()
-    mobile_number = request.data.get('mobile_number', '')
-    if not email and not mobile_number:
-        return Response(
-            {"error": "Either email or mobile number must be provided."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+            group = request_data.pop('group', None)
+            custom_permissions = request_data.pop('custom_permissions', [])
 
-    try:
-        request_data = {
-            'email': email,
-            'mobile_number': mobile_number,
-            'password': Autogenerate_password(),
-            'created_by': request.user.id,
-            'user_type': request.data.get('user_type', ''),
-            'user_role': request.data.get('user_role', '')
-        }
+            email = request_data.get('email', '').lower()
+            mobile_number = request_data.get('mobile_number', '')
 
-        with transaction.atomic():
+            logger.debug(f"Request data: email={email}, mobile_number={mobile_number}")
+
+            # Ensure at least one of email or mobile_number is provided
+            if not email and not mobile_number:
+                logger.warning("Registration failed: Missing both email and mobile number.")
+                return Response(
+                    {"error": "Either email or mobile number must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            request_data['password'] = Autogenerate_password()
+
+            # Prepare request data for serializer
+            password = request_data['password']
+            # request_data['created_by'] = request.user.id
             serializer = UserRegistrationSerializer(data=request_data)
+
             if serializer.is_valid():
-                user_data = serializer.save()
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                user = serializer.save()
+                user_data = serializer.data
+                logger.info(f"User created successfully by superadmin: {user.pk}")
+                user_data['group'] = group
+                user_data['custom_permissions'] = custom_permissions
+                # user_affiliated_role = assign_group_with_affiliated_permissions(user_data)
+                user_affiliated_role = assign_group_with_affiliated_permissions_team_management(user_data)
 
-        # Send email or OTP
-        if email:
-            send_user_email(email, request_data['password'])
-        elif mobile_number:
-            if not send_user_otp(mobile_number):
-                raise Exception("Failed to send OTP to mobile number.")
+                # Send email with the username and password
+                if email:
+                    subject = "Your Account Details"
+                    body_html = f"""
+                                    <html>
+                                    <body>
+                                        <h1>Welcome to Our Platform</h1>
+                                        <p>Your account has been created by the superadmin.</p>
+                                        <p><strong>Username:</strong> {user.user_name}</p>
+                                        <p><strong>Password:</strong> {password}</p>
+                                    </body>
+                                    </html>
+                                    """
+                    ses_client = boto3.client(
+                        'ses',
+                        region_name=AWS_REGION,
+                        aws_access_key_id=AWS_ACCESS_KEY_ID,
+                        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+                    )
 
-        return Response(
-            {"message": "User registered successfully. Credentials sent via email or mobile."},
-            status=status.HTTP_201_CREATED,
-        )
-    except IntegrityError as e:
-        logger.error(f"Integrity error: {str(e)}")
-        return Response(
-            {"error": "User with this email or mobile already exists."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        return Response(
-            {"error": "An unexpected error occurred.", "details": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+                    try:
+                        response = ses_client.send_email(
+                            Source=EMAIL_HOST_USER,
+                            Destination={'ToAddresses': [email]},
+                            Message={
+                                'Subject': {'Data': subject},
+                                'Body': {
+                                    'Html': {'Data': body_html},
+                                    'Text': {'Data': f"Your username is: {user.email}\nYour password is: {password}"}
+                                },
+                            }
+                        )
+                        logger.info(f"Account details email sent to: {email}")
+                        return Response(
+                            {"message": "User created successfully. Check your email for the username and password."},
+                            status=status.HTTP_201_CREATED,
+                        )
+
+                    except ClientError as e:
+                        logger.error(f"Failed to send email via SES: {e.response['Error']['Message']}")
+                        return Response(
+                            {"error": "Failed to send account details email. Please try again later."},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        )
+
+            logger.warning("Registration failed: Validation errors.")
+            logger.debug(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except IntegrityError as e:
+            logger.error(f"Integrity error during registration: {str(e)}")
+            return Response({"error": "A user with this email or mobile number already exists."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}")
+            return Response({"error": "Database error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}")
+            return Response({"error": "An unexpected error occurred.", "details": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @swagger_auto_schema(
@@ -1702,40 +1868,41 @@ class UsersKYCListView(APIView):
 
             request_data = request.data
             # authorizing access token from the sandbox
-            access_token = authenticate()
-            url = f"{SANDBOX_API_URL}/kyc/pan/verify"
-            headers = {
-                'Authorization': access_token,
-                'x-api-key': SANDBOX_API_KEY,
-                'x-api-version': SANDBOX_API_VERSION
-            }
-            date_field = datetime.strptime(request_data['date'], "%Y-%m-%d")
-            dob = date_field.strftime("%d/%m/%Y")
-            payload = {
-                "@entity": "in.co.sandbox.kyc.pan_verification.request",
-                "reason": "For onboarding customers",
-                "pan": request_data['pan_number'],
-                "name_as_per_pan": request_data['name'],
-                "date_of_birth": dob,
-                "consent": "Y"
-            }
-            pan_verification_request = requests.post(url, json=payload, headers=headers)
-            pan_verification_data = pan_verification_request.json()
-            category = None
-            if pan_verification_data['code'] == 200 and pan_verification_data['data']['status'] == 'valid':
-                serializer = UsersKYCSerializer(data=request_data,
-                                                context={'request': request})  # Pass request in the context
-                if serializer.is_valid():
-                    serializer.save(user=request.user)  # Ensure the user is passed when saving
-                    return Response({"data":serializer.data, "detail": "User details saved successfully."}, status=status.HTTP_201_CREATED)
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # access_token = authenticate()
+            # url = f"{SANDBOX_API_URL}/kyc/pan/verify"
+            # headers = {
+            #     'Authorization': access_token,
+            #     'x-api-key': SANDBOX_API_KEY,
+            #     'x-api-version': SANDBOX_API_VERSION
+            # }
+            # date_field = datetime.strptime(request_data['date'], "%Y-%m-%d")
+            # dob = date_field.strftime("%d/%m/%Y")
+            # payload = {
+            #     "@entity": "in.co.sandbox.kyc.pan_verification.request",
+            #     "reason": "For onboarding customers",
+            #     "pan": request_data['pan_number'],
+            #     "name_as_per_pan": request_data['name'],
+            #     "date_of_birth": dob,
+            #     "consent": "Y"
+            # }
+            # pan_verification_request = requests.post(url, json=payload, headers=headers)
+            # pan_verification_data = pan_verification_request.json()
+            # category = None
+            # if pan_verification_data['code'] == 200 and pan_verification_data['data']['status'] == 'valid':
+            serializer = UsersKYCSerializer(data=request_data,
+                                            context={'request': request})  # Pass request in the context
+            if serializer.is_valid():
+                serializer.save(user=request.user)  # Ensure the user is passed when saving
+                return Response({"data":serializer.data, "detail": "User details saved successfully."},
+                                status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            elif pan_verification_data['code'] != 200:
-                return Response({'error_message': 'Invalid pan details, Please cross check the DOB, Pan number or Name'},
-                                status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({'error_message': pan_verification_data['data']['remarks']},
-                                status=status.HTTP_400_BAD_REQUEST)
+            # elif pan_verification_data['code'] != 200:
+            #     return Response({'error_message': 'Invalid pan details, Please cross check the DOB, Pan number or Name'},
+            #                     status=status.HTTP_400_BAD_REQUEST)
+            # else:
+            #     return Response({'error_message': pan_verification_data['data']['remarks']},
+            #                     status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(e, exc_info=1)
             return Response({'error_message': str(e), 'status_cd': 1},
@@ -2229,7 +2396,7 @@ def business_list_by_client(request):
             return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Serialize and return the business data
-        serializer = BusinessSerializer(business)
+        serializer = BusinessUserSerializer(business)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     except Exception as e:
