@@ -10,7 +10,7 @@ from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
                           GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
                           InvoicingProfileSerializers, InvoicingProfileCustomersSerializer, InvoicingProfileInvoices,
-                          InvoiceSerializerData, InvoiceDataSerializer,
+                          InvoiceSerializerData, InvoiceDataSerializer,InvoicingExistsBusinessSerializers,
                           CustomerInvoiceReceiptSerializer, InvoicingProfileBusinessSerializers)
 from django.http import QueryDict
 import logging
@@ -99,6 +99,47 @@ def get_invoicing_profile(request):
         logger.error(f"Unexpected error in get_invoicing_profile: {e}")
         return Response(
             {"error": f"An unexpected error occurred: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(['GET'])
+def invoicing_profile_exists(request):
+    """
+    Check if all related objects exist for an invoicing profile.
+    Returns True if all exist, False otherwise.
+    """
+    try:
+        # Retrieve the business_id from query parameters (if provided)
+        business_id = request.query_params.get('business_id')
+
+        # If business_id is provided, fetch the invoicing profile for that business
+        if business_id:
+            invoicing_profile = InvoicingProfile.objects.filter(business__id=business_id).first()
+
+            if not invoicing_profile:
+                return Response({"exists": False, "message": "Invoicing profile not found."}, status=status.HTTP_200_OK)
+
+            # Serialize the invoicing profile data
+            serializer = InvoicingExistsBusinessSerializers(invoicing_profile)
+
+            # Check if all required objects exist
+            all_exist = (
+                    serializer.get_customer_profiles_exist(invoicing_profile) and
+                    serializer.get_goods_and_services_exist(invoicing_profile) and
+                    serializer.get_invoice_format_exist(invoicing_profile)
+            )
+
+            return Response({"exists": all_exist}, status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {"error": "Business data is needed to check the Invoicing Setting Status"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    except Exception as e:
+        return Response(
+            {"error": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 

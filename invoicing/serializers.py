@@ -322,6 +322,34 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
             'goods_and_services',  # Nested goods and services
         ]
 
+
+class InvoicingExistsBusinessSerializers(serializers.ModelSerializer):
+    customer_profiles_exist = serializers.SerializerMethodField()
+    goods_and_services_exist = serializers.SerializerMethodField()
+    invoice_format = serializers.SerializerMethodField()
+    # Including fields from Business model
+    nameOfBusiness = serializers.CharField(source='business.nameOfBusiness')
+
+    class Meta:
+        model = InvoicingProfile
+        fields = [
+            'id',
+            'customer_profiles',
+            'invoice_format',
+            'goods_and_services',
+            'nameOfBusiness',
+        ]
+
+    def get_customer_profiles_exist(self, obj):
+        return obj.customer_profiles.exists()
+
+    def get_goods_and_services_exist(self, obj):
+        return obj.goods_and_services.exists()
+
+    def get_invoice_format_exist(self, obj):
+        return bool(obj.invoice_format)
+
+
 # InvoicingProfile Serializer
 class InvoicingProfileInvoices(serializers.ModelSerializer):
     invoices = serializers.SerializerMethodField()  # Nested serializer for invoices
