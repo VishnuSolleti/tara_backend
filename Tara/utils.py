@@ -13,6 +13,7 @@ from user_management.models import CustomGroup, CustomPermission, UserAffiliated
 from user_management.serializers import *
 from rest_framework.fields import CharField
 from django.contrib.auth.hashers import check_password
+from django.db.models import Q
 
 
 User = get_user_model()  # Fetch the custom user model
@@ -36,16 +37,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             users = User.objects.filter(email__iexact=email_or_user_name)
             if not users.exists():
                 raise AuthenticationFailed("No user found with the provided email.")
-            users = users.filter(user_type=user_type)
-            if not users.exists():
-                raise AuthenticationFailed("No user found with the provided user type.")
         else:
             users = User.objects.filter(user_name__iexact=email_or_user_name)
             if not users.exists():
                 raise AuthenticationFailed("No user found with the provided username.")
-            users = users.filter(user_type=user_type)
-            if not users.exists():
-                raise AuthenticationFailed("No user found with the provided user type.")
+
+        if user_type:
+            users = users.filter(Q(user_type=user_type) | Q(user_type="TaraTeam"))
+
+            # Check if any user exists after filtering by user_type
+        if not users.exists():
+            raise AuthenticationFailed("No user found with the provided user type.")
 
             # Iterate over the users to check the password
         for user in users:
