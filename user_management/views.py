@@ -2351,7 +2351,7 @@ def affiliated_summary_details(request):
             affiliated_data = [affiliated.affiliated.id for affiliated in user_affiliated_details]
 
             if user_type == "Business":
-                users = User.objects.filter(id__in=affiliated_data)
+                users = User.objects.filter(id__in=affiliated_data, user_type=user_type)
                 serialized_data = UserBusinessSerializer(users, many=True).data
                 return Response({"users": serialized_data}, status=status.HTTP_200_OK)
             else:
