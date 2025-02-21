@@ -254,6 +254,18 @@ class BusinessWithGSTSerializer(serializers.ModelSerializer):
                   'email', 'dob_or_incorp_date', 'gst_details']
 
 
+class UserBusinessSerializer(serializers.ModelSerializer):
+    date_joined = serializers.SerializerMethodField()
+    business = BusinessWithGSTSerializer(many=True, read_only=True)
+    class Meta:
+        model = User
+        fields = ['id', 'user_name', 'email', 'mobile_number',
+                  'first_name', 'last_name', 'user_type', 'is_active', 'date_joined', 'business']
+
+    def get_date_joined(self, obj):
+        return obj.date_joined.strftime('%d-%m-%Y')  # Format as dd-mm-yyyy
+
+
 class UsersKYCSerializer(serializers.ModelSerializer):
     address = AddressSerializer(default={}, required=False)  # Nested serializer for address
 

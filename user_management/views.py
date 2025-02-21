@@ -2275,6 +2275,55 @@ def corporate_details(request):
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def affiliated_summary_details(request):
+#     """
+#     API to retrieve business users created by the authenticated user.
+#     Ignores users with user_type='SuperAdmin'.
+#     """
+#     try:
+#         user_id = request.query_params.get('user_id')
+#         user_type = request.query_params.get('type')
+#
+#         if not user_id:
+#             return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         if not user_type:
+#             return Response({"error": "User type is required."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         print(f"Received user_id: {user_id}, user_type: {user_type}")
+#
+#         try:
+#             user_affiliated_details = UserAffiliationSummary.objects.get(user_id=user_id)
+#         except ObjectDoesNotExist:
+#             return Response({"error": f"User with ID {user_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+#
+#         # Mapping user_type to the appropriate field in UserAffiliatedRole
+#         affiliated_mapping = {
+#             "Business": user_affiliated_details.business_affiliated,
+#             "Individual": user_affiliated_details.individual_affiliated,
+#             "CA": user_affiliated_details.ca_firm_affiliated,
+#             "ServiceProvider": user_affiliated_details.service_provider_affiliated
+#         }
+#
+#         if user_type not in affiliated_mapping:
+#             return Response({"error": "Invalid user type provided."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         affiliated_users = affiliated_mapping[user_type] or []
+#
+#         # Fetch all user objects in one query
+#         user_ids = [user['id'] for user in affiliated_users if 'id' in user]
+#         users = User.objects.filter(id__in=user_ids, user_type=user_type)
+#
+#         serialized_data = UserSerializer(users, many=True).data
+#
+#         return Response({"users": serialized_data}, status=status.HTTP_200_OK)
+#
+#     except Exception as e:
+#         return Response({"error": f"An unexpected error occurred: {str(e)}"},
+#                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def affiliated_summary_details(request):
@@ -2294,31 +2343,23 @@ def affiliated_summary_details(request):
 
         print(f"Received user_id: {user_id}, user_type: {user_type}")
 
-        try:
-            user_affiliated_details = UserAffiliationSummary.objects.get(user_id=user_id)
-        except ObjectDoesNotExist:
-            return Response({"error": f"User with ID {user_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+        # Get affiliated details
+        user_affiliated_details = UserAffiliatedRole.objects.filter(user_id=user_id)
 
-        # Mapping user_type to the appropriate field in UserAffiliatedRole
-        affiliated_mapping = {
-            "Business": user_affiliated_details.business_affiliated,
-            "Individual": user_affiliated_details.individual_affiliated,
-            "CA": user_affiliated_details.ca_firm_affiliated,
-            "ServiceProvider": user_affiliated_details.service_provider_affiliated
-        }
+        if user_affiliated_details.exists():
+            # Extract affiliated IDs
+            affiliated_data = [affiliated.affiliated.id for affiliated in user_affiliated_details]
 
-        if user_type not in affiliated_mapping:
-            return Response({"error": "Invalid user type provided."}, status=status.HTTP_400_BAD_REQUEST)
+            if user_type == "Business":
+                users = User.objects.filter(id__in=affiliated_data)
+                serialized_data = UserBusinessSerializer(users, many=True).data
+                return Response({"users": serialized_data}, status=status.HTTP_200_OK)
+            else:
+                users = User.objects.filter(id__in=affiliated_data, user_type=user_type)
+                serialized_data = UserSerializer(users, many=True).data
+                return Response({"users": serialized_data}, status=status.HTTP_200_OK)
 
-        affiliated_users = affiliated_mapping[user_type] or []
-
-        # Fetch all user objects in one query
-        user_ids = [user['id'] for user in affiliated_users if 'id' in user]
-        users = User.objects.filter(id__in=user_ids, user_type=user_type)
-
-        serialized_data = UserSerializer(users, many=True).data
-
-        return Response({"users": serialized_data}, status=status.HTTP_200_OK)
+        return Response({"error": "No affiliated data found."}, status=status.HTTP_404_NOT_FOUND)
 
     except Exception as e:
         return Response({"error": f"An unexpected error occurred: {str(e)}"},
