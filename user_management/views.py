@@ -2439,6 +2439,260 @@ def manage_corporate_entity(request):
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+def validate_user(user_id):
+    try:
+        return User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        raise ValueError(f"User with ID {user_id} not found.")
+
+
+def get_or_create_affiliated_role(user, affiliated, group, permissions):
+    user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=affiliated)
+    user_group.group = group
+    user_group.custom_permissions.set(permissions)
+    user_group.save()
+    return user_group
+
+
+def business_corporation_affiliation(user_group_permission_data):
+    created_objects = []
+    user_id = user_group_permission_data.get('id')
+    group_id = user_group_permission_data.get('group')
+    custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+    created_by = user_group_permission_data.get('created_by')
+
+    user = validate_user(user_id)
+    created_by_user = validate_user(created_by)
+
+    if user.created_by.user_type == "Individual" and user.user_type == "Business":
+        group = CustomGroup.objects.get(id=11)
+        affiliation = get_or_create_affiliated_role(created_by_user, user, group, group.permissions.all())
+        created_objects.append(affiliation)
+
+    if group_id:
+        group = CustomGroup.objects.get(id=group_id)
+    else:
+        user_type = user_group_permission_data.get('user_type')
+        group_id_mapping = {
+            "Individual": 10,
+            "Business": 11,
+            "ServiceProvider": 1,
+            "CA": 25
+        }
+        group = CustomGroup.objects.get(id=group_id_mapping[user_type])
+
+    custom_permissions = CustomPermission.objects.filter(
+        id__in=custom_permissions_ids) if custom_permissions_ids else group.permissions.all()
+    affiliation = get_or_create_affiliated_role(user, user, group, custom_permissions)
+    created_objects.append(affiliation)
+
+    return created_objects
+
+
+def check_business_existence(business_data):
+    """
+    Check if the business or PAN already exists in the database.
+    """
+    if business_data.get('entityType') != 'individual':
+        if Business.objects.filter(nameOfBusiness__iexact=business_data['nameOfBusiness']).exists():
+            return "Business already exists"
+        if Business.objects.filter(pan=business_data['pan']).exists():
+            return "Business with PAN already exists"
+    return None
+
+
+def send_account_email(user, email, password):
+    """
+    Send account details to the user's email.
+    """
+    subject = "Your Account Details"
+    body_html = f"""
+        <html>
+        <body>
+            <h1>Welcome to Our Platform</h1>
+            <p>Your account has been created by the superadmin.</p>
+            <p><strong>Username:</strong> {user.user_name}</p>
+            <p><strong>Password:</strong> {password}</p>
+        </body>
+        </html>
+    """
+
+    # ses_client = boto3.client(
+    #     'ses',
+    #     region_name=AWS_REGION,
+    #     aws_access_key_id=AWS_ACCESS_KEY_ID,
+    #     aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    # )
+    ses_client = boto3.client(
+        'ses',
+        region_name=AWS_REGION,
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    )
+
+    try:
+        # ses_client.send_email(
+        #     Source=EMAIL_HOST_USER,
+        #     Destination={'ToAddresses': [email]},
+        #     Message={
+        #         'Subject': {'Data': subject},
+        #         'Body': {
+        #             'Html': {'Data': body_html},
+        #             'Text': {'Data': f"Your username is: {user.user_name}\nYour password is: {password}"}
+        #         },
+        #     }
+        # )
+        response = ses_client.send_email(
+            Source="admin@tarafirst.com",
+            Destination={'ToAddresses': [email]},
+            Message={
+                'Subject': {'Data': subject},
+                'Body': {
+                    'Html': {'Data': body_html},
+                    'Text': {'Data': f"Your username is: {user.email}\nYour password is: {password}"}
+                },
+            }
+        )
+        logger.info(f"Account details email sent to: {email}")
+        return Response(
+            {"message": "User created successfully. Check your email for the username and password."},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+    except ClientError as e:
+        logger.error(f"Failed to send email via SES: {e.response['Error']['Message']}")
+        return Response(
+            {"error": "Failed to send account details email. Please try again later."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+def business_set_up(business_data):
+    """
+    Handle business registration.
+    Returns True if the business is successfully saved,
+    Raises ValueError if the data is invalid.
+    """
+    serializer = BusinessSerializer(data=business_data)
+    if serializer.is_valid():
+        business_instance = serializer.save()  # Save and get the instance
+        return business_instance
+    raise ValueError(f"Invalid business data provided: {serializer.errors}")
+
+
+def object_remove(created_objects):
+    # Reverse the list to delete the last created object first
+    for obj in reversed(created_objects):
+        try:
+            obj.delete()
+            logger.info(f"Successfully deleted: {obj}")
+        except Exception as e:
+            logger.error(f"Failed to delete {obj}: {str(e)}")
+    return
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def businessEntityRegistration(request):
+    """
+    Handle user registration by superadmin without activation link,
+    and send username and password to the user via email.
+    """
+    logger.info("Received a superadmin user registration request.")
+
+    if request.method == 'POST':
+        created_objects = []
+        try:
+            request_data = request.data.copy()
+            user_creation = request_data.get('user_creation', {})
+            group = request_data.pop('group', None)
+            custom_permissions = request_data.pop('custom_permissions', [])
+            email = user_creation.get('email', '').lower()
+            mobile_number = user_creation.get('mobile_number', '')
+
+            # Ensure at least one of email or mobile_number is provided
+            if not email and not mobile_number:
+                logger.warning("Registration failed: Missing both email and mobile number.")
+                return Response(
+                    {"error": "Either email or mobile number must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Check business existence
+            business_data = request_data.get('business', {})
+            business_data['nameOfBusiness'] = business_data.get('nameOfBusiness', '').title()
+            error_message = check_business_existence(business_data)
+            if error_message:
+                return Response({'error_message': error_message}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Serialize and validate user data
+            password = user_creation['password']
+            serializer = UserRegistrationSerializer(data=user_creation)
+
+            if serializer.is_valid():
+                user = serializer.save()
+                user_data = serializer.data
+                created_objects.append(user)
+                logger.info(f"User created successfully by superadmin: {user.pk}")
+                user_data['group'] = group
+                user_data['custom_permissions'] = custom_permissions
+
+                # Assign roles and create business entity
+                affiliation_result = business_corporation_affiliation(user_data)
+                if affiliation_result:
+                    created_objects.extend(affiliation_result)  # Track created affiliations
+
+                business_data['client'] = user_data['id']
+                setup_result = business_set_up(business_data)
+                if setup_result:
+                    created_objects.append(setup_result)
+
+                # Send email with the username and password
+                if email:
+                    send_account_email(user, email, password)
+
+                return Response(
+                    {"message": "User created successfully. Check your email for the username and password."},
+                    status=status.HTTP_201_CREATED,
+                )
+
+            # Return validation errors
+            logger.warning("Registration failed: Validation errors.")
+            logger.debug(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except IntegrityError as e:
+            logger.error(f"Integrity error during registration: {str(e)}")
+            object_remove(created_objects)
+            return Response(
+                {"error": "A user with this email or mobile number already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}")
+            object_remove(created_objects)
+            return Response(
+                {"error": "Database error occurred"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except ClientError as e:
+            logger.error(f"Failed to send email: {str(e)}")
+            object_remove(created_objects)
+
+            return Response(
+                {"error": "Failed to send account details email. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}")
+            object_remove(created_objects)
+            return Response(
+                {"error": "An unexpected error occurred.", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def business_list(request):

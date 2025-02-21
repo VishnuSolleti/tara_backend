@@ -28,6 +28,7 @@ urlpatterns = [
 
     path('register/', views.user_registration, name='user_registration'),
     path('admin/user-registration/', user_registration_by_admin, name='admin-user-registration'),
+    path('business-registration', businessEntityRegistration, name='businessEntityRegistration'),
     path('users/', AdminOwnerUserCreation, name='users_creation'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('visa-users/', visa_users_creation, name='visa_users_creation'),
