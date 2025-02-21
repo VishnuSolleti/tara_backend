@@ -245,6 +245,12 @@ class BusinessUserSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class UserBusinessRetrieveSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Business
+        fields = ['id', 'nameOfBusiness', 'entityType', 'client']
+
 class BusinessWithGSTSerializer(serializers.ModelSerializer):
     gst_details = GSTDetailsSerializer(many=True, read_only=True)
     headOffice = serializers.JSONField(default=dict)

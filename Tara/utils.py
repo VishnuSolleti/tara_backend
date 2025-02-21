@@ -105,7 +105,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             user_type = affiliated_data.get('user_type')
 
             if user_type in user_type_map:
-                user_type_map[user_type].append(affiliated_data)
+                if user_type == "Business":
+                    business = Business.objects.filter(client=affiliated_data['id'])
+                    business_data = UserBusinessRetrieveSerializer(business, many=True).data
+                    user_type_map[user_type].append(business_data)
+                else:
+                    user_type_map[user_type].append(affiliated_data)
 
         # try:
         #     user_affiliation_summary = UserAffiliationSummary.objects.get(user=user)  # Fetch a single UserGroup instance
