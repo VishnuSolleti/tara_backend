@@ -247,11 +247,12 @@ class BusinessUserSerializer(serializers.ModelSerializer):
 
 class BusinessWithGSTSerializer(serializers.ModelSerializer):
     gst_details = GSTDetailsSerializer(many=True, read_only=True)
+    headOffice = serializers.JSONField(default=dict)
 
     class Meta:
         model = Business
-        fields = ['id', 'nameOfBusiness', 'entityType', 'registrationNumber', 'pan', 'mobile_number',
-                  'email', 'dob_or_incorp_date', 'gst_details']
+        fields = ['id', 'nameOfBusiness', 'entityType', 'registrationNumber', 'pan', 'mobile_number', 'trade_name',
+                  'email', 'dob_or_incorp_date', 'gst_details', 'headOffice', 'headOffice', 'business_nature']
 
 
 class UserBusinessSerializer(serializers.ModelSerializer):
