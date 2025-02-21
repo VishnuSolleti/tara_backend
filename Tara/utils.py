@@ -108,7 +108,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
                 if user_type == "Business":
                     business = Business.objects.filter(client=affiliated_data['id'])
                     business_data = UserBusinessRetrieveSerializer(business, many=True).data
-                    user_type_map[user_type].append(business_data)
+                    user_type_map[user_type].extend(business_data)
                 else:
                     user_type_map[user_type].append(affiliated_data)
 
