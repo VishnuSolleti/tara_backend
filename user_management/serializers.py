@@ -256,14 +256,24 @@ class BusinessWithGSTSerializer(serializers.ModelSerializer):
 
 class UserBusinessSerializer(serializers.ModelSerializer):
     date_joined = serializers.SerializerMethodField()
-    business = BusinessWithGSTSerializer(many=True, read_only=True)
+    business = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'user_name', 'email', 'mobile_number',
-                  'first_name', 'last_name', 'user_type', 'is_active', 'date_joined', 'business']
+        fields = [
+            'id', 'user_name', 'email', 'mobile_number',
+            'first_name', 'last_name', 'user_type',
+            'is_active', 'date_joined', 'business'
+        ]
 
     def get_date_joined(self, obj):
         return obj.date_joined.strftime('%d-%m-%Y')  # Format as dd-mm-yyyy
+
+    def get_business(self, obj):
+        # Fetch related Business objects
+        businesses = obj.business_clients_id.all()
+        return BusinessWithGSTSerializer(businesses, many=True).data
+
 
 
 class UsersKYCSerializer(serializers.ModelSerializer):
