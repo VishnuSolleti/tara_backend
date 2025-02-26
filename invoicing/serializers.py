@@ -260,13 +260,10 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
     nameOfBusiness = serializers.CharField(source='business.nameOfBusiness')
     registrationNumber = serializers.CharField(source='business.registrationNumber')
     entityType = serializers.CharField(source='business.entityType')
-    state = serializers.CharField(source='business.headOffice.state', default="")
     email = serializers.EmailField(source='business.email', default="")
-    address_line1 = serializers.CharField(source='business.headOffice.address_line1', default="")
-    address_line2 = serializers.CharField(source='business.headOffice.address_line2', default="")
-    pinCode = serializers.CharField(source='business.headOffice.pinCode', default="")
     mobile_number = serializers.CharField(source='business.mobile_number', default="")
     pan_number = serializers.CharField(source='business.pan', default="")
+    headOffice = serializers.CharField(source='business.headOffice', default="")
 
     class Meta:
         model = InvoicingProfile
@@ -277,11 +274,7 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
             'entityType',
             'gst_registered',
             'gstin',
-            'state',
             'email',
-            'address_line1',
-            'address_line2',
-            'pinCode',
             'mobile_number',
             'bank_name',
             'account_number',
@@ -290,7 +283,8 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
             'customer_profiles',
             'invoice_format',
             'gst_details',  # Add this field to include gst_details
-            'pan_number'
+            'pan_number',
+            'headOffice'
         ]
 
 class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):

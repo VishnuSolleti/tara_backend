@@ -60,7 +60,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'invoicing',
     'django_celery_beat',
-    'payroll'
+    'payroll',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -297,11 +298,13 @@ SANDBOX_API_VERSION = os.getenv('SANDBOX_API_VERSION')
 
 # Load the secret encryption key
 SECRET_ENCRYPTION_KEY = os.getenv("SECRET_ENCRYPTION_KEY", "default-fallback-key")
-
+#
 AWS_REGION = os.getenv('AWS_REGION')  # e.g., "us-east-1"
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+print(EMAIL_HOST_USER)
+print("*******************")
 
 S3_BUCKET_NAME = "tarafirstdevelopment"
 
@@ -360,4 +363,19 @@ SANDBOX_API_KEY = 'key_live_KAbyGU4p0Hu4bkkTuZCUJb9HyEiaGxcu'
 SANDBOX_API_SECRET = 'secret_live_ZTyQBPYUHJtU3aLDtcH6ofRMMlrjmjKD'
 SANDBOX_API_URL = 'https://api.sandbox.co.in'
 SANDBOX_API_VERSION = '1.0'
+
+
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+
+AWS_STORAGE_BUCKET_NAME = "tarafirstdevelopment"
+
+AWS_DEFAULT_ACL = 'private'
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+AWS_QUERYSTRING_AUTH = True
+AWS_S3_CUSTOM_DOMAIN = f'{S3_BUCKET_NAME}.s3.amazonaws.com'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_LOCATION = 'media'
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
 

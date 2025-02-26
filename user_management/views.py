@@ -2794,6 +2794,7 @@ def gst_details_list_create(request):
 
     elif request.method == 'POST':
         serializer = GSTDetailsSerializer(data=request.data)
+        address_data = request.data.get('address')
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
