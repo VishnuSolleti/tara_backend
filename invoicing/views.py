@@ -129,8 +129,12 @@ def invoicing_profile_exists(request):
                     serializer.get_goods_and_services_exist(invoicing_profile) and
                     serializer.get_invoice_format_exist(invoicing_profile)
             )
+            invoicing_profile_id = None
+            if all_exist:
+                invoicing_profile_id = invoicing_profile.id
 
-            return Response({"exists": all_exist}, status=status.HTTP_200_OK)
+            return Response({"exists": all_exist, "invoicing_profile_id": invoicing_profile_id},
+                            status=status.HTTP_200_OK)
         else:
             return Response(
                 {"error": "Business data is needed to check the Invoicing Setting Status"},
