@@ -288,7 +288,7 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
         ]
 
 class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
-    customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
+    customer_profiles = CustomerProfileGetSerializers(many=True)
 
     class Meta:
         model = InvoicingProfile
