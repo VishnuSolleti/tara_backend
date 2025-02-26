@@ -467,8 +467,11 @@ def get_customer_profile(request):
     Retrieve the invoicing profile along with its associated customer profiles for the logged-in user.
     """
     try:
+        business_id = request.query_params.get('business_id')
         # Get the invoicing profile associated with the user's business
-        invoicing_profile = InvoicingProfile.objects.get(business__client=request.user)
+        # invoicing_profile = InvoicingProfile.objects.get(business__client=request.user)
+        if business_id:
+            invoicing_profile = InvoicingProfile.objects.get(business__id=business_id)
 
         # Serialize the data
         serializer = InvoicingProfileCustomersSerializer(invoicing_profile)
