@@ -72,7 +72,8 @@ class InvoicingProfile(BaseModel):
 
 
 class CustomerProfile(models.Model):
-    invoicing_profile = models.ForeignKey(InvoicingProfile, on_delete=models.CASCADE, null=True)
+    invoicing_profile = models.ForeignKey(InvoicingProfile,  related_name='customer_profiles',
+                                          on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=100, null=True, blank=True)
     pan_number = models.CharField(max_length=10, null=True, blank=True)
     country = models.CharField(max_length=100, null=True, blank=True)
