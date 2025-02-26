@@ -2770,7 +2770,7 @@ def business_detail(request, pk):
     business = get_object_or_404(Business, pk=pk)
 
     if request.method == 'GET':
-        serializer = BusinessSerializer(business)
+        serializer = BusinessUserSerializer(business)
         return Response(serializer.data)
 
     elif request.method == 'PUT':
