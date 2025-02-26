@@ -262,7 +262,7 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
     entityType = serializers.CharField(source='business.entityType')
     email = serializers.EmailField(source='business.email', default="")
     mobile_number = serializers.CharField(source='business.mobile_number', default="")
-    pan_number = serializers.CharField(source='business.pan', default="")
+    pan = serializers.CharField(source='business.pan', default="")
     headOffice = serializers.JSONField(source='business.headOffice', default="")
 
     class Meta:
