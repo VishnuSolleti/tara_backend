@@ -41,6 +41,8 @@ from django.db.models.functions import Coalesce
 from django.db.models import Count, F, Value
 from collections import defaultdict
 from django.core.exceptions import ObjectDoesNotExist
+from django.http import JsonResponse
+from urllib.parse import urlparse, unquote
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
 
@@ -2793,8 +2795,8 @@ def gst_details_list_create(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
+
         serializer = GSTDetailsSerializer(data=request.data)
-        address_data = request.data.get('address')
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -2825,6 +2827,43 @@ def gst_details_detail(request, pk):
     elif request.method == 'DELETE':
         gst_detail.delete()
         return Response({"message": "GST Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+def documents_view(request):
+    # Get the URL from the query parameters
+    document_url = request.GET.get('url', None)
+
+    if not document_url:
+        return JsonResponse({'error': 'URL parameter is required'}, status=400)
+
+    try:
+        # Parse the URL to extract the file name (Key)
+        parsed_url = urlparse(document_url)
+        file_key = unquote(parsed_url.path.lstrip('/'))  # Remove leading '/' and decode URL
+
+        # Initialize S3 client
+        s3_client = boto3.client(
+            's3',
+            region_name=AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+        )
+
+        # Generate a pre-signed URL
+        file_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={
+                'Bucket': S3_BUCKET_NAME,
+                'Key': file_key
+            },
+            ExpiresIn=3600  # URL expires in 1 hour
+        )
+
+        # Return the pre-signed URL
+        return JsonResponse({'url': file_url}, status=200)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @api_view(['GET'])

@@ -318,7 +318,10 @@ class GSTDetails(BaseModel):
     gstin = models.CharField(max_length=120, null=True, blank=True)
     gst_username = models.CharField(max_length=60, null=True, blank=True)
     gst_password = models.CharField(max_length=20, null=True, blank=True)
-    address = JSONField(default=dict, null=True, blank=True)
+    address = models.CharField(max_length=120, null=True, blank=True)
+    pinCode = models.IntegerField(null=True)
+    branch_name = models.CharField(max_length=60, null=True, blank=True, default=None)
+    state = models.CharField(max_length=60, null=True, blank=True, default=None)
     authorized_signatory_pan = models.CharField(max_length=60, null=True, blank=True, default=None)
     gst_document = models.FileField(upload_to=gst_document_upload_path, null=True, blank=True)
 

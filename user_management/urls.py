@@ -38,6 +38,8 @@ urlpatterns = [
     # Forgot password view
     path('forgot-password/', ForgotPasswordView.as_view(), name='forgot-password'),
 
+    path('document_view', documents_view, name='get_gst_document_url'),
+
     # Reset password view
     path('reset-password/<uid>/<token>/', ResetPasswordView.as_view(), name='reset-password'),
 

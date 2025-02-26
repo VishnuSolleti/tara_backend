@@ -211,75 +211,25 @@ class BusinessSerializer(serializers.ModelSerializer):
 
 
 class GSTDetailsSerializer(serializers.ModelSerializer):
-    address = AddressSerializer(required=False)
 
     class Meta:
         model = GSTDetails
         fields = '__all__'
 
-    def to_internal_value(self, data):
-        # Extract address fields manually from form-data
-        address_fields = [
-            'address_line1',
-            'address_line2',
-            'address_line3',
-            'pinCode',
-            'state',
-            'city',
-            'country'
-        ]
-
-        # Collect address fields from form-data
-        address_data = {}
-        for field in address_fields:
-            form_key = f'address[{field}]'
-            value = data.get(form_key)
-            # Only add the field if it's not None or an empty string
-            if value not in [None, '']:
-                address_data[field] = value
-
-        # Convert pinCode to integer if it's not empty
-        if 'pinCode' in address_data:
-            try:
-                address_data['pinCode'] = int(address_data['pinCode'])
-            except ValueError:
-                self.fail('invalid_pinCode')
-
-        # Rebuild the data to include nested address
-        data._mutable = True  # In case it's an immutable QueryDict
-        data['address'] = address_data
-        data._mutable = False
-
-        return super().to_internal_value(data)
-
     def create(self, validated_data):
         """
-        Create and return a new `GSTDetails` instance, given the validated data.
+        Create and return a new `Business` instance, given the validated data.
         """
-        address_data = validated_data.pop('address', None)  # Extract address data
         instance = self.Meta.model(**validated_data)
         instance.save()
-
-        # Save address as JSON field if it has any data
-        if address_data:
-            instance.address = address_data
-            instance.save()
-
         return instance
 
     def update(self, instance, validated_data):
         """
-        Update and return an existing `GSTDetails` instance, given the validated data.
+        Update and return an existing `Business` instance, given the validated data.
         """
-        address_data = validated_data.pop('address', None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-
-        # Update address as JSON field if it has any data
-        if address_data:
-            instance.address = address_data
+        [setattr(instance, k, v) for k, v in validated_data.items()]
         instance.save()
-
         return instance
 
 
