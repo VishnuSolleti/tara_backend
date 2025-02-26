@@ -283,7 +283,7 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
             'customer_profiles',
             'invoice_format',
             'gst_details',  # Add this field to include gst_details
-            'pan_number',
+            'pan',
             'headOffice'
         ]
 
