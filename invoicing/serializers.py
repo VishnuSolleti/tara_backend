@@ -286,7 +286,6 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
             'pan',
             'headOffice'
         ]
-
 class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True)
 
