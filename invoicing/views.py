@@ -468,10 +468,22 @@ def get_customer_profile(request):
     """
     try:
         business_id = request.query_params.get('business_id')
-        # Get the invoicing profile associated with the user's business
-        # invoicing_profile = InvoicingProfile.objects.get(business__client=request.user)
-        if business_id:
+        invoicing_profile_id = request.query_params.get('invoicing_profile_id')
+
+        # Check if invoicing_profile_id is provided first
+        if invoicing_profile_id:
+            invoicing_profile = InvoicingProfile.objects.get(id=invoicing_profile_id)
+
+        # If not, check if business_id is provided
+        elif business_id:
             invoicing_profile = InvoicingProfile.objects.get(business__id=business_id)
+
+        # If neither is provided, return a bad request response
+        else:
+            return Response(
+                {"message": "Either business_id or invoicing_profile_id must be provided."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Serialize the data
         serializer = InvoicingProfileCustomersSerializer(invoicing_profile)
@@ -482,11 +494,12 @@ def get_customer_profile(request):
         return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
     except Exception as e:
-        logger.error(f"Unexpected error in get_customer_profiles: {e}")
+        logger.error(f"Unexpected error in get_customer_profile: {e}")
         return Response(
-            {"error": f"An unexpected error occurred: {e}"},
+            {"error": "An unexpected error occurred. Please try again later."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
 
 @swagger_auto_schema(
     method='put',
