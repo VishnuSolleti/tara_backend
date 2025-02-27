@@ -261,11 +261,12 @@ class InvoicingProfileSerializers(serializers.ModelSerializer):
 class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True)
     invoice_format = serializers.JSONField()
+    gst_details = GSTDetailsSerializer(source='business.gst_details', many=True, read_only=True)
 
     class Meta:
         model = InvoicingProfile
         fields = '__all__'  # This includes all fields from the InvoicingProfile model
-        extra_fields = ['customer_profiles']
+        extra_fields = ['customer_profiles', 'gst_details']
 
 
 class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
