@@ -3,6 +3,7 @@ from .models import *
 from django.core.files.storage import FileSystemStorage
 from user_management.serializers import *
 
+
 class CustomerProfileSerializers(serializers.Serializer):
     invoicing_profile = serializers.PrimaryKeyRelatedField(
         queryset=InvoicingProfile.objects.all()
@@ -40,6 +41,7 @@ class CustomerProfileSerializers(serializers.Serializer):
     class Meta:
         model = CustomerProfile
         fields = '__all__'
+
 
 class GoodsAndServicesSerializer(serializers.Serializer):
     invoicing_profile = serializers.PrimaryKeyRelatedField(
@@ -109,6 +111,7 @@ class GoodsAndServicesSerializer(serializers.Serializer):
         if not (0 <= float(value) <= 100):
             raise serializers.ValidationError("GST rate must be between 0 and 100.")
         return value
+
 
 class AddressSerializer(serializers.Serializer):
     address = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
@@ -205,6 +208,7 @@ class SignatureStorage(FileSystemStorage):
     def __init__(self, *args, **kwargs):
         super().__init__(location='/home/signature', base_url='/media/signature/', *args, **kwargs)
 
+
 class InvoicingProfileSerializer(serializers.ModelSerializer):
     invoice_format = serializers.JSONField(required=False)
     signature = models.ImageField(storage=SignatureStorage(), upload_to='signature/', blank=True, null=True)
@@ -229,14 +233,17 @@ class InvoicingProfileSerializer(serializers.ModelSerializer):
         model = InvoicingProfile
         fields = '__all__'
 
+
 class CustomerProfileGetSerializers(serializers.ModelSerializer):
     class Meta:
         model = CustomerProfile
         exclude = ['invoicing_profile']
 
+
 class InvoicingProfileSerializers(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
     invoice_format = serializers.JSONField()
+
     class Meta:
         model = InvoicingProfile
         fields = [
@@ -286,6 +293,8 @@ class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
             'pan',
             'headOffice'
         ]
+
+
 class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True)
 
@@ -368,6 +377,7 @@ class InvoicingProfileInvoices(serializers.ModelSerializer):
         # Serialize the filtered invoices using the InvoicesSerializer
         return InvoicesSerializer(invoices, many=True).data
 
+
 class CustomerInvoiceReceiptSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """
@@ -418,6 +428,7 @@ class InvoiceSerializerData(serializers.ModelSerializer):
 
         return representation
 
+
 class InvoiceDataSerializer(serializers.ModelSerializer):
     item_details = serializers.ListField(
         child=serializers.DictField(),
@@ -445,6 +456,7 @@ class InvoiceDataSerializer(serializers.ModelSerializer):
         representation["balance_due"] = balance_due
 
         return representation
+
 
 class InvoicesSerializer(serializers.ModelSerializer):
     billing_address = serializers.JSONField()  # Properly serialize as JSON
