@@ -261,38 +261,11 @@ class InvoicingProfileSerializers(serializers.ModelSerializer):
 class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True)
     invoice_format = serializers.JSONField()
-    gst_details = GSTDetailsSerializer(many=True, source='business.gst_details')  # Include gst_details
-
-    # Including fields from Business model
-    nameOfBusiness = serializers.CharField(source='business.nameOfBusiness')
-    registrationNumber = serializers.CharField(source='business.registrationNumber')
-    entityType = serializers.CharField(source='business.entityType')
-    email = serializers.EmailField(source='business.email', default="")
-    mobile_number = serializers.CharField(source='business.mobile_number', default="")
-    pan = serializers.CharField(source='business.pan', default="")
-    headOffice = serializers.JSONField(source='business.headOffice', default="")
 
     class Meta:
         model = InvoicingProfile
-        fields = [
-            'id',
-            'nameOfBusiness',
-            'registrationNumber',
-            'entityType',
-            'gst_registered',
-            'gstin',
-            'email',
-            'mobile_number',
-            'bank_name',
-            'account_number',
-            'ifsc_code',
-            'swift_code',
-            'customer_profiles',
-            'invoice_format',
-            'gst_details',  # Add this field to include gst_details
-            'pan',
-            'headOffice'
-        ]
+        fields = '__all__'  # This includes all fields from the InvoicingProfile model
+        extra_fields = ['customer_profiles']
 
 
 class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
