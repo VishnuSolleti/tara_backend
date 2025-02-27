@@ -77,7 +77,7 @@ def get_invoicing_profile(request):
     Retrieve the invoicing profile for the logged-in user or by business_id.
     """
     try:
-        # Retrieve the business_id from query parameters (if provided)
+        # Retrieve the business_id from query parameters
         business_id = request.query_params.get('business_id')
 
         # If business_id is provided, fetch the invoicing profile for that business
