@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from datetime import date
+from django.db.models import Q
 
 
 class BaseModel(models.Model):
@@ -79,6 +80,35 @@ class InvoicingProfile(BaseModel):
 
     def __str__(self):
         return f"Invoicing Profile: {self.business}"
+
+
+class InvoiceFormat(models.Model):
+    invoicing_profile = models.ForeignKey(
+        'InvoicingProfile',
+        related_name='invoice_formats',  # Plural for better convention
+        on_delete=models.CASCADE,
+        null=True
+    )
+    gstin = models.CharField(max_length=20, null=True, blank=False)
+    invoice_format = models.JSONField(default=dict)
+
+    def __str__(self):
+        return f"Customer: {self.invoicing_profile.business_name}"
+
+    def clean(self):
+        # Check if the combination of invoicing_profile and gstin already exists
+        if self.gstin:
+            if InvoiceFormat.objects.filter(
+                invoicing_profile=self.invoicing_profile,
+                gstin=self.gstin
+            ).exclude(id=self.id).exists():
+                raise ValidationError(
+                    {"gstin": "GSTIN already exists for this Invoicing Profile."}
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # Ensure model validations are executed before saving
+        super().save(*args, **kwargs)
 
 
 class CustomerProfile(models.Model):
@@ -183,6 +213,7 @@ class Invoice(models.Model):
         default=list,
         blank=True
     )
+    gstin = models.CharField(max_length=100, null=True, blank=True)
     total_amount = models.FloatField(null=True, blank=False)
     subtotal_amount = models.FloatField(null=True, blank=False)
     shipping_amount = models.FloatField(null=True, blank=False)

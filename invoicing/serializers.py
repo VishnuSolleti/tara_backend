@@ -166,6 +166,7 @@ class InvoiceSerializer(serializers.Serializer):
         required=False,
         default=[],
     )
+    gstin = serializers.CharField(max_length=60, allow_null=True)
     total_amount = serializers.FloatField(allow_null=True)
     subtotal_amount = serializers.FloatField(allow_null=True)
     shipping_amount = serializers.FloatField(allow_null=True)
@@ -258,17 +259,6 @@ class InvoicingProfileSerializers(serializers.ModelSerializer):
         ]
 
 
-class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
-    customer_profiles = CustomerProfileGetSerializers(many=True)
-    invoice_format = serializers.JSONField()
-    gst_details = GSTDetailsSerializer(source='business.gst_details', many=True, read_only=True)
-
-    class Meta:
-        model = InvoicingProfile
-        fields = '__all__'  # This includes all fields from the InvoicingProfile model
-        extra_fields = ['customer_profiles', 'gst_details']
-
-
 class InvoicingProfileCustomersSerializer(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True)
 
@@ -299,6 +289,25 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
         ]
 
 
+class InvoiceFormatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvoiceFormat
+        fields = ['id', 'invoicing_profile', 'gstin', 'invoice_format']
+
+    def validate(self, data):
+        invoicing_profile = data.get('invoicing_profile')
+        gstin = data.get('gstin')
+
+        # Check if the combination of invoicing_profile and gstin already exists
+        if gstin and InvoiceFormat.objects.filter(
+                invoicing_profile=invoicing_profile,
+                gstin=gstin
+        ).exclude(id=self.instance.id if self.instance else None).exists():
+            raise serializers.ValidationError("GSTIN already exists for this Invoicing Profile.")
+
+        return data
+
+
 class InvoicingExistsBusinessSerializers(serializers.ModelSerializer):
     customer_profiles_exist = serializers.SerializerMethodField()
     goods_and_services_exist = serializers.SerializerMethodField()
@@ -323,7 +332,7 @@ class InvoicingExistsBusinessSerializers(serializers.ModelSerializer):
         return obj.goods_and_services.exists()
 
     def get_invoice_format_exist(self, obj):
-        return bool(obj.invoice_format)
+        return obj.invoice_formats.exists()
 
 
 # InvoicingProfile Serializer
@@ -457,3 +466,21 @@ class InvoicesSerializer(serializers.ModelSerializer):
         representation["balance_due"] = balance_due
 
         return representation
+
+
+class InvoiceFormatData(serializers.ModelSerializer):
+    class Meta:
+        model = InvoiceFormat
+        exclude = ['invoicing_profile']
+
+
+class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
+    customer_profiles = CustomerProfileGetSerializers(many=True)
+    invoice_format = InvoiceFormatData(many=True, read_only=True, source='invoice_formats')
+    gst_details = GSTDetailsSerializer(source='business.gst_details', many=True, read_only=True)
+
+    class Meta:
+        model = InvoicingProfile
+        fields = '__all__'  # This includes all fields from the InvoicingProfile model
+        extra_fields = ['customer_profiles', 'gst_details', 'invoice_format']
+
