@@ -285,27 +285,23 @@ def update_invoicing_profile(request, pk):
     except InvoicingProfile.DoesNotExist:
         return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Parse file uploads
-    parser_classes = (MultiPartParser, FormParser)
+    # Ensure data is a dictionary
+    data = request.data.dict() if isinstance(request.data, QueryDict) else dict(request.data)
 
-    # Convert request.data to a mutable dictionary
-    data = request.data.dict() if isinstance(request.data, QueryDict) else request.data
-
+    # Handle file uploads
     if 'signature' in request.FILES:
         data['signature'] = request.FILES['signature']
 
+    # Check if data is not empty
+    if not data:
+        return Response({"message": "No data provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Partial update
     serializer = InvoicingProfileSerializer(invoicing_profile, data=data, partial=True)
 
     if serializer.is_valid():
-        try:
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Unexpected error in update_invoicing_profile: {e}")
-            return Response(
-                {"error": f"An unexpected error occurred: {e}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

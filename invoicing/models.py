@@ -73,7 +73,6 @@ class InvoicingProfile(BaseModel):
     account_number = models.BigIntegerField(validators=[validate_account_number])
     ifsc_code = models.CharField(max_length=50)
     swift_code = models.CharField(max_length=50, null=True, blank=True)
-    invoice_format = JSONField(default=dict())
     signature = models.ImageField(upload_to="signatures/", null=True, blank=True)
     gst_registered = models.BooleanField()
     gstin = models.CharField(max_length=120, null=True, blank=True)

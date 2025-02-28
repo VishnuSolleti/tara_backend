@@ -211,7 +211,6 @@ class SignatureStorage(FileSystemStorage):
 
 
 class InvoicingProfileSerializer(serializers.ModelSerializer):
-    invoice_format = serializers.JSONField(required=False)
     signature = models.ImageField(storage=SignatureStorage(), upload_to='signature/', blank=True, null=True)
 
     def create(self, validated_data):
