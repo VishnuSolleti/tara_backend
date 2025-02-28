@@ -315,7 +315,7 @@ class Business(BaseModel):
 
 class GSTDetails(BaseModel):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='gst_details')
-    gstin = models.CharField(max_length=120, null=True, blank=True)
+    gstin = models.CharField(max_length=120, unique=True, null=True, blank=True)
     gst_username = models.CharField(max_length=60, null=True, blank=True)
     gst_password = models.CharField(max_length=20, null=True, blank=True)
     address = models.CharField(max_length=120, null=True, blank=True)
