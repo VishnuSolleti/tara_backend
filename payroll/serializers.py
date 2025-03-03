@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import (PayrollOrg, WorkLocations, Departments, SalaryTemplate, PaySchedule,
                      Designation, EPF, ESI, PT, Earnings, Benefits, Deduction, Reimbursement,
                      HolidayManagement, LeaveManagement)
+from .models import *
 
 
 class PayrollOrgSerializer(serializers.ModelSerializer):
@@ -367,3 +368,27 @@ class HolidayManagementSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+
+
+class EmployeeManagementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeManagement
+        fields = '__all__'
+
+
+class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeSalaryDetails
+        fields = '__all__'
+
+
+class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeePersonalDetails
+        fields = '__all__'
+
+
+class EmployeeBankDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeBankDetails
+        fields = '__all__'

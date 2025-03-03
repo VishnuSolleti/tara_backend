@@ -3323,7 +3323,8 @@ def manage_visa_applications(request):
                 else:
                     return Response(service_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"message": "Visa application and services added successfully."}, status=status.HTTP_201_CREATED)
+            return Response({"message": "Visa application and services added successfully."},
+                            status=status.HTTP_201_CREATED)
 
         return Response(
             {"error": "No services provided. Provide 'services' data to add to the visa application."},
@@ -3332,7 +3333,8 @@ def manage_visa_applications(request):
 
     except Exception as e:
         logger.error(f"Error managing visa applications: {str(e)}", exc_info=True)
-        return Response({"error": "An internal error occurred. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "An internal error occurred. Please try again later."},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 

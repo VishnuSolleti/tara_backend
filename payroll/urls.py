@@ -99,4 +99,16 @@ urlpatterns = [
     path('holiday-management/<int:holiday_id>', views.holiday_management_detail_update_delete,
          name='holiday-management-detail-update-delete'),
 
+    path('employees', views.employee_list, name='employee-list'),
+    path('employees/<int:pk>', views.employee_detail, name='employee-detail'),
+
+    path('employee-salary', views.employee_salary_list, name='employee-salary-list'),
+    path('employee-salary/<int:pk>', views.employee_salary_detail, name='employee-salary-detail'),
+
+    path('employee-personal-details', views.employee_personal_list, name='employee-personal-list'),
+    path('employee-personal-details/<int:pk>/', views.employee_personal_detail, name='employee-personal-detail'),
+
+    path('employee-bank-details', views.employee_bank_list, name='employee-bank-list'),
+    path('employee-bank-details/<int:pk>', views.employee_bank_detail, name='employee-bank-detail'),
+
 ]

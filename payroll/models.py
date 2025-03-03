@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from djongo.models import ArrayField, EmbeddedField, JSONField
 from user_management.models import *
+from datetime import date
 
 
 def validate_pincode(value):
@@ -296,6 +297,150 @@ class HolidayManagement(models.Model):
 
     def __str__(self):
         return f"{self.holiday_name} ({self.financial_year})"
+
+
+class EmployeeManagement(BaseModel):
+    GENDER_CHOICES = [
+        ('male', 'male'),
+        ('female', 'female'),
+        ('others', 'others'),
+    ]
+    payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='employee_managements')
+    first_name = models.CharField(max_length=120, null=False, blank=False)
+    middle_name = models.CharField(max_length=80, null=True, blank=True, default=None)
+    last_name = models.CharField(max_length=80, null=False, blank=False)
+    associate_id = models.CharField(max_length=120, blank=False, null=False)
+    doj = models.DateField()
+    work_email = models.EmailField()
+    mobile_number = models.CharField(max_length=20, blank=True, null=True)
+    gender = models.CharField(max_length=20, choices=GENDER_CHOICES, default='male')
+    work_location = models.ForeignKey('WorkLocations', on_delete=models.CASCADE,
+                                      related_name='employee_work_location')
+    designation = models.ForeignKey('Designation', on_delete=models.CASCADE, related_name='employee_designation')
+    department = models.ForeignKey('Departments', on_delete=models.CASCADE, related_name='employee_department')
+    enable_portal_access = models.BooleanField(default=False)
+    statutory_components = models.JSONField()
+    employee_status = models.BooleanField()
+
+    def __str__(self):
+        return f"{self.employee_id} ({self.gender})"
+
+
+class EmployeeSalaryDetails(models.Model):
+    employee = models.ForeignKey(
+        'EmployeeManagement', on_delete=models.CASCADE, related_name='employee_salary'
+    )  # Allows multiple salary records per employee
+
+    annual_ctc = models.IntegerField()
+
+    earnings = models.JSONField(default=list, blank=True)
+    gross_salary = models.JSONField(default=dict, blank=True)
+    benefits = models.JSONField(default=list, blank=True)
+    total_ctc = models.JSONField(default=dict, blank=True)
+    deductions = models.JSONField(default=list, blank=True)
+    net_salary = models.JSONField(default=dict, blank=True)
+
+    valid_from = models.DateField(auto_now_add=True)  # Salary start date
+    valid_to = models.DateField(null=True, blank=True)  # Salary end date (null = current salary)
+
+    def clean(self):
+        """Ensure no open salary record exists before adding a new one."""
+        active_salary = EmployeeSalaryDetails.objects.filter(employee=self.employee, valid_to__isnull=True).exclude(
+            id=self.id).first()
+
+        if active_salary:
+            raise ValidationError(
+                "An active salary record already exists. Please close the existing record before adding a new one.")
+
+        # Validate earnings, benefits, and deductions
+        for section_name, section in [('earnings', self.earnings), ('benefits', self.benefits),
+                                      ('deductions', self.deductions)]:
+            if not isinstance(section, list):
+                raise ValidationError(f"{section_name} must be a list.")
+            for item in section:
+                if not isinstance(item, dict):
+                    raise ValidationError(f"Each item in {section_name} must be a dictionary.")
+                required_fields = {'salary_component', 'calculation_type', 'monthly', 'annually'}
+                if not required_fields.issubset(item):
+                    raise ValidationError(f"Each item in {section_name} must contain {required_fields}.")
+
+        # Validate structure for gross_salary, total_ctc, and net_salary
+        for field_name in ['gross_salary', 'total_ctc', 'net_salary']:
+            field_data = getattr(self, field_name)
+            if not isinstance(field_data, dict):
+                raise ValidationError(f"{field_name} must be a dictionary.")
+            if 'monthly' not in field_data or 'annually' not in field_data:
+                raise ValidationError(f"{field_name} must contain 'monthly' and 'annually' fields.")
+
+    def save(self, *args, **kwargs):
+        """Ensure the previous salary is closed before adding a new record."""
+        # Close the existing active salary before saving the new one
+        active_salary = EmployeeSalaryDetails.objects.filter(employee=self.employee, valid_to__isnull=True).exclude(
+            id=self.id).first()
+
+        if active_salary:
+            active_salary.valid_to = date.today()
+            active_salary.save()
+
+        self.clean()  # Validate the model before saving
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.employee.associate_id} - {self.valid_from}"
+
+
+class EmployeePersonalDetails(BaseModel):
+    MARITAL_CHOICES = [
+        ('single', 'single'),
+        ('married', 'married'),
+    ]
+    BLOOD_GROUP_CHOICES = [
+        ('A+', 'A Positive (A+)'),
+        ('A-', 'A Negative (A-)'),
+        ('B+', 'B Positive (B+)'),
+        ('B-', 'B Negative (B-)'),
+        ('AB+', 'AB Positive (AB+)'),
+        ('AB-', 'AB Negative (AB-)'),
+        ('O+', 'O Positive (O+)'),
+        ('O-', 'O Negative (O-)'),
+    ]
+
+    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE,
+                                 related_name='employee_personal_details')
+    dob = models.DateField()
+    age = models.IntegerField()
+    guardian_name = models.CharField(max_length=120, null=False, blank=False)
+    pan = models.CharField(max_length=20, null=True, blank=False, default=None)
+    aadhar = models.CharField(max_length=80, null=True, blank=False, default=None)
+    address = models.JSONField()
+    alternate_contact_number = models.CharField(max_length=40, null=True, blank=True, default=None)
+    marital_status = models.CharField(max_length=20, choices=MARITAL_CHOICES, default='single')
+    blood_group = models.CharField(max_length=3, choices=BLOOD_GROUP_CHOICES, default='O+')
+
+    def __str__(self):
+        return f"{self.employee.associate_id} ({self.dob})"
+
+
+class EmployeeBankDetails(BaseModel):
+    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE, related_name='employee_bank_details')
+    account_holder_name = models.CharField(max_length=150, null=False, blank=False)
+    bank_name = models.CharField(max_length=150, null=False, blank=False)
+    account_number = models.CharField(max_length=20, unique=True, null=False, blank=False)
+    ifsc_code = models.CharField(max_length=20, null=False, blank=False)
+    branch_name = models.CharField(max_length=150, null=True, blank=True)
+    upi_id = models.CharField(max_length=50, null=True, blank=True, default=None)  # Default is None
+    is_active = models.BooleanField(default=True)  # To mark active/inactive bank details
+
+    def __str__(self):
+        return f"{self.employee.associate_id} - {self.bank_name} ({self.account_number})"
+
+
+
+
+
+
+
+
 
 
 
