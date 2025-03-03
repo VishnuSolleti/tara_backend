@@ -33,6 +33,7 @@ class PayrollOrg(models.Model):
     leave_management = models.BooleanField(default=False)
     holiday_management = models.BooleanField(default=False)
     employee_master = models.BooleanField(default=False)
+    organisation_address = models.JSONField(default=dict)
 
     def __str__(self):
         return f"PayrollOrg {self.business.id}"
