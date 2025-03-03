@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from djongo.models import ArrayField, EmbeddedField, JSONField
 from user_management.models import *
 from datetime import date
+from collections import OrderedDict
 
 
 def validate_pincode(value):
@@ -33,7 +34,14 @@ class PayrollOrg(models.Model):
     leave_management = models.BooleanField(default=False)
     holiday_management = models.BooleanField(default=False)
     employee_master = models.BooleanField(default=False)
-    organisation_address = models.JSONField(default=dict)
+    organisation_address = JSONField(default=dict, null=True, blank=True)
+
+    def to_representation(self, instance):
+        """Convert OrderedDict to dict before returning JSON."""
+        data = super().to_representation(instance)
+        if isinstance(data.get("organisation_address"), OrderedDict):
+            data["organisation_address"] = dict(data["organisation_address"])  # Convert OrderedDict to dict
+        return data
 
     def __str__(self):
         return f"PayrollOrg {self.business.id}"

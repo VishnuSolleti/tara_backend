@@ -117,7 +117,10 @@ def business_payroll_check(request):
         organisation_details = PayrollOrg.objects.filter(business=business).exists()
 
         if organisation_details:
-            payroll_org = PayrollOrg.objects.get(business=business)
+            payroll_org = PayrollOrg.objects.get(business=business.id)
+
+            # payroll_data = PayrollOrgSerializer(payroll_org).data  # Serialize PayrollOrg
+            # payroll_data["organisation_address"] = dict(payroll_data.get("organisation_address", {}))
 
             # Check if all necessary components exist
             all_components = all([
@@ -174,7 +177,6 @@ class PayrollOrgDetail(APIView):
             response_data.update({
                 "business": business.id,
                 "organisation_name": business.nameOfBusiness,
-                "organisation_address": business.headOffice
             })
 
             return Response(response_data, status=status.HTTP_200_OK)
