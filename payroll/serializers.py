@@ -6,6 +6,7 @@ from .models import *
 
 
 class PayrollOrgSerializer(serializers.ModelSerializer):
+    organisation_address = serializers.JSONField(default=dict)
     class Meta:
         model = PayrollOrg
         fields = '__all__'  # Include all fields from PayrollOrg model
