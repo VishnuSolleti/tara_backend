@@ -50,7 +50,7 @@ logger = logging.getLogger(__name__)
 class Constants:
     SMS_API_POST_URL = 'https://www.fast2sms.com/dev/bulkV2'
 
-def Autogenerate_password():
+def auto_generate_password():
     pwo = PasswordGenerator()
     return pwo.shuffle_password('abcdefghijklmnopqrstuvwxyz', 8)  # Generates an 8-character password
 
@@ -1021,7 +1021,7 @@ def AdminOwnerUserCreation(request):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            request_data['password'] = Autogenerate_password()
+            request_data['password'] = auto_generate_password()
 
             # Prepare request data for serializer
             password = request_data['password']
@@ -1165,7 +1165,7 @@ def visa_users_creation(request):
         user_data = {
             'email': email,
             'mobile_number': mobile_number,
-            'password': Autogenerate_password(),
+            'password': auto_generate_password(),
             'created_by': request.user.id,
             'user_type': 'ServiceProvider',
             'user_role': 'Individual_User',
@@ -1257,7 +1257,7 @@ def serviceproviders_user_creation(request):
         user_data = {
             'email': email,
             'mobile_number': mobile_number,
-            'password': Autogenerate_password(),
+            'password': auto_generate_password(),
             'created_by': request.data.get('created_by'),
             'user_type': 'ServiceProvider',
             'first_name': request.data.get('first_name'),
