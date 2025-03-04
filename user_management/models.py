@@ -297,7 +297,7 @@ class Business(BaseModel):
     nameOfBusiness = models.CharField(max_length=200, unique=True, db_index=True)
     registrationNumber = models.CharField(max_length=120, null=True, blank=True, default=None)
     entityType = models.CharField(max_length=50, null=True, blank=True, default=None)
-    headOffice = models.JSONField(default=dict, null=True, blank=True)
+    headOffice = JSONField(default=dict, null=True, blank=True)
     pan = models.CharField(max_length=15, null=True, blank=True, default=None)
     business_nature = models.CharField(
         max_length=50, choices=business_nature_choices, null=True, blank=True, default=None
