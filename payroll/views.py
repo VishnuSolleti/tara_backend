@@ -239,6 +239,61 @@ class PayrollOrgDetail(APIView):
             return Response({"error": "PayrollOrg not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+@api_view(['PUT'])
+def update_payroll_org(request, business_id):
+    try:
+        business = Business.objects.get(pk=business_id)
+    except Business.DoesNotExist:
+        return Response({"error": "Business not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        payroll_org = PayrollOrg.objects.get(business_id=business_id)
+    except PayrollOrg.DoesNotExist:
+        return Response({"error": "PayrollOrg not found for this business"}, status=status.HTTP_404_NOT_FOUND)
+
+    data = request.data.copy()
+    file = request.FILES.get('logo')  # Handle uploaded file (logo)
+    bucket_name = S3_BUCKET_NAME
+
+    if file:
+        # Sanitize file name
+        sanitized_file_name = file.name.replace(" ", "_")
+        business_name = request.data.get('org_name', 'default_org').replace(" ", "_")
+        object_key = f'{business_name}/business_logo/{sanitized_file_name}'
+
+        try:
+            # Upload file to S3
+            url = upload_to_s3(file.read(), bucket_name, object_key)
+            data['logo'] = url
+        except Exception as e:
+            return Response({"error": f"File upload failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Get fields dynamically from serializers
+    payroll_org_fields = set(PayrollOrgSerializer().get_fields().keys())
+    business_fields = set(BusinessSerializer().get_fields().keys())
+
+    payroll_org_data = {key: value for key, value in data.items() if key in payroll_org_fields}
+    business_data = {key: value for key, value in data.items() if key in business_fields}
+
+    # Use a transaction to ensure atomicity
+    with transaction.atomic():
+        if payroll_org_data:
+            payroll_serializer = PayrollOrgSerializer(payroll_org, data=payroll_org_data, partial=True)
+            if payroll_serializer.is_valid():
+                payroll_serializer.save()
+            else:
+                return Response(payroll_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        if business_data:
+            business_serializer = BusinessSerializer(business, data=business_data, partial=True)
+            if business_serializer.is_valid():
+                business_serializer.save()
+            else:
+                return Response(business_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({"message": "Successfully updated"}, status=status.HTTP_200_OK)
+
+
 class PayrollOrgBusinessDetail(APIView):
     """
     Retrieve a payroll organization instance by its business ID.
