@@ -124,7 +124,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'id': user.id,
             'email': user.email,
             'mobile_number': user.mobile_number,
-            'user_name': user_name,
+            'user_name': user.user_name,
             'name': user.first_name + ' ' + user.last_name,
             'created_on': created_on_date,
             'user_type': user.user_type,
