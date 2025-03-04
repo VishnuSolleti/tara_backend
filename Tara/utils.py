@@ -10,8 +10,10 @@ from rest_framework import status
 from django.contrib.auth import get_user_model
 from rest_framework.permissions import AllowAny
 from user_management.models import CustomGroup, CustomPermission, UserAffiliatedRole, Business, UserAffiliationSummary
+from user_management.serializers import *
 from rest_framework.fields import CharField
 from django.contrib.auth.hashers import check_password
+from django.db.models import Q
 
 
 User = get_user_model()  # Fetch the custom user model
@@ -32,19 +34,20 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         # Attempt to find the user by email or mobile
         if "@" in email_or_user_name:
-            users = User.objects.filter(email=email_or_user_name)
+            users = User.objects.filter(email__iexact=email_or_user_name)
             if not users.exists():
                 raise AuthenticationFailed("No user found with the provided email.")
-            users = users.filter(user_type=user_type)
-            if not users.exists():
-                raise AuthenticationFailed("No user found with the provided user type.")
         else:
-            users = User.objects.filter(user_name=email_or_user_name)
+            users = User.objects.filter(user_name__iexact=email_or_user_name)
             if not users.exists():
                 raise AuthenticationFailed("No user found with the provided username.")
-            users = users.filter(user_type=user_type)
-            if not users.exists():
-                raise AuthenticationFailed("No user found with the provided user type.")
+
+        if user_type:
+            users = users.filter(Q(user_type=user_type) | Q(user_type="TaraTeam"))
+
+            # Check if any user exists after filtering by user_type
+        if not users.exists():
+            raise AuthenticationFailed("No user found with the provided user type.")
 
             # Iterate over the users to check the password
         for user in users:
@@ -74,6 +77,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         if hasattr(user, 'userkyc'):  # Assuming `UserKYC` has a one-to-one or foreign key to `User`
             user_kyc_instance = user.userkyc
             user_name = user_kyc_instance.name
+            user_kyc = True
+
             # if user_kyc_instance.is_completed:  # Assuming `is_completed` indicates KYC completion
             #     user.user_kyc = True  # Update the `user_kyc` field in the User model
             #     user.save(update_fields=['user_kyc'])  # Save only the `user_kyc` field
@@ -83,24 +88,34 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         created_on_date = user.date_joined.date()
 
         # Retrieve the user's group
-        # try:
-        #     user_group = UserAffiliatedRole.objects.get(user=user)  # Fetch a single UserGroup instance
-        # except UserAffiliatedRole.DoesNotExist:
-        #     user_group = None
-        #
-        # if user_group:
-        #     # Retrieve the user's groups and associated permissions
-        #     # group_names = [group.get('name') for group in user_group.group if 'name' in group]
-        #     group_name = user_group.group.name
-        #     associated_services = list(user_group.custom_permissions.values_list('name', flat=True).distinct())
-        # else:
-        #     group_name = None  # No groups assigned
-        #     associated_services = []  # No permissions assigned
+        user_roles = UserAffiliatedRole.objects.filter(
+            user=user.id)
+        # Map user types to their respective lists
+        user_type_map = {
+            'Individual': [],
+            'CA': [],
+            'ServiceProvider': [],
+            'Business': [],
+        }
 
-        try:
-            user_affiliation_summary = UserAffiliationSummary.objects.get(user=user)  # Fetch a single UserGroup instance
-        except UserAffiliationSummary.DoesNotExist:
-            raise ValueError("Something Wrong with this User, Please Connect Admin Team To Solve the Issue")
+        # Serialize and categorize data
+        for item in UserGroupSerializer(user_roles, many=True).data:
+            affiliated_data = item.get('affiliated', {})
+            affiliated_data['flag'] = item.get('flag')
+            user_type = affiliated_data.get('user_type')
+
+            if user_type in user_type_map:
+                if user_type == "Business":
+                    business = Business.objects.filter(client=affiliated_data['id'])
+                    business_data = UserBusinessRetrieveSerializer(business, many=True).data
+                    user_type_map[user_type].extend(business_data)
+                else:
+                    user_type_map[user_type].append(affiliated_data)
+
+        # try:
+        #     user_affiliation_summary = UserAffiliationSummary.objects.get(user=user)  # Fetch a single UserGroup instance
+        # except UserAffiliationSummary.DoesNotExist:
+        #     raise ValueError("Something Wrong with this User, Please Connect Admin Team To Solve the Issue")
 
         business_exits = False
 
@@ -114,10 +129,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'created_on': created_on_date,
             'user_type': user.user_type,
             'user_kyc': user_kyc,
-            'individual_affiliated': list(user_affiliation_summary.individual_affiliated),
-            'ca_firm_affiliated': list(user_affiliation_summary.ca_firm_affiliated),
-            'service_provider_affiliated': list(user_affiliation_summary.service_provider_affiliated),
-            'business_affiliated':list(user_affiliation_summary.business_affiliated),
+            'individual_affiliated': list(user_type_map['Individual']),
+            'ca_firm_affiliated': list(user_type_map['CA']),
+            'service_provider_affiliated': list(user_type_map['ServiceProvider']),
+            'business_affiliated': list(user_type_map['Business']),
             'refresh': str(refresh),
             'access': str(refresh.access_token),
         }

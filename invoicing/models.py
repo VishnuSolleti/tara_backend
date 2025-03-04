@@ -8,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from datetime import date
+from django.db.models import Q
 
 
 class BaseModel(models.Model):
@@ -58,11 +59,20 @@ class PaymentDetail(models.Model):
 
 class InvoicingProfile(BaseModel):
     business = models.OneToOneField(Business, on_delete=models.CASCADE)
+    business_name = models.CharField(max_length=20, null=False, blank=False)
+    business_registration_number = models.CharField(max_length=20, null=True, blank=True)
+    business_type = models.CharField(max_length=60, null=True, blank=True)
+    state = models.CharField(max_length=80, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    pinCode = models.IntegerField(null=True)
+    mobile_number = models.CharField(max_length=20, null=True, blank=True)
+    address_line1 = models.CharField(max_length=120, null=True, blank=True)
+    address_line2 = models.CharField(max_length=120, null=True, blank=True)
+    pan = models.CharField(max_length=60, null=True, blank=True)
     bank_name = models.CharField(max_length=50)
     account_number = models.BigIntegerField(validators=[validate_account_number])
     ifsc_code = models.CharField(max_length=50)
     swift_code = models.CharField(max_length=50, null=True, blank=True)
-    invoice_format = JSONField(default=dict())
     signature = models.ImageField(upload_to="signatures/", null=True, blank=True)
     gst_registered = models.BooleanField()
     gstin = models.CharField(max_length=120, null=True, blank=True)
@@ -71,8 +81,38 @@ class InvoicingProfile(BaseModel):
         return f"Invoicing Profile: {self.business}"
 
 
+class InvoiceFormat(models.Model):
+    invoicing_profile = models.ForeignKey(
+        'InvoicingProfile',
+        related_name='invoice_formats',  # Plural for better convention
+        on_delete=models.CASCADE,
+        null=True
+    )
+    gstin = models.CharField(max_length=20, null=True, blank=False)
+    invoice_format = models.JSONField(default=dict)
+
+    def __str__(self):
+        return f"Customer: {self.invoicing_profile.business_name}"
+
+    def clean(self):
+        # Check if the combination of invoicing_profile and gstin already exists
+        if self.gstin:
+            if InvoiceFormat.objects.filter(
+                invoicing_profile=self.invoicing_profile,
+                gstin=self.gstin
+            ).exclude(id=self.id).exists():
+                raise ValidationError(
+                    {"gstin": "GSTIN already exists for this Invoicing Profile."}
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()  # Ensure model validations are executed before saving
+        super().save(*args, **kwargs)
+
+
 class CustomerProfile(models.Model):
-    invoicing_profile = models.ForeignKey(InvoicingProfile, on_delete=models.CASCADE, null=True)
+    invoicing_profile = models.ForeignKey(InvoicingProfile,  related_name='customer_profiles',
+                                          on_delete=models.CASCADE, null=True)
     name = models.CharField(max_length=100, null=True, blank=True)
     pan_number = models.CharField(max_length=10, null=True, blank=True)
     country = models.CharField(max_length=100, null=True, blank=True)
@@ -153,7 +193,8 @@ class CustomerInvoiceReceipt(models.Model):
 
 
 class Invoice(models.Model):
-    invoicing_profile = models.ForeignKey('InvoicingProfile', on_delete=models.CASCADE, null=True, related_name='invoices')
+    invoicing_profile = models.ForeignKey('InvoicingProfile', on_delete=models.CASCADE, null=True,
+                                          related_name='invoices')
     customer = models.CharField(max_length=200, null=False, blank=False)
     terms = models.CharField(max_length=500, null=False, blank=False)
     financial_year = models.CharField(max_length=50, null=False, blank=False)
@@ -171,6 +212,7 @@ class Invoice(models.Model):
         default=list,
         blank=True
     )
+    gstin = models.CharField(max_length=100, null=True, blank=True)
     total_amount = models.FloatField(null=True, blank=False)
     subtotal_amount = models.FloatField(null=True, blank=False)
     shipping_amount = models.FloatField(null=True, blank=False)

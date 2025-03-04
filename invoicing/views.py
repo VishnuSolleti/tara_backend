@@ -6,11 +6,11 @@ from rest_framework import serializers
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from django.db import models
-from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice, CustomerInvoiceReceipt
-from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,
+from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice, CustomerInvoiceReceipt, InvoiceFormat
+from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,InvoiceFormatSerializer,
                           GoodsAndServicesSerializer, InvoicingProfileGoodsAndServicesSerializer, InvoiceSerializer,
                           InvoicingProfileSerializers, InvoicingProfileCustomersSerializer, InvoicingProfileInvoices,
-                          InvoiceSerializerData, InvoiceDataSerializer,
+                          InvoiceSerializerData, InvoiceDataSerializer,InvoicingExistsBusinessSerializers,
                           CustomerInvoiceReceiptSerializer, InvoicingProfileBusinessSerializers)
 from django.http import QueryDict
 import logging
@@ -30,6 +30,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from django.db.models import Case, When, F, Sum, Prefetch, FloatField
 from django.utils.timezone import now
+from django.shortcuts import get_object_or_404
 
 
 # Create loggers for general and error logs
@@ -77,7 +78,7 @@ def get_invoicing_profile(request):
     Retrieve the invoicing profile for the logged-in user or by business_id.
     """
     try:
-        # Retrieve the business_id from query parameters (if provided)
+        # Retrieve the business_id from query parameters
         business_id = request.query_params.get('business_id')
 
         # If business_id is provided, fetch the invoicing profile for that business
@@ -99,6 +100,51 @@ def get_invoicing_profile(request):
         logger.error(f"Unexpected error in get_invoicing_profile: {e}")
         return Response(
             {"error": f"An unexpected error occurred: {e}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+@api_view(['GET'])
+def invoicing_profile_exists(request):
+    """
+    Check if all related objects exist for an invoicing profile.
+    Returns True if all exist, False otherwise.
+    """
+    try:
+        # Retrieve the business_id from query parameters (if provided)
+        business_id = request.query_params.get('business_id')
+
+        # If business_id is provided, fetch the invoicing profile for that business
+        if business_id:
+            invoicing_profile = InvoicingProfile.objects.filter(business__id=business_id).first()
+
+            if not invoicing_profile:
+                return Response({"exists": False, "message": "Invoicing profile not found."}, status=status.HTTP_200_OK)
+
+            # Serialize the invoicing profile data
+            serializer = InvoicingExistsBusinessSerializers(invoicing_profile)
+
+            # Check if all required objects exist
+            all_exist = (
+                    serializer.get_customer_profiles_exist(invoicing_profile) and
+                    serializer.get_goods_and_services_exist(invoicing_profile) and
+                    serializer.get_invoice_format_exist(invoicing_profile)
+            )
+            invoicing_profile_id = None
+            if all_exist:
+                invoicing_profile_id = invoicing_profile.id
+
+            return Response({"exists": all_exist, "invoicing_profile_id": invoicing_profile_id},
+                            status=status.HTTP_200_OK)
+        else:
+            return Response(
+                {"error": "Business data is needed to check the Invoicing Setting Status"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+    except Exception as e:
+        return Response(
+            {"error": f"An unexpected error occurred: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
@@ -239,27 +285,23 @@ def update_invoicing_profile(request, pk):
     except InvoicingProfile.DoesNotExist:
         return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Parse file uploads
-    parser_classes = (MultiPartParser, FormParser)
+    # Ensure data is a dictionary
+    data = request.data.dict() if isinstance(request.data, QueryDict) else dict(request.data)
 
-    # Convert request.data to a mutable dictionary
-    data = request.data.dict() if isinstance(request.data, QueryDict) else request.data
-
+    # Handle file uploads
     if 'signature' in request.FILES:
         data['signature'] = request.FILES['signature']
 
+    # Check if data is not empty
+    if not data:
+        return Response({"message": "No data provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Partial update
     serializer = InvoicingProfileSerializer(invoicing_profile, data=data, partial=True)
 
     if serializer.is_valid():
-        try:
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f"Unexpected error in update_invoicing_profile: {e}")
-            return Response(
-                {"error": f"An unexpected error occurred: {e}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -426,8 +468,23 @@ def get_customer_profile(request):
     Retrieve the invoicing profile along with its associated customer profiles for the logged-in user.
     """
     try:
-        # Get the invoicing profile associated with the user's business
-        invoicing_profile = InvoicingProfile.objects.get(business__client=request.user)
+        business_id = request.query_params.get('business_id')
+        invoicing_profile_id = request.query_params.get('invoicing_profile_id')
+
+        # Check if invoicing_profile_id is provided first
+        if invoicing_profile_id:
+            invoicing_profile = InvoicingProfile.objects.get(id=invoicing_profile_id)
+
+        # If not, check if business_id is provided
+        elif business_id:
+            invoicing_profile = InvoicingProfile.objects.get(business__id=business_id)
+
+        # If neither is provided, return a bad request response
+        else:
+            return Response(
+                {"message": "Either business_id or invoicing_profile_id must be provided."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Serialize the data
         serializer = InvoicingProfileCustomersSerializer(invoicing_profile)
@@ -438,11 +495,12 @@ def get_customer_profile(request):
         return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
     except Exception as e:
-        logger.error(f"Unexpected error in get_customer_profiles: {e}")
+        logger.error(f"Unexpected error in get_customer_profile: {e}")
         return Response(
-            {"error": f"An unexpected error occurred: {e}"},
+            {"error": "An unexpected error occurred. Please try again later."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
 
 @swagger_auto_schema(
     method='put',
@@ -1531,6 +1589,7 @@ def get_financial_year():
 
     return financial_year
 
+
 def calculate_revenue_last_month(invoicing_profile_id, financial_year, last_month):
     """
     Calculate the revenue for the last month, adjusting the financial year if necessary.
@@ -1558,9 +1617,11 @@ def get_days_in_financial_year(financial_year):
     # Financial year is always 365 or 366 days
     return 365 if days_in_start_year == 365 and days_in_end_year == 365 else 366
 
+
 # Get the number of days in the current month
 def get_days_in_current_month(current_year, current_month):
     return monthrange(current_year, current_month)[1]
+
 
 @swagger_auto_schema(
     method='get',
@@ -1933,22 +1994,20 @@ def get_invoice_by_id(request, id):
 def latest_invoice_id(request, invoicing_profile_id):
     try:
         # Fetch the invoicing profile
-        invoicing_profile = InvoicingProfile.objects.filter(id=invoicing_profile_id).first()
-        if not invoicing_profile or not invoicing_profile.invoice_format:
-            return JsonResponse(
-                {
-                    "error": "No valid invoicing profile or invoice format found.",
-                    "details": "Ensure the profile includes 'prefix', 'startingNumber', and 'suffix'."
-                },
-                status=400
-            )
+        invoicing_profile = get_object_or_404(InvoicingProfile, id=invoicing_profile_id)
+
+        # Fetch the InvoiceFormat using gstin from the InvoicingProfile
+        invoice_format = InvoiceFormat.objects.get(gstin=invoicing_profile.gstin)
 
         # Get the current format version
-        current_format_version = invoicing_profile.invoice_format.get("format_version")
+        current_format_version = invoice_format.invoice_format.get("format_version")
 
-        # Fetch the latest invoice for the given invoicing_profile_id
+        # Fetch the latest invoice for the given invoicing_profile_id and gstin
         latest_invoice = (
-            Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id)
+            Invoice.objects.filter(
+                invoicing_profile_id=invoicing_profile_id,
+                gstin=invoicing_profile.gstin
+            )
             .order_by('-id')  # Sort by ID to get the latest
             .first()
         )
@@ -1972,16 +2031,16 @@ def latest_invoice_id(request, invoicing_profile_id):
                     )
             else:
                 # Format version has changed, start with the new format
-                prefix = invoicing_profile.invoice_format.get("prefix")
-                starting_number = invoicing_profile.invoice_format.get("startingNumber", 1)
-                suffix = invoicing_profile.invoice_format.get("suffix")
+                prefix = invoice_format.invoice_format.get("prefix")
+                starting_number = invoice_format.invoice_format.get("startingNumber", 1)
+                suffix = invoice_format.invoice_format.get("suffix")
                 starting_number = int(starting_number)
                 new_invoice_number = f"{prefix}-{starting_number:03d}-{suffix}"
         else:
             # No previous invoices, start with the new format
-            prefix = invoicing_profile.invoice_format.get("prefix")
-            starting_number = invoicing_profile.invoice_format.get("startingNumber")
-            suffix = invoicing_profile.invoice_format.get("suffix")
+            prefix = invoice_format.invoice_format.get("prefix")
+            starting_number = invoice_format.invoice_format.get("startingNumber")
+            suffix = invoice_format.invoice_format.get("suffix")
 
             # Ensure starting_number is an integer before formatting
             starting_number = int(starting_number)
@@ -1993,6 +2052,11 @@ def latest_invoice_id(request, invoicing_profile_id):
             "latest_invoice_number": new_invoice_number,
             "format_version": current_format_version
         })
+
+    except InvoiceFormat.DoesNotExist:
+        return JsonResponse({
+            "error": "No Invoice Format found for the provided GSTIN."
+        }, status=404)
 
     except Exception as e:
         # Return error response if an exception occurs
@@ -2444,3 +2508,53 @@ def wave_off_invoice(request, invoice_id):
         return Response({"error": "Invoice not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET', 'POST'])
+def invoice_format_list(request):
+    # GET Method - List all Invoice Formats
+    if request.method == 'GET':
+        invoice_profile_id = request.GET.get('invoice_profile_id')
+
+        # Filter by invoice_profile_id if provided, else return all
+        if invoice_profile_id:
+            invoice_formats = InvoiceFormat.objects.filter(invoicing_profile=invoice_profile_id)
+        else:
+            invoice_formats = InvoiceFormat.objects.all()
+
+        serializer = InvoiceFormatSerializer(invoice_formats, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    # POST Method - Create a new Invoice Format
+    elif request.method == 'POST':
+        serializer = InvoiceFormatSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Retrieve, Update, and Delete View
+@api_view(['GET', 'PUT', 'DELETE'])
+def invoice_format_detail(request, pk):
+    invoice_format = get_object_or_404(InvoiceFormat, pk=pk)
+
+    # GET Method - Retrieve a single Invoice Format
+    if request.method == 'GET':
+        serializer = InvoiceFormatSerializer(invoice_format)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    # PUT Method - Update an existing Invoice Format
+    elif request.method == 'PUT':
+        serializer = InvoiceFormatSerializer(invoice_format, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    # DELETE Method - Delete an Invoice Format
+    elif request.method == 'DELETE':
+        invoice_format.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+

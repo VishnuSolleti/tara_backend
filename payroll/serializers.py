@@ -1,8 +1,13 @@
 from rest_framework import serializers
-from .models import (PayrollOrg, WorkLocations, Departments,
-                     Designation, EPF, ESI, PF, Earnings, Benefits, Deduction, Reimbursement)
+from .models import (PayrollOrg, WorkLocations, Departments, SalaryTemplate, PaySchedule,
+                     Designation, EPF, ESI, PT, Earnings, Benefits, Deduction, Reimbursement,
+                     HolidayManagement, LeaveManagement)
+from .models import *
+
 
 class PayrollOrgSerializer(serializers.ModelSerializer):
+    organisation_address = serializers.JSONField(default=dict)
+
     class Meta:
         model = PayrollOrg
         fields = '__all__'  # Include all fields from PayrollOrg model
@@ -75,7 +80,7 @@ class DepartmentsSerializer(serializers.ModelSerializer):
 class DesignationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Designation
-        fields = ['id', 'payroll', 'designation_name', 'description']
+        fields = ['id', 'payroll', 'designation_name']
 
     def create(self, validated_data):
         """
@@ -94,18 +99,19 @@ class DesignationSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class EPFSerializer(serializers.ModelSerializer):
     class Meta:
         model = EPF
-        fields = ['id', 'payroll', 'epf_number', 'epf_contribution_rate', 'employer_actual_pf_wage',
-                  'employer_actual_restricted_wage', 'employer_edli_contribution_in_ctc',
+        fields = ['id', 'payroll', 'epf_number', 'employee_contribution_rate', 'employer_contribution_rate',
+                  'employer_edil_contribution_in_ctc', 'include_employer_contribution_in_ctc',
                   'admin_charge_in_ctc', 'allow_employee_level_override', 'prorate_restricted_pf_wage']
 
     def create(self, validated_data):
         """
         Create and return a new `WorkLocations` instance, given the validated data.
         """
-        instance = WorkLocations(**validated_data)
+        instance = EPF(**validated_data)
         instance.save()
         return instance
 
@@ -117,6 +123,7 @@ class EPFSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
 
 class ESISerializer(serializers.ModelSerializer):
     class Meta:
@@ -128,7 +135,7 @@ class ESISerializer(serializers.ModelSerializer):
         """
         Create and return a new `WorkLocations` instance, given the validated data.
         """
-        instance = WorkLocations(**validated_data)
+        instance = ESI(**validated_data)
         instance.save()
         return instance
 
@@ -142,16 +149,16 @@ class ESISerializer(serializers.ModelSerializer):
         return instance
 
 
-class PFSerializer(serializers.ModelSerializer):
+class PTSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PF
-        fields = ['id', 'payroll', 'location', 'state', 'pt_number', 'slab']
+        model = PT
+        fields = ['id', 'payroll', 'work_location', 'pt_number', 'slab']
 
     def create(self, validated_data):
         """
         Create and return a new `PF` instance, given the validated data.
         """
-        instance = PF.objects.create(**validated_data)
+        instance = PT.objects.create(**validated_data)
         return instance
 
     def update(self, instance, validated_data):
@@ -164,13 +171,30 @@ class PFSerializer(serializers.ModelSerializer):
         return instance
 
 
+class PTSerializerRetrieval(serializers.ModelSerializer):
+    work_location_name = serializers.CharField(source='work_location.location_name', read_only=True)
+    state = serializers.CharField(source='work_location.address_state', read_only=True)
+    slab = serializers.ListField(
+        child=serializers.DictField(),  # Each element inside the list is a dictionary (object)
+        allow_empty=True  # Allow the list to be empty, if necessary
+    )
+
+    class Meta:
+        model = PT
+        fields = ['id', 'payroll', 'work_location', 'work_location_name', 'state', 'pt_number', 'slab']
+
+
 class EarningsSerializer(serializers.ModelSerializer):
+    calculation_type = serializers.JSONField(default=dict)
+
     class Meta:
         model = Earnings
-        fields = ['id', 'payroll', 'earning_name', 'earning_type', 'payslip_name', 'is_flat_amount',
-                  'is_basic_percentage', 'amount_value', 'is_active', 'is_part_of_employee_salary_structure',
-                  'is_taxable', 'is_pro_rate_basis', 'is_flexible_benefit_plan', 'includes_epf_contribution',
-                  'includes_esi_contribution', 'is_included_in_payslip']
+        fields = [
+            'id', 'payroll', 'component_name', 'component_type', 'is_active', 'calculation_type',
+            'is_part_of_employee_salary_structure', 'is_taxable', 'is_pro_rate_basis',
+            'is_flexible_benefit_plan', 'includes_epf_contribution', 'includes_esi_contribution',
+            'is_included_in_payslip', 'tax_deduction_preference', 'is_scheduled_earning'
+        ]
 
     def create(self, validated_data):
         """
@@ -187,6 +211,7 @@ class EarningsSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
         return instance
+
 
 class BenefitsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -251,3 +276,121 @@ class ReimbursementSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("Reimbursement amount must be greater than zero.")
         return value
+
+
+class SalaryTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SalaryTemplate
+        fields = '__all__'
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Earnings` instance, given the validated data.
+        """
+        instance = SalaryTemplate.objects.create(**validated_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Earnings` instance, given the validated data.
+        """
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+
+class PayScheduleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaySchedule
+        fields = '__all__'
+
+    def validate(self, data):
+        """ Custom validation to ensure at least two days are selected """
+        selected_days = sum([
+            data.get('sunday', False), data.get('monday', False), data.get('tuesday', False),
+            data.get('wednesday', False), data.get('thursday', False), data.get('friday', False),
+            data.get('saturday', False), data.get('second_saturday', False), data.get('fourth_saturday', False)
+        ])
+        if selected_days < 2:
+            raise serializers.ValidationError("At least two days must be selected.")
+        return data
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Earnings` instance, given the validated data.
+        """
+        instance = PaySchedule.objects.create(**validated_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        """Ensure that update returns the instance"""
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+
+class LeaveManagementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LeaveManagement
+        fields = '__all__'
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Earnings` instance, given the validated data.
+        """
+        instance = LeaveManagement.objects.create(**validated_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Earnings` instance, given the validated data.
+        """
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+
+class HolidayManagementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HolidayManagement
+        fields = '__all__'
+        
+    def create(self, validated_data):
+        """
+        Create and return a new `Earnings` instance, given the validated data.
+        """
+        instance = HolidayManagement.objects.create(**validated_data)
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Earnings` instance, given the validated data.
+        """
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+
+class EmployeeManagementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeManagement
+        fields = '__all__'
+
+
+class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeSalaryDetails
+        fields = '__all__'
+
+
+class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeePersonalDetails
+        fields = '__all__'
+
+
+class EmployeeBankDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeBankDetails
+        fields = '__all__'

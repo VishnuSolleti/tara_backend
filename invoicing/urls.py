@@ -4,6 +4,7 @@ from .views import *
 
 urlpatterns = [
     path('invoicing-profiles/', views.get_invoicing_profile, name='get-invoicing-profile'),
+    path('invoicing-profile-check/', invoicing_profile_exists, name='invoicing-profile-exists'),
     path('invoicing-profiles/create/', views.create_invoicing_profile, name='create-invoicing-profile'),
     path('invoicing-profiles/<int:pk>/update/', views.update_invoicing_profile, name='update-invoicing-profile'),
     path('invoicing-profiles/delete/', views.delete_invoicing_profile, name='delete-invoicing-profile'),
@@ -50,7 +51,11 @@ urlpatterns = [
 
     path('receipt-delete/<int:receipt_id>/', delete_customer_invoice_receipt, name='delete_customer_invoice_receipt'),
 
-    path('invoice-wave-off/<int:invoice_id>', wave_off_invoice, name='wave_off_invoice')
+    path('invoice-wave-off/<int:invoice_id>', wave_off_invoice, name='wave_off_invoice'),
+
+    path('invoice-formats/', invoice_format_list, name='invoice_format_list'),
+
+    path('invoice-formats/<int:pk>/', invoice_format_detail, name='invoice_format_detail'),
 
 ]
 

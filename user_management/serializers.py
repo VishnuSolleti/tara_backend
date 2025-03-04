@@ -22,7 +22,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('email', 'mobile_number', 'password', 'created_by', 'user_type', 'user_name'
+        fields = ('id', 'email', 'mobile_number', 'password', 'created_by', 'user_type', 'user_name'
                   , 'first_name', 'last_name', 'is_active')
 
     def validate(self, attrs):
@@ -76,7 +76,7 @@ class UserSerializer(serializers.ModelSerializer):
 class CustomPermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomPermission
-        fields = ['id', 'codename', 'name', 'description']
+        fields = ['id', 'action_name', 'module_name', 'description']
 
 class CustomGroupSerializer(serializers.ModelSerializer):
     permissions = serializers.SerializerMethodField()
@@ -89,10 +89,10 @@ class CustomGroupSerializer(serializers.ModelSerializer):
         grouped_permissions = defaultdict(list)
         for perm in obj.permissions.all():
             # Format each permission
-            grouped_permissions[perm.name].append({
+            grouped_permissions[perm.module_name].append({
                 "id": perm.id,
-                "key": perm.codename,
-                "label": perm.codename.replace('_', ' ').title(),
+                "key": perm.module_name,
+                "label": perm.module_name.replace('_', ' ').title(),
                 "description": perm.description,
             })
         return grouped_permissions
@@ -103,10 +103,17 @@ class CustomGroupSerializer(serializers.ModelSerializer):
         group.permissions.set(permissions)  # Assign permissions
         return group
 
+
 class CustomGroupSerializerData(serializers.ModelSerializer):
     class Meta:
         model = CustomGroup
         fields = ['id', 'name']
+
+
+class UserAffiliatedDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'user_name', 'user_type']
 
 
 class UserGroupSerializer(serializers.ModelSerializer):
@@ -137,6 +144,25 @@ class UserGroupSerializer(serializers.ModelSerializer):
         return instance
 
 
+class UserGroupSerializer(serializers.ModelSerializer):
+    affiliated = UserAffiliatedDataSerializer()  # Use the UserSerializer for the affiliated field
+    custom_permissions = CustomPermissionSerializer(many=True, required=False)
+
+    class Meta:
+        model = UserAffiliatedRole
+        fields = ['id', 'user', 'affiliated', 'group', 'custom_permissions', 'added_on', 'flag']
+
+    def to_representation(self, instance):
+        # Get the standard representation first
+        representation = super().to_representation(instance)
+
+        # Custom handling for affiliated if needed
+        affiliated_data = representation.get('affiliated', {})
+        # Optionally, manipulate or modify `affiliated_data` here if needed
+
+        return representation
+
+
 class UserActivationSerializer(serializers.Serializer):
     token = serializers.CharField()
 
@@ -152,6 +178,8 @@ class AddressSerializer(serializers.Serializer):
 class BusinessSerializer(serializers.ModelSerializer):
     entityType = serializers.CharField(max_length=50, required=False)
     pan = serializers.CharField(max_length=15, required=True)
+    headOffice = serializers.JSONField(default=dict)
+
 
     class Meta:
         model = Business
@@ -182,8 +210,8 @@ class BusinessSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class GSTDetailsSerializer(serializers.ModelSerializer):
-    address = AddressSerializer(default={}, required=False)
 
     class Meta:
         model = GSTDetails
@@ -206,13 +234,53 @@ class GSTDetailsSerializer(serializers.ModelSerializer):
         return instance
 
 
-class BusinessWithGSTSerializer(serializers.ModelSerializer):
+class BusinessUserSerializer(serializers.ModelSerializer):
+    entityType = serializers.CharField(max_length=50, required=False)
+    pan = serializers.CharField(max_length=15, required=True)
+    headOffice = serializers.JSONField(default=dict)
     gst_details = GSTDetailsSerializer(many=True, read_only=True)
 
     class Meta:
         model = Business
-        fields = ['id', 'nameOfBusiness', 'entityType', 'registrationNumber', 'pan', 'mobile_number',
-                  'email', 'dob_or_incorp_date', 'gst_details']
+        fields = '__all__'
+
+
+class UserBusinessRetrieveSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Business
+        fields = ['id', 'nameOfBusiness', 'entityType', 'client']
+
+class BusinessWithGSTSerializer(serializers.ModelSerializer):
+    gst_details = GSTDetailsSerializer(many=True, read_only=True)
+    headOffice = serializers.JSONField(default=dict)
+
+    class Meta:
+        model = Business
+        fields = ['id', 'nameOfBusiness', 'entityType', 'registrationNumber', 'pan', 'mobile_number', 'trade_name',
+                  'email', 'dob_or_incorp_date', 'gst_details', 'headOffice', 'headOffice', 'business_nature']
+
+
+class UserBusinessSerializer(serializers.ModelSerializer):
+    date_joined = serializers.SerializerMethodField()
+    business = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = [
+            'id', 'user_name', 'email', 'mobile_number',
+            'first_name', 'last_name', 'user_type',
+            'is_active', 'date_joined', 'business'
+        ]
+
+    def get_date_joined(self, obj):
+        return obj.date_joined.strftime('%d-%m-%Y')  # Format as dd-mm-yyyy
+
+    def get_business(self, obj):
+        # Fetch related Business objects
+        businesses = obj.business_clients_id.all()
+        return BusinessWithGSTSerializer(businesses, many=True).data
+
 
 
 class UsersKYCSerializer(serializers.ModelSerializer):

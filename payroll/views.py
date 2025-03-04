@@ -10,6 +10,10 @@ from botocore.exceptions import ClientError
 import csv
 import pandas as pd
 from io import TextIOWrapper
+from django.shortcuts import get_object_or_404
+from user_management.serializers import *
+from django.db import transaction, DatabaseError
+
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -88,18 +92,97 @@ class PayrollOrgList(APIView):
         # Handle validation errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['GET'])
+def business_payroll_check(request):
+    """
+    API to retrieve a business by client ID.
+    """
+    try:
+        client_id = request.query_params.get('user_id')
+
+        if not client_id:
+            return Response({'error': 'User ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            business = Business.objects.get(client=client_id)  # Using get() instead of filter()
+        except Business.DoesNotExist:
+            return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize business data
+        serializer = BusinessSerializer(business)
+        response_data = serializer.data
+
+        # Check if PayrollOrg exists for this business
+        organisation_details = PayrollOrg.objects.filter(business=business).exists()
+
+        if organisation_details:
+            payroll_org = PayrollOrg.objects.get(business=business.id)
+
+            # payroll_data = PayrollOrgSerializer(payroll_org).data  # Serialize PayrollOrg
+            # payroll_data["organisation_address"] = dict(payroll_data.get("organisation_address", {}))
+
+            # Check if all necessary components exist
+            all_components = all([
+                WorkLocations.objects.filter(payroll=payroll_org.id).exists() or payroll_org.work_location,
+                Departments.objects.filter(payroll=payroll_org.id).exists() or payroll_org.department,
+                Designation.objects.filter(payroll=payroll_org.id).exists() or payroll_org.designation,
+                payroll_org.statutory_component or all([
+                    EPF.objects.filter(payroll=payroll_org.id).exists(),
+                    ESI.objects.filter(payroll=payroll_org.id).exists(),
+                    PT.objects.filter(payroll=payroll_org.id).exists()
+                ]),
+                payroll_org.salary_component or all([
+                    Earnings.objects.filter(payroll=payroll_org.id).exists(),
+                    Benefits.objects.filter(payroll=payroll_org.id).exists(),
+                    Deduction.objects.filter(payroll=payroll_org.id).exists(),
+                    Reimbursement.objects.filter(payroll=payroll_org.id).exists()
+                ]),
+                payroll_org.salary_template or SalaryTemplate.objects.filter(payroll=payroll_org.id).exists(),
+                payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists(),
+                payroll_org.leave_management or False,
+                payroll_org.holiday_management or False,
+                payroll_org.employee_master or False,
+            ])
+        else:
+            all_components = False  # If PayrollOrg does not exist, setup is incomplete
+
+        # Add payroll setup status to the response
+        response_data["payroll_setup"] = all_components
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({'error': f'An unexpected error occurred: {str(e)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class PayrollOrgDetail(APIView):
     """
     Retrieve, update or delete a payroll organization instance.
     """
     def get(self, request, pk):
         try:
-            payroll_org = PayrollOrg.objects.get(pk=pk)
-        except PayrollOrg.DoesNotExist:
-            return Response({"error": "PayrollOrg not found."}, status=status.HTTP_404_NOT_FOUND)
+            # Fetch PayrollOrg or return 404
+            payroll_org = get_object_or_404(PayrollOrg, pk=pk)
 
-        serializer = PayrollOrgSerializer(payroll_org)
-        return Response(serializer.data)
+            # Fetch associated Business
+            business = payroll_org.business
+
+            # Serialize PayrollOrg
+            serializer = PayrollOrgSerializer(payroll_org)
+
+            # Construct response with additional business details
+            response_data = serializer.data  # Get serialized data
+            response_data.update({
+                "business": business.id,
+                "organisation_name": business.nameOfBusiness,
+            })
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     def put(self, request, pk):
         try:
@@ -168,6 +251,66 @@ class PayrollOrgBusinessDetail(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+
+class PayrollOrgBusinessDetailView(APIView):
+    def get(self, request, business_id):
+        try:
+            business = get_object_or_404(Business, id=business_id)
+            # Check if PayrollOrg exists
+            payroll_org = PayrollOrg.objects.filter(business=business_id).first()
+            organisation_details = bool(payroll_org)
+
+            response_data = {
+                "business": business.id,
+                "organisation_name": business.nameOfBusiness,
+                "organisation_address": payroll_org.organisation_address,
+                # Checking existence of related objects
+                "organisation_details": organisation_details,
+                "payroll_id": payroll_org.id if organisation_details else None,
+                "work_locations": WorkLocations.objects.filter(
+                    payroll=payroll_org.id).exists() or payroll_org.work_location if organisation_details else False,
+                "departments": Departments.objects.filter(payroll=payroll_org.id).exists() or payroll_org.department
+                if organisation_details else False,
+                "designations": Designation.objects.filter(payroll=payroll_org.id).exists() or payroll_org.designation
+                if organisation_details else False,
+
+                # Checking statutory components
+                "statutory_component": (
+                    payroll_org.statutory_component
+                    if payroll_org.statutory_component is True
+                    else (
+                            EPF.objects.filter(payroll=payroll_org.id).exists()
+                            and ESI.objects.filter(payroll=payroll_org.id).exists()
+                            and PT.objects.filter(payroll=payroll_org.id).exists()
+                    )
+                ) if organisation_details else False,
+
+                "salary_component": (
+                    payroll_org.salary_component
+                    if payroll_org.salary_component is True
+                    else (
+                            Earnings.objects.filter(payroll=payroll_org.id).exists()
+                            and Benefits.objects.filter(payroll=payroll_org.id).exists()
+                            and Deduction.objects.filter(payroll=payroll_org.id).exists()
+                            and Reimbursement.objects.filter(payroll=payroll_org.id).exists()
+                    )
+                ) if organisation_details else False,
+                "pay_schedule": payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists(),
+                "leave_and_attendance": (payroll_org.leave_management or False) and (
+                            payroll_org.holiday_management or False) if organisation_details else False,
+                "employee_master": payroll_org.employee_master or False,
+                "salary_template": payroll_org.salary_template or
+                                   SalaryTemplate.objects.filter(payroll=payroll_org.id).exists()
+                }
+
+            return Response(response_data,  status=status.HTTP_200_OK)
+
+        except Business.DoesNotExist:
+            return Response({"error": "Business does not exists, Please set up the Business"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 # List all WorkLocations
 @api_view(['GET'])
 def work_location_list(request):
@@ -175,10 +318,10 @@ def work_location_list(request):
 
     if payroll_id:
         # Filter work locations by payroll_id
-        work_locations = WorkLocations.objects.filter(payroll_id=payroll_id)
+        work_locations = WorkLocations.objects.filter(payroll_id=payroll_id).order_by('-created_at')
     else:
         # Retrieve all work locations if no payroll_id is provided
-        work_locations = WorkLocations.objects.all()
+        work_locations = WorkLocations.objects.all().order_by('-created_at')
 
     serializer = WorkLocationSerializer(work_locations, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
@@ -245,6 +388,7 @@ def bulk_work_location_upload(request):
 
     return Response({"message": "All locations uploaded successfully."}, status=status.HTTP_201_CREATED)
 
+
 # Retrieve a specific WorkLocation by ID
 @api_view(['GET'])
 def work_location_detail(request, pk):
@@ -256,6 +400,7 @@ def work_location_detail(request, pk):
     if request.method == 'GET':
         serializer = WorkLocationSerializer(work_location)
         return Response(serializer.data)
+
 
 # Update a specific WorkLocation by ID
 @api_view(['PUT'])
@@ -271,6 +416,7 @@ def work_location_update(request, pk):
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # Delete a specific WorkLocation by ID
 @api_view(['DELETE'])
@@ -292,10 +438,10 @@ def department_list(request):
 
         if payroll_id:
             # Filter departments by payroll_id
-            departments = Departments.objects.filter(payroll_id=payroll_id)
+            departments = Departments.objects.filter(payroll_id=payroll_id).order_by('-id')
         else:
             # Retrieve all departments if no payroll_id is provided
-            departments = Departments.objects.all()
+            departments = Departments.objects.all().order_by('-id')
 
         serializer = DepartmentsSerializer(departments, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -306,6 +452,7 @@ def department_list(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 def parse_file(file):
     """
@@ -400,10 +547,10 @@ def designation_list(request):
 
         if payroll_id:
             # Filter designations by payroll_id
-            designations = Designation.objects.filter(payroll_id=payroll_id)
+            designations = Designation.objects.filter(payroll_id=payroll_id).order_by('-id')
         else:
             # Retrieve all designations if no payroll_id is provided
-            designations = Designation.objects.all()
+            designations = Designation.objects.all().order_by('-id')
         serializer = DesignationSerializer(designations, many=True)
         return Response(serializer.data)
 
@@ -413,6 +560,7 @@ def designation_list(request):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 # Retrieve, update, or delete a specific Designation
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -486,7 +634,7 @@ def epf_list(request):
         if payroll_id:
             # Since payroll is a OneToOneField, there will be at most one EPF record for a given payroll_id
             try:
-                epf_details = EPF.objects.get(payroll_id=payroll_id)  # Fetch EPF details for the specific payroll
+                epf_details = EPF.objects.get(payroll=payroll_id)  # Fetch EPF details for the specific payroll
                 serializer = EPFSerializer(epf_details)
                 return Response(serializer.data, status=status.HTTP_200_OK)
             except EPF.DoesNotExist:
@@ -598,7 +746,7 @@ def esi_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
-def pf_list(request):
+def pt_list(request):
     """
     List PF records or create a new one, based on payroll_id.
     """
@@ -606,60 +754,123 @@ def pf_list(request):
         payroll_id = request.query_params.get('payroll_id')  # Get payroll_id from query parameters
 
         if payroll_id:
-            # Since PF is a OneToOneField, there will be at most one PF record for a given payroll_id
-            try:
-                pf_instance = PF.objects.get(payroll_id=payroll_id)  # Fetch PF details for the specific payroll
-                serializer = PFSerializer(pf_instance)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            except PF.DoesNotExist:
-                return Response({"error": "PF details not found for the given payroll ID."}, status=status.HTTP_404_NOT_FOUND)
+            pt_instances = PT.objects.filter(payroll_id=payroll_id)
+
+            if not pt_instances.exists():
+                return Response({"error": "PT details not found for the given payroll ID."},
+                                status=status.HTTP_404_NOT_FOUND)
+
+            serializer = PTSerializerRetrieval(pt_instances, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            # Retrieve all PF details if no payroll_id is provided
-            pf_instances = PF.objects.all()
-            serializer = PFSerializer(pf_instances, many=True)
+            pt_instances = PT.objects.all()
+            serializer = PTSerializerRetrieval(pt_instances, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
-        serializer = PFSerializer(data=request.data)
+        serializer = PTSerializer(data=request.data)
         if serializer.is_valid():
-            try:
-                # Ensure there is no existing PF record for the given payroll_id
-                payroll_id = serializer.validated_data.get('payroll').id
-                if PF.objects.filter(payroll_id=payroll_id).exists():
-                    return Response({"error": "PF details already exist for this payroll ID."}, status=status.HTTP_400_BAD_REQUEST)
-
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
-def pf_detail(request, pk):
+def pt_detail(request, pk):
     """
     Retrieve, update or delete a PF record.
     """
     try:
-        pf_instance = PF.objects.get(pk=pk)
-    except PF.DoesNotExist:
+        pt_instance = PT.objects.get(pk=pk)
+    except PT.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = PFSerializer(pf_instance)
+        serializer = PTSerializerRetrieval(pt_instance)
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        serializer = PFSerializer(pf_instance, data=request.data)
+        serializer = PTSerializer(pt_instance, data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        pf_instance.delete()
+        pt_instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
+default_earnings = [
+                    {
+                        "component_name": "Basic",
+                        "component_type": "Fixed",
+                        "calculation_type": {
+                            "type": "Percentage of CTC",
+                            "value": 50
+                        },
+                        "is_active": True,
+                        "is_part_of_employee_salary_structure": True,
+                        "is_taxable": True,
+                        "is_pro_rate_basis": True,
+                        "includes_epf_contribution": True,
+                        "includes_esi_contribution": True,
+                        "is_included_in_payslip": True,
+                        "tax_deduction_preference": None,
+                        "is_scheduled_earning": True
+                    },
+                    {
+                        "component_name": "HRA",
+                        "component_type": "Fixed",
+                        "calculation_type": {
+                            "type": "Percentage of Basic",
+                            "value": 50
+                        },
+                        "is_active": True,
+                        "is_part_of_employee_salary_structure": True,
+                        "is_taxable": True,
+                        "is_pro_rate_basis": True,
+                        "includes_epf_contribution": False,
+                        "includes_esi_contribution": True,
+                        "is_included_in_payslip": True,
+                        "tax_deduction_preference": None,
+                        "is_scheduled_earning": True
+                    },
+                    {
+                        "component_name": "Special Allowance",
+                        "component_type": "Fixed",
+                        "calculation_type": {
+                            "type": "Remaining balance pf CTC",
+                            "value": 0
+                        },
+                        "is_active": True,
+                        "is_part_of_employee_salary_structure": True,
+                        "is_taxable": True,
+                        "is_pro_rate_basis": True,
+                        "includes_epf_contribution": True,
+                        "includes_esi_contribution": True,
+                        "is_included_in_payslip": True,
+                        "tax_deduction_preference": None,
+                        "is_scheduled_earning": True
+                    },
+                    {
+                        "component_name": "Conveyance Allowance",
+                        "component_type": "Fixed",
+                        "calculation_type": {
+                            "type": "Flat Amount",
+                            "value": 50000
+                        },
+                        "is_active": True,
+                        "is_part_of_employee_salary_structure": True,
+                        "is_taxable": True,
+                        "is_pro_rate_basis": False,
+                        "includes_epf_contribution": True,
+                        "includes_esi_contribution": True,
+                        "is_included_in_payslip": True,
+                        "tax_deduction_preference": None,
+                        "is_scheduled_earning": True
+                    }
+                ]
 
 @api_view(['GET', 'POST'])
 def earnings_list(request):
@@ -667,23 +878,64 @@ def earnings_list(request):
     List all Earnings records, or create a new one.
     """
     if request.method == 'GET':
-        payroll_id = request.query_params.get('payroll_id')  # Get payroll_id from query parameters
+        payroll_id = request.query_params.get('payroll_id')
 
-        if payroll_id:
-            # Filter earnings by payroll_id
-            earnings = Earnings.objects.filter(payroll_id=payroll_id)
-        else:
-            # Retrieve all earnings if no payroll_id is provided
-            earnings = Earnings.objects.all()
+        if not payroll_id:
+            return Response({"error": "payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            payroll_instance = PayrollOrg.objects.get(id=payroll_id)  # Fetch PayrollOrg instance
+        except PayrollOrg.DoesNotExist:
+            return Response({"error": "Invalid payroll_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Filter earnings by payroll instance
+        earnings = Earnings.objects.filter(payroll=payroll_instance)
+        if not earnings.exists():
+            created_earnings = []  # Track created earnings to manually delete on error
+            try:
+                with transaction.atomic():  # Ensures all-or-nothing behavior
+                    for earning_data in default_earnings:
+                        earning_data['payroll'] = payroll_instance.id  # Assign ID
+
+                        # Validate and save using serializer
+                        serializer = EarningsSerializer(data=earning_data)
+                        if serializer.is_valid(raise_exception=True):
+                            created_earning = serializer.save()
+                            created_earnings.append(created_earning)  # Track created object
+                        else:
+                            raise DatabaseError("Earning data is invalid, transaction will be rolled back.")
+            except (ValidationError, DatabaseError) as e:
+                # Handle exceptions gracefully and rollback
+                # Manually delete created earnings if an error occurs
+                for earning in created_earnings:
+                    earning.delete()
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                # Clean up if something unexpected happens
+                for earning in created_earnings:
+                    earning.delete()
+                return Response({"error": f"Unexpected error occurred: {str(e)}"},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # If everything works, get the earnings
+            earnings = Earnings.objects.filter(payroll=payroll_instance)
+
         serializer = EarningsSerializer(earnings, many=True)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
     elif request.method == 'POST':
-        serializer = EarningsSerializer(data=request.data)
+        data = request.data.copy()
+        payroll_id = data.get('payroll')
+        if not payroll_id:
+            return Response({"error": "payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = EarningsSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @api_view(['GET', 'PUT', 'DELETE'])
 def earnings_detail(request, pk):
@@ -859,3 +1111,440 @@ def reimbursement_detail(request, id):
     if request.method == 'DELETE':
         reimbursement.delete()
         return Response({"message": "Reimbursement deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def salary_template_list_create(request):
+    """
+    Handles GET (list) and POST (create) for Salary Templates.
+    - GET: Returns a list of all Salary Templates, optionally filtered by `payroll` or `template_name`.
+    - POST: Creates a new Salary Template entry.
+    """
+    if request.method == 'GET':
+        payroll_id = request.query_params.get('payroll_id')
+        template_name = request.query_params.get('template_name')
+
+        if payroll_id:
+            salary_templates = SalaryTemplate.objects.filter(payroll_id=payroll_id)
+
+        serializer = SalaryTemplateSerializer(salary_templates, many=True)
+        return Response({"data": serializer.data, "message": "Salary Templates retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = SalaryTemplateSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Salary Template created successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def salary_template_detail_update_delete(request, template_id):
+    """
+    Handles GET, PUT, and DELETE for a single Salary Template based on its ID.
+    - GET: Retrieves details of a specific Salary Template.
+    - PUT: Updates a specific Salary Template.
+    - DELETE: Deletes a specific Salary Template.
+    """
+    try:
+        salary_template = SalaryTemplate.objects.get(id=template_id)
+    except SalaryTemplate.DoesNotExist:
+        return Response({"error": "Salary Template not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = SalaryTemplateSerializer(salary_template)
+        return Response({"data": serializer.data, "message": "Salary Template retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = SalaryTemplateSerializer(salary_template, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Salary Template updated successfully."},
+                            status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        salary_template.delete()
+        return Response({"message": "Salary Template deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def pay_schedule_list_create(request):
+    """
+    Handles GET (list) and POST (create) for Pay Schedules.
+    - GET: Returns a list of all Pay Schedules, optionally filtered by `payroll`.
+    - POST: Creates a new Pay Schedule entry ensuring at least two days are selected.
+    """
+    if request.method == 'GET':
+        payroll_id = request.query_params.get('payroll_id')
+        pay_schedules = PaySchedule.objects.all()
+
+        if payroll_id:
+            pay_schedules = pay_schedules.filter(payroll_id=payroll_id)
+
+        serializer = PayScheduleSerializer(pay_schedules, many=True)
+        return Response({"data": serializer.data, "message": "Pay Schedules retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = PayScheduleSerializer(data=request.data)
+        if serializer.is_valid():
+            days_selected = sum([
+                serializer.validated_data.get(day, False) for day in [
+                    'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'second_saturday',
+                    'fourth_saturday'
+                ]
+            ])
+            if days_selected < 2:
+                return Response({"error": "At least two days must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Pay Schedule created successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def pay_schedule_detail_update_delete(request, schedule_id):
+    """
+    Handles GET, PUT, and DELETE for a single Pay Schedule based on its ID.
+    - GET: Retrieves details of a specific Pay Schedule.
+    - PUT: Updates a specific Pay Schedule ensuring at least two days are selected.
+    - DELETE: Deletes a specific Pay Schedule.
+    """
+    try:
+        pay_schedule = PaySchedule.objects.get(id=schedule_id)
+    except PaySchedule.DoesNotExist:
+        return Response({"error": "Pay Schedule not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = PayScheduleSerializer(pay_schedule)
+        return Response({"data": serializer.data, "message": "Pay Schedule retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = PayScheduleSerializer(pay_schedule, data=request.data)
+        if serializer.is_valid():
+            days_selected = sum([
+                serializer.validated_data.get(day, False) for day in [
+                    'sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'second_saturday',
+                    'fourth_saturday'
+                ]
+            ])
+            if days_selected < 2:
+                return Response({"error": "At least two days must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Pay Schedule updated successfully."},
+                            status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        pay_schedule.delete()
+        return Response({"message": "Pay Schedule deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def leave_management_list_create(request):
+    """
+    API for listing and creating Leave Management records.
+    - GET: Retrieves all leave policies.
+    - POST: Creates a new leave policy.
+    """
+    if request.method == 'GET':
+        payroll_id = request.query_params.get('payroll_id')
+        leaves = LeaveManagement.objects.all()
+        if payroll_id:
+            leaves = leaves.filter(payroll_id=payroll_id)
+
+        serializer = LeaveManagementSerializer(leaves, many=True)
+        return Response({"data": serializer.data, "message": "Leave Management data retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = LeaveManagementSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Leave Management record created successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def leave_management_detail_update_delete(request, leave_id):
+    """
+    API for retrieving, updating, and deleting a single Leave Management record.
+    """
+    try:
+        leave = LeaveManagement.objects.get(id=leave_id)
+    except LeaveManagement.DoesNotExist:
+        return Response({"error": "Leave Management record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = LeaveManagementSerializer(leave)
+        return Response({"data": serializer.data, "message": "Leave Management record retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = LeaveManagementSerializer(leave, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Leave Management record updated successfully."},
+                            status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        leave.delete()
+        return Response({"message": "Leave Management record deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def holiday_management_list_create(request):
+    """
+    API for listing and creating Holiday Management records.
+    - GET: Retrieves all holidays.
+    - POST: Creates a new holiday entry.
+    """
+    if request.method == 'GET':
+        payroll_id = request.query_params.get('payroll_id')
+        holidays = HolidayManagement.objects.all()
+        if payroll_id:
+            holidays = holidays.filter(payroll_id=payroll_id)
+
+        serializer = HolidayManagementSerializer(holidays, many=True)
+        return Response({"data": serializer.data, "message": "Holiday Management data retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = HolidayManagementSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data,
+                             "message": "Holiday Management record created successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def holiday_management_detail_update_delete(request, holiday_id):
+    """
+    API for retrieving, updating, and deleting a single Holiday Management record.
+    """
+    try:
+        holiday = HolidayManagement.objects.get(id=holiday_id)
+    except HolidayManagement.DoesNotExist:
+        return Response({"error": "Holiday Management record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = HolidayManagementSerializer(holiday)
+        return Response({"data": serializer.data, "message": "Holiday Management record retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = HolidayManagementSerializer(holiday, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data,
+                             "message": "Holiday Management record updated successfully."},
+                            status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        holiday.delete()
+        return Response({"message": "Holiday Management record deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def employee_list(request):
+    if request.method == 'GET':
+        payroll_id = request.query_params.get('payroll_id')
+        if payroll_id:
+            employees = EmployeeManagement.objects.filter(payroll_id=payroll_id)
+        else:
+            employees = EmployeeManagement.objects.all()
+        serializer = EmployeeManagementSerializer(employees, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = EmployeeManagementSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def employee_detail(request, pk):
+    employee = get_object_or_404(EmployeeManagement, pk=pk)
+
+    if request.method == 'GET':
+        serializer = EmployeeManagementSerializer(employee)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = EmployeeManagementSerializer(employee, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        employee.delete()
+        return Response({"message": "Employee data Removed Successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+# Employee Salary Views
+@api_view(['GET', 'POST'])
+def employee_salary_list(request):
+    if request.method == 'GET':
+        employee_id = request.query_params.get('employee_id')
+        if employee_id:
+            salaries = EmployeeSalaryDetails.objects.filter(employee=employee_id)
+        else:
+            salaries = EmployeeSalaryDetails.objects.all()
+        serializer = EmployeeSalaryDetailsSerializer(salaries, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = EmployeeSalaryDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def employee_salary_detail(request, pk):
+    """
+    Handles GET, PUT, and DELETE for a single Employee Salary based on its ID.
+    - GET: Retrieves details of a specific Employee Salary.
+    - PUT: Updates a specific Employee Salary.
+    - DELETE: Deletes a specific Employee Salary.
+    """
+    employee_salary_details = get_object_or_404(EmployeeSalaryDetails, pk=pk)
+
+    if request.method == 'GET':
+        serializer = EmployeeSalaryDetailsSerializer(employee_salary_details)
+        return Response(
+            {"data": serializer.data, "message": "Salary details retrieved successfully."},
+            status=status.HTTP_200_OK
+        )
+
+    elif request.method == 'PUT':
+        serializer = EmployeeSalaryDetailsSerializer(employee_salary_details, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"data": serializer.data, "message": "Salary details updated successfully."},
+                status=status.HTTP_200_OK
+            )
+        return Response(
+            {"errors": serializer.errors, "message": "Validation failed."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    elif request.method == 'DELETE':
+        employee_salary_details.delete()
+        return Response(
+            {"message": "Salary details deleted successfully."},
+            status=status.HTTP_204_NO_CONTENT
+        )
+
+    return Response(
+        {"error": "Invalid request method."},
+        status=status.HTTP_405_METHOD_NOT_ALLOWED
+    )
+
+
+# Employee Personal Details Views
+@api_view(['GET', 'POST'])
+def employee_personal_list(request):
+    if request.method == 'GET':
+        employee_id = request.query_params.get('employee_id')
+        if employee_id:
+            personal_details = EmployeePersonalDetails.objects.filter(employee=employee_id)
+        else:
+            personal_details = EmployeePersonalDetails.objects.all()
+        serializer = EmployeePersonalDetailsSerializer(personal_details, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = EmployeePersonalDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def employee_personal_detail(request, pk):
+    personal_detail = get_object_or_404(EmployeePersonalDetails, pk=pk)
+
+    if request.method == 'GET':  # Retrieve personal details
+        serializer = EmployeePersonalDetailsSerializer(personal_detail)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':  # Update personal details
+        serializer = EmployeePersonalDetailsSerializer(personal_detail, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':  # Delete personal details
+        personal_detail.delete()
+        return Response({"message": "Employee Personal details deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def employee_bank_list(request):
+    """
+    Handles listing all employee bank details and creating a new entry.
+    """
+    if request.method == 'GET':
+        bank_details = EmployeeBankDetails.objects.all()
+        serializer = EmployeeBankDetailsSerializer(bank_details, many=True)
+        return Response({"data": serializer.data, "message": "Bank details retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = EmployeeBankDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Bank details added successfully."},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def employee_bank_detail(request, pk):
+    """
+    Handles retrieving, updating, and deleting an employee bank detail by ID.
+    """
+    bank_detail = get_object_or_404(EmployeeBankDetails, pk=pk)
+
+    if request.method == 'GET':
+        serializer = EmployeeBankDetailsSerializer(bank_detail)
+        return Response({"data": serializer.data, "message": "Bank detail retrieved successfully."},
+                        status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = EmployeeBankDetailsSerializer(bank_detail, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"data": serializer.data, "message": "Bank details updated successfully."},
+                            status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        bank_detail.delete()
+        return Response({"message": "Bank detail deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+

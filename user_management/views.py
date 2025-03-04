@@ -40,7 +40,9 @@ from django.contrib.auth.decorators import permission_required
 from django.db.models.functions import Coalesce
 from django.db.models import Count, F, Value
 from collections import defaultdict
-
+from django.core.exceptions import ObjectDoesNotExist
+from django.http import JsonResponse
+from urllib.parse import urlparse, unquote
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,7 @@ logger = logging.getLogger(__name__)
 class Constants:
     SMS_API_POST_URL = 'https://www.fast2sms.com/dev/bulkV2'
 
-def Autogenerate_password():
+def auto_generate_password():
     pwo = PasswordGenerator()
     return pwo.shuffle_password('abcdefghijklmnopqrstuvwxyz', 8)  # Generates an 8-character password
 
@@ -95,11 +97,11 @@ def custom_permission_list_create(request):
         for perm in serializer.data:
             action = {
                 "id": perm['id'],
-                "key": perm['codename'],
-                "label": perm['codename'].replace('_', ' ').title(),  # Generate label from codename
+                "key": perm['action_name'],
+                "label": perm['action_name'].replace('_', ' ').title(),  # Generate label from codename
                 "description": perm['description']
             }
-            grouped_permissions[perm['name']].append(action)
+            grouped_permissions[perm['module_name']].append(action)
 
         return Response(grouped_permissions)
 
@@ -139,9 +141,12 @@ def custom_permission_retrieve_update_destroy(request, pk):
 @api_view(['GET', 'POST'])
 def custom_group_list_create(request):
     if request.method == 'GET':
-        groups = CustomGroup.objects.all()
-        serializer = CustomGroupSerializer(groups, many=True)
-        return Response(serializer.data)
+        try:
+            groups = CustomGroup.objects.all()
+            serializer = CustomGroupSerializer(groups, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     elif request.method == 'POST':
         serializer = CustomGroupSerializer(data=request.data)
@@ -244,39 +249,87 @@ def assign_group_with_permissions(request):
         "message": "Group assigned successfully with custom permissions."
     }, status=status.HTTP_201_CREATED)
 
+
+def assign_permissions(data):
+    """
+    Assign a single group to a user with optional customization of permissions.
+    Raises ValueError for missing users or groups instead of returning a Response.
+    """
+    created_by = data.get('created_by')
+    user_id = data.get('id')
+
+    if not created_by:
+        user_type = data.get('user_type')
+
+        group_id_mapping = {
+            "Individual": 10,
+            "Business": 11,
+            "ServiceProvider": 1,
+            "CA": 25
+        }
+
+        if user_type not in group_id_mapping:
+            raise ValueError("Invalid user type provided.")
+
+        try:
+            group = CustomGroup.objects.get(id=group_id_mapping[user_type])
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id_mapping[user_type]} not found.")
+
+        try:
+            user = User.objects.get(id=user_id)
+        except ObjectDoesNotExist:
+            raise ValueError(f"User with ID {user_id} not found.")
+
+        # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
+        user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user, flag=False)
+        user_group.group = group  # Assigning a single group
+        user_group.custom_permissions.set(group.permissions.all())  # Default permissions
+        user_group.save()
+        return UserGroupSerializer(user_group).data
+
+
 @api_view(['GET'])
 def get_user_group_permissions(request):
     """
     Retrieve the group and custom permissions associated with a User based on the user_id and/or permission name.
     """
     user_id = request.query_params.get('user_id')
+    affiliated_id = request.query_params.get('affiliated_id')
     permission_name = request.query_params.get('name')
+
+    # Ensure mandatory parameters are provided
+    if not user_id or not affiliated_id:
+        return Response(
+            {"error": "Both 'user_id' and 'affiliated_id' are required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     # Ensure the user is authenticated
     if not request.user.is_authenticated:
         return Response({"error": "Authentication required."}, status=status.HTTP_401_UNAUTHORIZED)
 
     # If user_id is provided, fetch the UserGroup entry
-    if user_id:
+    if user_id and affiliated_id:
         try:
-            user_group = UserAffiliatedRole.objects.get(user_id=user_id)
+            user_group = UserAffiliatedRole.objects.get(user_id=user_id, affiliated_id=affiliated_id)
         except UserAffiliatedRole.DoesNotExist:
             return Response({"error": "No UserGroup found for the given user."}, status=status.HTTP_404_NOT_FOUND)
 
         # If permission_name is provided, filter custom permissions
         if permission_name:
-            filtered_permissions = user_group.custom_permissions.filter(name=permission_name)
+            filtered_permissions = user_group.custom_permissions.filter(module_name=permission_name)
         else:
             filtered_permissions = user_group.custom_permissions.all()
 
         # Organize permissions by their 'name' field
         permissions_by_group = {}
         for perm in filtered_permissions:
-            group_name = perm.name  # Group by the 'name' of the permission
+            group_name = perm.module_name  # Group by the 'module_name' of the permission
             permission_data = {
                 "id": perm.id,
-                "key": perm.codename,
-                "label": perm.codename.replace("_", " ").title(),
+                "key": perm.action_name,
+                "label": perm.action_name.replace("_", " ").title(),
                 "description": perm.description
             }
             if group_name not in permissions_by_group:
@@ -379,7 +432,9 @@ def user_registration(request):
             serializer = UserRegistrationSerializer(data=request_data)
             if serializer.is_valid():
                 user = serializer.save()
+                user_data = serializer.data
                 logger.info(f"User created successfully: {user.pk}")
+                useraffiliated_role = assign_permissions(user_data)
 
                 # Handle Email Verification
                 if email:
@@ -462,6 +517,244 @@ def user_registration(request):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+def assign_group_with_user_affiliated_permissions(user_group_permission_data):
+    """
+    Assign a single group to a user with optional customization of permissions.
+    Raises ValueError for missing users, groups, or invalid custom permissions.
+    """
+    user_id = user_group_permission_data.get('id')
+    group_id = user_group_permission_data.get('group')  # Expecting only one group now
+    custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+    created_by = user_group_permission_data.get('created_by')
+
+    # Validate User
+    try:
+        user = User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        raise ValueError(f"User with ID {user_id} not found.")
+
+    # Validate Created By User
+    try:
+        created_by_user = User.objects.get(id=created_by)
+    except ObjectDoesNotExist:
+        raise ValueError(f"Created By User with ID {created_by} not found.")
+
+    if user.created_by.user_type == "Individual":
+        if user.user_type == "Business":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+            group = CustomGroup.objects.get(id=11)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+        elif user.user_type == "CA":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+            group = CustomGroup.objects.get(id=25)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+        elif user.user_type == "ServiceProvider":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+            group = CustomGroup.objects.get(id=1)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+    if user.created_by.user_type == "Business":
+        if user.user_type == "Individual":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+            group = CustomGroup.objects.get(id=11)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+        elif user.user_type == "CA":
+            user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+            group = CustomGroup.objects.get(id=11)
+            user_group.custom_permissions.set(group.permissions.all())
+            user_group.save()
+
+    if group_id:
+        # Validate Group
+        try:
+            group = CustomGroup.objects.get(id=group_id)
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id} not found.")
+
+    else:
+        user_type = user_group_permission_data.get('user_type')
+
+        group_id_mapping = {
+            "Individual": 10,
+            "Business": 11,
+            "ServiceProvider": 1,
+            "CA": 25
+        }
+
+        if user_type not in group_id_mapping:
+            raise ValueError("Invalid user type provided.")
+
+        try:
+            group = CustomGroup.objects.get(id=group_id_mapping[user_type])
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id_mapping[user_type]} not found.")
+
+    # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
+
+    self_account, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user)
+    self_account.group = group
+
+    # Assign permissions
+    if custom_permissions_ids:
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if not custom_permissions.exists():
+            raise ValueError("Invalid custom permissions provided.")
+        self_account.custom_permissions.set(custom_permissions)
+
+    else:
+        # Default to the group's permissions if no custom permissions are provided
+        self_account.custom_permissions.set(group.permissions.all())
+    self_account.save()
+
+    return UserGroupSerializer(user_group).data
+
+
+def assign_group_with_affiliated_permissions(user_group_permission_data):
+    """
+    Assign a single group to a user with optional customization of permissions.
+    Raises ValueError for missing users, groups, or invalid custom permissions.
+    """
+    user_id = user_group_permission_data.get('id')
+    group_id = user_group_permission_data.get('group')  # Expecting only one group now
+    custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+    created_by = user_group_permission_data.get('created_by')
+
+    # Validate User
+    try:
+        user = User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        raise ValueError(f"User with ID {user_id} not found.")
+
+    # Validate Created By User
+    try:
+        created_by_user = User.objects.get(id=created_by)
+    except ObjectDoesNotExist:
+        raise ValueError(f"Created By User with ID {created_by} not found.")
+
+    if group_id:
+        # Validate Group
+        try:
+            group = CustomGroup.objects.get(id=group_id)
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id} not found.")
+
+    else:
+        user_type = user_group_permission_data.get('user_type')
+
+        group_id_mapping = {
+            "Individual": 10,
+            "Business": 11,
+            "ServiceProvider": 1,
+            "CA": 25
+        }
+
+        if user_type not in group_id_mapping:
+            raise ValueError("Invalid user type provided.")
+
+        try:
+            group = CustomGroup.objects.get(id=group_id_mapping[user_type])
+        except ObjectDoesNotExist:
+            raise ValueError(f"Group with ID {group_id_mapping[user_type]} not found.")
+
+    # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
+
+    user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+    user_group.group = group  # Assigning a single group
+
+    self_account, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user)
+    self_account.group = group
+
+    affiliated_account, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+    affiliated_account.group = group
+
+    # Assign permissions
+    if custom_permissions_ids:
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if not custom_permissions.exists():
+            raise ValueError("Invalid custom permissions provided.")
+        user_group.custom_permissions.set(custom_permissions)
+        self_account.custom_permissions.set(custom_permissions)
+        affiliated_account.custom_permissions.set(custom_permissions)
+
+    else:
+        # Default to the group's permissions if no custom permissions are provided
+        user_group.custom_permissions.set(group.permissions.all())  # Fetch default permissions
+        self_account.custom_permissions.set(group.permissions.all())
+        affiliated_account.custom_permissions.set(group.permissions.all())
+
+    user_group.save()
+    self_account.save()
+    affiliated_account.save()
+
+    return UserGroupSerializer(user_group).data
+
+# def assign_group_with_affiliated_permissions(user_group_permission_data):
+#     """
+#     Assign a single group to a user with optional customization of permissions.
+#     Raises ValueError for missing users, groups, or invalid custom permissions.
+#     """
+#     user_id = user_group_permission_data.get('id')
+#     group_id = user_group_permission_data.get('group')  # Expecting only one group now
+#     custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+#     created_by = user_group_permission_data.get('created_by')
+#
+#     # Validate User and Created By User
+#     user = get_object_or_404(User, id=user_id)
+#     created_by_user = get_object_or_404(User, id=created_by)
+#
+#     # Validate Group
+#     group = get_group_for_user(user_group_permission_data, group_id)
+#
+#     # Assign User to Group with Permissions
+#     user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+#     self_account, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user)
+#     affiliated_account, created = UserAffiliatedRole.objects.get_or_create(user=created_by_user, affiliated=user)
+#
+#     # Set permissions for all related accounts
+#     set_permissions(user_group, custom_permissions_ids, group)
+#     set_permissions(self_account, custom_permissions_ids, group)
+#     set_permissions(affiliated_account, custom_permissions_ids, group)
+#
+#     # Save updated roles
+#     UserAffiliatedRole.objects.bulk_update([user_group, self_account, affiliated_account], ['group', 'custom_permissions'])
+#
+#     return UserGroupSerializer(user_group).data
+#
+# def get_group_for_user(user_group_permission_data, group_id):
+#     """
+#     Returns the appropriate group for a user based on provided data.
+#     """
+#     if group_id:
+#         return get_object_or_404(CustomGroup, id=group_id)
+#
+#     # Default to a group mapping if no group ID is provided
+#     user_type = user_group_permission_data.get('user_type')
+#     group_id_mapping = {
+#         "Individual": 10,
+#         "Business": 11,
+#         "ServiceProvider": 1,
+#         "CA": 25
+#     }
+#     group_id = group_id_mapping.get(user_type)
+#     if not group_id:
+#         raise ValueError("Invalid user type provided.")
+#
+#     return get_object_or_404(CustomGroup, id=group_id)
+#
+# def set_permissions(user_group, custom_permissions_ids, group):
+#     """
+#     Assign custom permissions to a user group. Default to group permissions if no custom ones are provided.
+#     """
+#     if custom_permissions_ids:
+#         custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+#         user_group.custom_permissions.set(custom_permissions)
+#     else:
+#         user_group.custom_permissions.set(group.permissions.all())
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def user_registration_by_admin(request):
@@ -474,7 +767,11 @@ def user_registration_by_admin(request):
 
     if request.method == 'POST':
         try:
-            request_data = request.data
+            request_data = request.data.copy()
+
+            group = request_data.pop('group', None)
+            custom_permissions = request_data.pop('custom_permissions', [])
+
             email = request_data.get('email', '').lower()
             mobile_number = request_data.get('mobile_number', '')
 
@@ -490,12 +787,17 @@ def user_registration_by_admin(request):
 
             # Prepare request data for serializer
             password = request_data['password']
-            request_data['created_by'] = request.user.id
+            # request_data['created_by'] = request.user.id
             serializer = UserRegistrationSerializer(data=request_data)
 
             if serializer.is_valid():
                 user = serializer.save()
+                user_data = serializer.data
                 logger.info(f"User created successfully by superadmin: {user.pk}")
+                user_data['group'] = group
+                user_data['custom_permissions'] = custom_permissions
+                # user_affiliated_role = assign_group_with_affiliated_permissions(user_data)
+                user_affiliated_role =  assign_group_with_user_affiliated_permissions(user_data)
 
                 # Send email with the username and password
                 if email:
@@ -505,7 +807,7 @@ def user_registration_by_admin(request):
                                     <body>
                                         <h1>Welcome to Our Platform</h1>
                                         <p>Your account has been created by the superadmin.</p>
-                                        <p><strong>Username:</strong> {user.email}</p>
+                                        <p><strong>Username:</strong> {user.user_name}</p>
                                         <p><strong>Password:</strong> {password}</p>
                                     </body>
                                     </html>
@@ -559,6 +861,38 @@ def user_registration_by_admin(request):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def business_affiliation(request):
+    """
+    Handle user registration by superadmin without activation link,
+    and send username and password to the user via email.
+    """
+    logger.info("Received a superadmin user registration request.")
+    print("*********************")
+
+    if request.method == 'POST':
+        try:
+            request_data = request.data.copy()
+            group = request_data.pop('group', None)
+            custom_permissions = request_data.pop('custom_permissions', [])
+            affiliated_id = request.data.get('affiliated_id')
+            user_id = request.data.get('user_id')
+
+
+        except IntegrityError as e:
+            logger.error(f"Integrity error during registration: {str(e)}")
+            return Response({"error": "A user with this email or mobile number already exists."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}")
+            return Response({"error": "Database error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}")
+            return Response({"error": "An unexpected error occurred.", "details": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 # Define the conditional schema
 def get_conditional_schema(user_type):
     """
@@ -596,6 +930,40 @@ def get_conditional_schema(user_type):
         )
 
 
+def assign_group_with_affiliated_permissions_team_management(user_group_permission_data):
+    user_id = user_group_permission_data.get('id')
+    group_id = user_group_permission_data.get('group')  # Expecting only one group now
+    custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+    created_by = user_group_permission_data.get('created_by')
+
+    # Validate User
+    try:
+        user = User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        raise ValueError(f"User with ID {user_id} not found.")
+
+    # Validate Created By User
+    try:
+        created_by_user = User.objects.get(id=created_by)
+    except ObjectDoesNotExist:
+        raise ValueError(f"Created By User with ID {created_by} not found.")
+
+    user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=created_by_user)
+    group = CustomGroup.objects.get(id=group_id)
+    user_group.group = group
+    if custom_permissions_ids:
+        custom_permissions = CustomPermission.objects.filter(id__in=custom_permissions_ids)
+        if not custom_permissions.exists():
+            raise ValueError("Invalid custom permissions provided.")
+        user_group.custom_permissions.set(custom_permissions)
+    else:
+        # Default to the group's permissions if no custom permissions are provided
+        user_group.custom_permissions.set(group.permissions.all())
+    user_group.save()
+
+    return UserGroupSerializer(user_group).data
+
+
 # Swagger schema dynamically based on user type
 @swagger_auto_schema(
     method='post',
@@ -625,73 +993,110 @@ def get_conditional_schema(user_type):
 )
 @permission_classes([IsAuthenticated])
 @api_view(['POST'])
-def users_creation(request):
+def AdminOwnerUserCreation(request):
     """
-    Handles normal user registration by admin with autogenerated password.
-    Sends credentials via email or OTP based on availability.
+    Handle user registration by superadmin without activation link,
+    and send username and password to the user via email.
     """
-    if request.method != 'POST':
-        return Response({"error": "Invalid HTTP method."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-    admin_roles = [
-        'Business_Owner', 'CA_Admin', 'Business_Admin',
-        'ServiceProvider_Owner', 'ServiceProvider_Admin',
-        'Tara_SuperAdmin', 'Tara_Admin'
-    ]
+    logger.info("Received a superadmin user registration request.")
+    print("*********************")
 
-    if request.user.user_role not in admin_roles:
-        return Response(
-            {'error_message': 'Unauthorized Access. Only admins can create users.', 'status_cd': 1},
-            status=status.HTTP_401_UNAUTHORIZED
-        )
+    if request.method == 'POST':
+        try:
+            request_data = request.data.copy()
 
-    email = request.data.get('email', '').lower()
-    mobile_number = request.data.get('mobile_number', '')
-    if not email and not mobile_number:
-        return Response(
-            {"error": "Either email or mobile number must be provided."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+            group = request_data.pop('group', None)
+            custom_permissions = request_data.pop('custom_permissions', [])
 
-    try:
-        request_data = {
-            'email': email,
-            'mobile_number': mobile_number,
-            'password': Autogenerate_password(),
-            'created_by': request.user.id,
-            'user_type': request.data.get('user_type', ''),
-            'user_role': request.data.get('user_role', '')
-        }
+            email = request_data.get('email', '').lower()
+            mobile_number = request_data.get('mobile_number', '')
 
-        with transaction.atomic():
+            logger.debug(f"Request data: email={email}, mobile_number={mobile_number}")
+
+            # Ensure at least one of email or mobile_number is provided
+            if not email and not mobile_number:
+                logger.warning("Registration failed: Missing both email and mobile number.")
+                return Response(
+                    {"error": "Either email or mobile number must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            request_data['password'] = auto_generate_password()
+
+            # Prepare request data for serializer
+            password = request_data['password']
+            # request_data['created_by'] = request.user.id
             serializer = UserRegistrationSerializer(data=request_data)
+
             if serializer.is_valid():
-                user_data = serializer.save()
-            else:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                user = serializer.save()
+                user_data = serializer.data
+                logger.info(f"User created successfully by superadmin: {user.pk}")
+                user_data['group'] = group
+                user_data['custom_permissions'] = custom_permissions
+                # user_affiliated_role = assign_group_with_affiliated_permissions(user_data)
+                user_affiliated_role = assign_group_with_affiliated_permissions_team_management(user_data)
 
-        # Send email or OTP
-        if email:
-            send_user_email(email, request_data['password'])
-        elif mobile_number:
-            if not send_user_otp(mobile_number):
-                raise Exception("Failed to send OTP to mobile number.")
+                # Send email with the username and password
+                if email:
+                    subject = "Your Account Details"
+                    body_html = f"""
+                                    <html>
+                                    <body>
+                                        <h1>Welcome to Our Platform</h1>
+                                        <p>Your account has been created by the superadmin.</p>
+                                        <p><strong>Username:</strong> {user.user_name}</p>
+                                        <p><strong>Password:</strong> {password}</p>
+                                    </body>
+                                    </html>
+                                    """
+                    ses_client = boto3.client(
+                        'ses',
+                        region_name=AWS_REGION,
+                        aws_access_key_id=AWS_ACCESS_KEY_ID,
+                        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+                    )
 
-        return Response(
-            {"message": "User registered successfully. Credentials sent via email or mobile."},
-            status=status.HTTP_201_CREATED,
-        )
-    except IntegrityError as e:
-        logger.error(f"Integrity error: {str(e)}")
-        return Response(
-            {"error": "User with this email or mobile already exists."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        return Response(
-            {"error": "An unexpected error occurred.", "details": str(e)},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        )
+                    try:
+                        response = ses_client.send_email(
+                            Source=EMAIL_HOST_USER,
+                            Destination={'ToAddresses': [email]},
+                            Message={
+                                'Subject': {'Data': subject},
+                                'Body': {
+                                    'Html': {'Data': body_html},
+                                    'Text': {'Data': f"Your username is: {user.email}\nYour password is: {password}"}
+                                },
+                            }
+                        )
+                        logger.info(f"Account details email sent to: {email}")
+                        return Response(
+                            {"message": "User created successfully. Check your email for the username and password."},
+                            status=status.HTTP_201_CREATED,
+                        )
+
+                    except ClientError as e:
+                        logger.error(f"Failed to send email via SES: {e.response['Error']['Message']}")
+                        return Response(
+                            {"error": "Failed to send account details email. Please try again later."},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        )
+
+            logger.warning("Registration failed: Validation errors.")
+            logger.debug(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except IntegrityError as e:
+            logger.error(f"Integrity error during registration: {str(e)}")
+            return Response({"error": "A user with this email or mobile number already exists."},
+                            status=status.HTTP_400_BAD_REQUEST)
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}")
+            return Response({"error": "Database error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}")
+            return Response({"error": "An unexpected error occurred.", "details": str(e)},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @swagger_auto_schema(
@@ -760,7 +1165,7 @@ def visa_users_creation(request):
         user_data = {
             'email': email,
             'mobile_number': mobile_number,
-            'password': Autogenerate_password(),
+            'password': auto_generate_password(),
             'created_by': request.user.id,
             'user_type': 'ServiceProvider',
             'user_role': 'Individual_User',
@@ -773,6 +1178,102 @@ def visa_users_creation(request):
             user_serializer = UserRegistrationSerializer(data=user_data)
             if user_serializer.is_valid():
                 user_instance = user_serializer.save()
+            else:
+                return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Step 2: Create visa application details
+            visa_applications_data = {
+                'passport_number': request.data.get('passport_number', ''),
+                'purpose': request.data.get('purpose'),
+                'visa_type': request.data.get('visa_type'),
+                'destination_country': request.data.get('destination_country'),
+                'user': user_instance.id,
+            }
+
+            visa_serializer = VisaApplicationsSerializer(data=visa_applications_data)
+            if visa_serializer.is_valid():
+                visa_serializer.save()
+            else:
+                return Response(visa_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            # Send email or OTP for the created user
+            if email:
+                send_user_email(email, user_data['password'])
+            elif mobile_number:
+                if not send_user_otp(mobile_number):
+                    raise Exception("Failed to send OTP to mobile number.")
+
+        return Response(
+            {"message": "Visa user registered successfully."},
+            status=status.HTTP_201_CREATED,
+        )
+    except IntegrityError as e:
+        logger.error(f"Integrity error: {str(e)}")
+        return Response(
+            {"error": "User with this email or mobile already exists."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        return Response(
+            {"error": "An unexpected error occurred.", "details": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+@permission_classes([IsAuthenticated])
+@api_view(['POST'])
+def serviceproviders_user_creation(request):
+    """
+    Handles the creation of a visa user by ServiceProvider_Admin.
+    Creates a user first and associates visa application details with them.
+    """
+    if request.method != 'POST':
+        return Response({"error": "Invalid HTTP method."}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    service_provider_admin_roles = [
+        'ServiceProvider_Owner', 'ServiceProvider_Admin',
+        'Tara_SuperAdmin', 'Tara_Admin'
+    ]
+
+    if request.user.user_role not in service_provider_admin_roles:
+        return Response(
+            {'error_message': 'Unauthorized Access. Only ServiceProviderAdmin can create visa users.', 'status_cd': 1},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    try:
+        # Step 1: Create the user
+        email = request.data.get('email', '').lower()
+        mobile_number = request.data.get('mobile_number', '')
+        user_name = request.data.get('user_name')
+        group = request.data.pop('group', None)
+        custom_permissions = request.data.pop('custom_permissions', [])
+        if not email and not mobile_number and not user_name:
+            return Response(
+                {"error": "Either email or mobile number must be provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user_data = {
+            'email': email,
+            'mobile_number': mobile_number,
+            'password': auto_generate_password(),
+            'created_by': request.data.get('created_by'),
+            'user_type': 'ServiceProvider',
+            'first_name': request.data.get('first_name'),
+            'last_name': request.data.get('last_name'),
+            'user_name': request.data.get('user_name')
+        }
+
+        with transaction.atomic():
+            # Validate and save user
+            user_serializer = UserRegistrationSerializer(data=user_data)
+            if user_serializer.is_valid():
+                user_instance = user_serializer.save()
+                user_data = user_serializer.data
+                user_data['group'] = group
+                user_data['custom_permissions'] = custom_permissions
+                user_affiliated_role = assign_group_with_affiliated_permissions(user_data)
             else:
                 return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -897,6 +1398,54 @@ class UserListByTypeAPIView(APIView):
             user_groups[user_type].append(UserSerializer(user).data)
 
         return Response(user_groups)
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def get_user_details(request):
+    user_id = request.query_params.get("user_id")
+
+    if not user_id:
+        return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        return Response({"error": "No user found with the provided details."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Generate JWT tokens
+    refresh = RefreshToken.for_user(user)
+
+    # Extract user details
+    user_kyc = hasattr(user, "userkyc")
+    user_name = user.userkyc.name if user_kyc else None
+    created_on_date = user.date_joined.date()
+
+    try:
+        user_affiliation_summary = UserAffiliationSummary.objects.get(user=user)
+    except UserAffiliationSummary.DoesNotExist:
+        return Response({"error": "User affiliation data not found."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    data = {
+        "id": user.id,
+        "email": user.email,
+        "mobile_number": user.mobile_number,
+        "user_name": user.user_name,
+        "name": f"{user.first_name} {user.last_name}",
+        "created_on": created_on_date,
+        "user_type": user.user_type,
+        "user_kyc": user_kyc,
+        "individual_affiliated": list(user_affiliation_summary.individual_affiliated),
+        "ca_firm_affiliated": list(user_affiliation_summary.ca_firm_affiliated),
+        "service_provider_affiliated": list(user_affiliation_summary.service_provider_affiliated),
+        "business_affiliated": list(user_affiliation_summary.business_affiliated),
+        "refresh": str(refresh),
+        "access": str(refresh.access_token),
+    }
+    if user.user_type == "Business":
+        business_exists = Business.objects.filter(client=user).exists()
+        data['business_exists'] = business_exists
+
+    return Response(data, status=status.HTTP_200_OK)
 
 def send_user_email(email, password):
     """Sends autogenerated credentials to user's email."""
@@ -1321,40 +1870,41 @@ class UsersKYCListView(APIView):
 
             request_data = request.data
             # authorizing access token from the sandbox
-            access_token = authenticate()
-            url = f"{SANDBOX_API_URL}/kyc/pan/verify"
-            headers = {
-                'Authorization': access_token,
-                'x-api-key': SANDBOX_API_KEY,
-                'x-api-version': SANDBOX_API_VERSION
-            }
-            date_field = datetime.strptime(request_data['date'], "%Y-%m-%d")
-            dob = date_field.strftime("%d/%m/%Y")
-            payload = {
-                "@entity": "in.co.sandbox.kyc.pan_verification.request",
-                "reason": "For onboarding customers",
-                "pan": request_data['pan_number'],
-                "name_as_per_pan": request_data['name'],
-                "date_of_birth": dob,
-                "consent": "Y"
-            }
-            pan_verification_request = requests.post(url, json=payload, headers=headers)
-            pan_verification_data = pan_verification_request.json()
-            category = None
-            if pan_verification_data['code'] == 200 and pan_verification_data['data']['status'] == 'valid':
-                serializer = UsersKYCSerializer(data=request_data,
-                                                context={'request': request})  # Pass request in the context
-                if serializer.is_valid():
-                    serializer.save(user=request.user)  # Ensure the user is passed when saving
-                    return Response({"data":serializer.data, "detail": "User details saved successfully."}, status=status.HTTP_201_CREATED)
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # access_token = authenticate()
+            # url = f"{SANDBOX_API_URL}/kyc/pan/verify"
+            # headers = {
+            #     'Authorization': access_token,
+            #     'x-api-key': SANDBOX_API_KEY,
+            #     'x-api-version': SANDBOX_API_VERSION
+            # }
+            # date_field = datetime.strptime(request_data['date'], "%Y-%m-%d")
+            # dob = date_field.strftime("%d/%m/%Y")
+            # payload = {
+            #     "@entity": "in.co.sandbox.kyc.pan_verification.request",
+            #     "reason": "For onboarding customers",
+            #     "pan": request_data['pan_number'],
+            #     "name_as_per_pan": request_data['name'],
+            #     "date_of_birth": dob,
+            #     "consent": "Y"
+            # }
+            # pan_verification_request = requests.post(url, json=payload, headers=headers)
+            # pan_verification_data = pan_verification_request.json()
+            # category = None
+            # if pan_verification_data['code'] == 200 and pan_verification_data['data']['status'] == 'valid':
+            serializer = UsersKYCSerializer(data=request_data,
+                                            context={'request': request})  # Pass request in the context
+            if serializer.is_valid():
+                serializer.save(user=request.user)  # Ensure the user is passed when saving
+                return Response({"data":serializer.data, "detail": "User details saved successfully."},
+                                status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            elif pan_verification_data['code'] != 200:
-                return Response({'error_message': 'Invalid pan details, Please cross check the DOB, Pan number or Name'},
-                                status=status.HTTP_400_BAD_REQUEST)
-            else:
-                return Response({'error_message': pan_verification_data['data']['remarks']},
-                                status=status.HTTP_400_BAD_REQUEST)
+            # elif pan_verification_data['code'] != 200:
+            #     return Response({'error_message': 'Invalid pan details, Please cross check the DOB, Pan number or Name'},
+            #                     status=status.HTTP_400_BAD_REQUEST)
+            # else:
+            #     return Response({'error_message': pan_verification_data['data']['remarks']},
+            #                     status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             logger.error(e, exc_info=1)
             return Response({'error_message': str(e), 'status_cd': 1},
@@ -1692,6 +2242,154 @@ def partial_update_user(request):
         return Response({"error": "An unexpected error occurred while updating user info."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def corporate_details(request):
+    """
+    API to retrieve business users created by the authenticated user.
+    Ignores users with user_type='SuperAdmin'.
+    """
+    try:
+        user_id = request.query_params.get('user_id')
+
+        if not user_id:
+            return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Log the user_id to debug
+        print(f"Received user_id: {user_id}")
+
+        try:
+            # Check if the user exists
+            created_by_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": f"User with ID {user_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Fetch business users created by the user
+        users = User.objects.filter(created_by=user_id, user_type="Business")
+
+        if not users.exists():
+            return Response({"message": "No business users found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"users": UserSerializer(users, many=True).data}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": f"An unexpected error occurred: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+# @api_view(['GET'])
+# @permission_classes([IsAuthenticated])
+# def affiliated_summary_details(request):
+#     """
+#     API to retrieve business users created by the authenticated user.
+#     Ignores users with user_type='SuperAdmin'.
+#     """
+#     try:
+#         user_id = request.query_params.get('user_id')
+#         user_type = request.query_params.get('type')
+#
+#         if not user_id:
+#             return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         if not user_type:
+#             return Response({"error": "User type is required."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         print(f"Received user_id: {user_id}, user_type: {user_type}")
+#
+#         try:
+#             user_affiliated_details = UserAffiliationSummary.objects.get(user_id=user_id)
+#         except ObjectDoesNotExist:
+#             return Response({"error": f"User with ID {user_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+#
+#         # Mapping user_type to the appropriate field in UserAffiliatedRole
+#         affiliated_mapping = {
+#             "Business": user_affiliated_details.business_affiliated,
+#             "Individual": user_affiliated_details.individual_affiliated,
+#             "CA": user_affiliated_details.ca_firm_affiliated,
+#             "ServiceProvider": user_affiliated_details.service_provider_affiliated
+#         }
+#
+#         if user_type not in affiliated_mapping:
+#             return Response({"error": "Invalid user type provided."}, status=status.HTTP_400_BAD_REQUEST)
+#
+#         affiliated_users = affiliated_mapping[user_type] or []
+#
+#         # Fetch all user objects in one query
+#         user_ids = [user['id'] for user in affiliated_users if 'id' in user]
+#         users = User.objects.filter(id__in=user_ids, user_type=user_type)
+#
+#         serialized_data = UserSerializer(users, many=True).data
+#
+#         return Response({"users": serialized_data}, status=status.HTTP_200_OK)
+#
+#     except Exception as e:
+#         return Response({"error": f"An unexpected error occurred: {str(e)}"},
+#                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def affiliated_summary_details(request):
+    """
+    API to retrieve business users created by the authenticated user.
+    Ignores users with user_type='SuperAdmin'.
+    """
+    try:
+        user_id = request.query_params.get('user_id')
+        user_type = request.query_params.get('type')
+
+        if not user_id:
+            return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not user_type:
+            return Response({"error": "User type is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        print(f"Received user_id: {user_id}, user_type: {user_type}")
+
+        # Get affiliated details
+        user_affiliated_details = UserAffiliatedRole.objects.filter(user_id=user_id)
+
+        if user_affiliated_details.exists():
+            # Extract affiliated IDs
+            affiliated_data = [affiliated.affiliated.id for affiliated in user_affiliated_details]
+
+            if user_type == "Business":
+                users = User.objects.filter(id__in=affiliated_data, user_type=user_type)
+                serialized_data = UserBusinessSerializer(users, many=True).data
+                return Response({"users": serialized_data}, status=status.HTTP_200_OK)
+            else:
+                users = User.objects.filter(id__in=affiliated_data, user_type=user_type)
+                serialized_data = UserSerializer(users, many=True).data
+                return Response({"users": serialized_data}, status=status.HTTP_200_OK)
+
+        return Response({"error": "No affiliated data found."}, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({"error": f"An unexpected error occurred: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def user_search(request):
+    """
+    API to search for users by email.
+    Returns a single object if only one user is found, otherwise returns a list.
+    """
+    try:
+        email = request.query_params.get('email')
+
+        if not email:
+            return Response({"error": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        users = User.objects.filter(email=email)
+
+        if not users.exists():
+            return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(UserSerializer(users, many=True).data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": f"An unexpected error occurred: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 # class PermissionListView(APIView):
 #     permission_classes = [AllowAny]
 #     def get(self, request):
@@ -1726,20 +2424,316 @@ def partial_update_user(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def business_list_by_client(request):
-    client_id = request.user.id
+    """
+    API to retrieve a business by client ID.
+    """
+    try:
+        client_id = request.query_params.get('user_id')
 
-    # Filter businesses by client_id
-    businesses = Business.objects.filter(client=client_id)
+        if not client_id:
+            return Response({'error': 'User ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Check if businesses are found for the client
-    if not businesses.exists():
-        return Response({'message': 'No businesses found for this client.'}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            business = Business.objects.get(client=client_id)  # Using get() instead of filter()
+        except Business.DoesNotExist:
+            return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
 
-    # Serialize the data
-    serializer = BusinessSerializer(businesses, many=True)
+        # Serialize and return the business data
+        serializer = BusinessUserSerializer(business)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-    # Return the serialized data
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({'error': f'An unexpected error occurred: {str(e)}'},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def manage_corporate_entity(request):
+    """
+    API to retrieve business users created by the authenticated user.
+    Ignores users with user_type='SuperAdmin'.
+    """
+    try:
+        user_id = request.query_params.get('user_id')
+
+        if not user_id:
+            return Response({"error": "User ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Log the user_id to debug
+        print(f"Received user_id: {user_id}")
+
+        try:
+            # Check if the user exists
+            created_by_user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return Response({"error": f"User with ID {user_id} not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Fetch business users created by the user
+        users = User.objects.filter(created_by=user_id, user_type="Business")
+
+        if not users.exists():
+            return Response({"message": "No business users found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response({"users": UserSerializer(users, many=True).data}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": f"An unexpected error occurred: {str(e)}"},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def validate_user(user_id):
+    try:
+        return User.objects.get(id=user_id)
+    except ObjectDoesNotExist:
+        raise ValueError(f"User with ID {user_id} not found.")
+
+
+def get_or_create_affiliated_role(user, affiliated, group, permissions):
+    user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=affiliated)
+    user_group.group = group
+    user_group.custom_permissions.set(permissions)
+    user_group.save()
+    return user_group
+
+
+def business_corporation_affiliation(user_group_permission_data):
+    created_objects = []
+    user_id = user_group_permission_data.get('id')
+    group_id = user_group_permission_data.get('group')
+    custom_permissions_ids = user_group_permission_data.get('custom_permissions', [])
+    created_by = user_group_permission_data.get('created_by')
+
+    user = validate_user(user_id)
+    created_by_user = validate_user(created_by)
+
+    if user.created_by.user_type == "Individual" and user.user_type == "Business":
+        group = CustomGroup.objects.get(id=11)
+        affiliation = get_or_create_affiliated_role(created_by_user, user, group, group.permissions.all())
+        created_objects.append(affiliation)
+
+    if group_id:
+        group = CustomGroup.objects.get(id=group_id)
+    else:
+        user_type = user_group_permission_data.get('user_type')
+        group_id_mapping = {
+            "Individual": 10,
+            "Business": 11,
+            "ServiceProvider": 1,
+            "CA": 25
+        }
+        group = CustomGroup.objects.get(id=group_id_mapping[user_type])
+
+    custom_permissions = CustomPermission.objects.filter(
+        id__in=custom_permissions_ids) if custom_permissions_ids else group.permissions.all()
+    affiliation = get_or_create_affiliated_role(user, user, group, custom_permissions)
+    created_objects.append(affiliation)
+
+    return created_objects
+
+
+def check_business_existence(business_data):
+    """
+    Check if the business or PAN already exists in the database.
+    """
+    if business_data.get('entityType') != 'individual':
+        if Business.objects.filter(nameOfBusiness__iexact=business_data['nameOfBusiness']).exists():
+            return "Business already exists"
+        if Business.objects.filter(pan=business_data['pan']).exists():
+            return "Business with PAN already exists"
+    return None
+
+
+def send_account_email(user, email, password):
+    """
+    Send account details to the user's email.
+    """
+    subject = "Your Account Details"
+    body_html = f"""
+        <html>
+        <body>
+            <h1>Welcome to Our Platform</h1>
+            <p>Your account has been created by the superadmin.</p>
+            <p><strong>Username:</strong> {user.user_name}</p>
+            <p><strong>Password:</strong> {password}</p>
+        </body>
+        </html>
+    """
+
+    # ses_client = boto3.client(
+    #     'ses',
+    #     region_name=AWS_REGION,
+    #     aws_access_key_id=AWS_ACCESS_KEY_ID,
+    #     aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    # )
+    ses_client = boto3.client(
+        'ses',
+        region_name=AWS_REGION,
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    )
+
+    try:
+        # ses_client.send_email(
+        #     Source=EMAIL_HOST_USER,
+        #     Destination={'ToAddresses': [email]},
+        #     Message={
+        #         'Subject': {'Data': subject},
+        #         'Body': {
+        #             'Html': {'Data': body_html},
+        #             'Text': {'Data': f"Your username is: {user.user_name}\nYour password is: {password}"}
+        #         },
+        #     }
+        # )
+        response = ses_client.send_email(
+            Source="admin@tarafirst.com",
+            Destination={'ToAddresses': [email]},
+            Message={
+                'Subject': {'Data': subject},
+                'Body': {
+                    'Html': {'Data': body_html},
+                    'Text': {'Data': f"Your username is: {user.email}\nYour password is: {password}"}
+                },
+            }
+        )
+        logger.info(f"Account details email sent to: {email}")
+        return Response(
+            {"message": "User created successfully. Check your email for the username and password."},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+    except ClientError as e:
+        logger.error(f"Failed to send email via SES: {e.response['Error']['Message']}")
+        return Response(
+            {"error": "Failed to send account details email. Please try again later."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
+def business_set_up(business_data):
+    """
+    Handle business registration.
+    Returns True if the business is successfully saved,
+    Raises ValueError if the data is invalid.
+    """
+    serializer = BusinessSerializer(data=business_data)
+    if serializer.is_valid():
+        business_instance = serializer.save()  # Save and get the instance
+        return business_instance
+    raise ValueError(f"Invalid business data provided: {serializer.errors}")
+
+
+def object_remove(created_objects):
+    # Reverse the list to delete the last created object first
+    for obj in reversed(created_objects):
+        try:
+            obj.delete()
+            logger.info(f"Successfully deleted: {obj}")
+        except Exception as e:
+            logger.error(f"Failed to delete {obj}: {str(e)}")
+    return
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def businessEntityRegistration(request):
+    """
+    Handle user registration by superadmin without activation link,
+    and send username and password to the user via email.
+    """
+    logger.info("Received a superadmin user registration request.")
+
+    if request.method == 'POST':
+        created_objects = []
+        try:
+            request_data = request.data.copy()
+            user_creation = request_data.get('user_creation', {})
+            group = request_data.pop('group', None)
+            custom_permissions = request_data.pop('custom_permissions', [])
+            email = user_creation.get('email', '').lower()
+            mobile_number = user_creation.get('mobile_number', '')
+
+            # Ensure at least one of email or mobile_number is provided
+            if not email and not mobile_number:
+                logger.warning("Registration failed: Missing both email and mobile number.")
+                return Response(
+                    {"error": "Either email or mobile number must be provided."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Check business existence
+            business_data = request_data.get('business', {})
+            business_data['nameOfBusiness'] = business_data.get('nameOfBusiness', '').title()
+            error_message = check_business_existence(business_data)
+            if error_message:
+                return Response({'error_message': error_message}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Serialize and validate user data
+            password = user_creation['password']
+            serializer = UserRegistrationSerializer(data=user_creation)
+
+            if serializer.is_valid():
+                user = serializer.save()
+                user_data = serializer.data
+                created_objects.append(user)
+                logger.info(f"User created successfully by superadmin: {user.pk}")
+                user_data['group'] = group
+                user_data['custom_permissions'] = custom_permissions
+
+                # Assign roles and create business entity
+                affiliation_result = business_corporation_affiliation(user_data)
+                if affiliation_result:
+                    created_objects.extend(affiliation_result)  # Track created affiliations
+
+                business_data['client'] = user_data['id']
+                setup_result = business_set_up(business_data)
+                if setup_result:
+                    created_objects.append(setup_result)
+
+                # Send email with the username and password
+                if email:
+                    send_account_email(user, email, password)
+
+                return Response(
+                    {"message": "User created successfully. Check your email for the username and password."},
+                    status=status.HTTP_201_CREATED,
+                )
+
+            # Return validation errors
+            logger.warning("Registration failed: Validation errors.")
+            logger.debug(f"Validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except IntegrityError as e:
+            logger.error(f"Integrity error during registration: {str(e)}")
+            object_remove(created_objects)
+            return Response(
+                {"error": "A user with this email or mobile number already exists."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except DatabaseError as e:
+            logger.error(f"Database error during registration: {str(e)}")
+            object_remove(created_objects)
+            return Response(
+                {"error": "Database error occurred"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except ClientError as e:
+            logger.error(f"Failed to send email: {str(e)}")
+            object_remove(created_objects)
+
+            return Response(
+                {"error": "Failed to send account details email. Please try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error during registration: {str(e)}")
+            object_remove(created_objects)
+            return Response(
+                {"error": "An unexpected error occurred.", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 @api_view(['GET', 'POST'])
@@ -1769,13 +2763,14 @@ def business_list(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def business_detail(request, pk):
     business = get_object_or_404(Business, pk=pk)
 
     if request.method == 'GET':
-        serializer = BusinessSerializer(business)
+        serializer = BusinessUserSerializer(business)
         return Response(serializer.data)
 
     elif request.method == 'PUT':
@@ -1801,6 +2796,7 @@ def gst_details_list_create(request):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
+
         serializer = GSTDetailsSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -1832,6 +2828,43 @@ def gst_details_detail(request, pk):
     elif request.method == 'DELETE':
         gst_detail.delete()
         return Response({"message": "GST Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+
+def documents_view(request):
+    # Get the URL from the query parameters
+    document_url = request.GET.get('url', None)
+
+    if not document_url:
+        return JsonResponse({'error': 'URL parameter is required'}, status=400)
+
+    try:
+        # Parse the URL to extract the file name (Key)
+        parsed_url = urlparse(document_url)
+        file_key = unquote(parsed_url.path.lstrip('/'))  # Remove leading '/' and decode URL
+
+        # Initialize S3 client
+        s3_client = boto3.client(
+            's3',
+            region_name=AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+        )
+
+        # Generate a pre-signed URL
+        file_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={
+                'Bucket': S3_BUCKET_NAME,
+                'Key': file_key
+            },
+            ExpiresIn=3600  # URL expires in 1 hour
+        )
+
+        # Return the pre-signed URL
+        return JsonResponse({'url': file_url}, status=200)
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @api_view(['GET'])
@@ -2084,6 +3117,7 @@ class VisaApplicationDetailAPIView(APIView):
             return Response({"error": "Visa application not found"}, status=status.HTTP_404_NOT_FOUND)
 
     permission_required = "VS_Task_Edit"
+
     @swagger_auto_schema(
         operation_description="Update an existing visa application by ID.",
         tags=["VisaApplication"],
@@ -2108,6 +3142,7 @@ class VisaApplicationDetailAPIView(APIView):
 
     # For DELETE
     permission_required = "VS_Task_Delete"  # Define the required permission for DELETE method
+
     @swagger_auto_schema(
         operation_description="Delete a visa application by ID.",
         tags=["VisaApplication"],
@@ -2115,7 +3150,7 @@ class VisaApplicationDetailAPIView(APIView):
             204: "Visa application deleted successfully.",
             404: "Visa application not found."
         }
-    )
+     )
     def delete(self, request, pk):
         try:
             visa_application = VisaApplications.objects.get(pk=pk)
@@ -2159,7 +3194,8 @@ class VisaApplicationDetailAPIView(APIView):
             ),
             'destination_country': openapi.Schema(
                 type=openapi.TYPE_STRING,
-                description="Destination country for the visa application (required for creating a new visa application)."
+                description="Destination country for the visa application "
+                            "(required for creating a new visa application)."
             ),
             'services': openapi.Schema(
                 type=openapi.TYPE_ARRAY,
@@ -2287,7 +3323,8 @@ def manage_visa_applications(request):
                 else:
                     return Response(service_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response({"message": "Visa application and services added successfully."}, status=status.HTTP_201_CREATED)
+            return Response({"message": "Visa application and services added successfully."},
+                            status=status.HTTP_201_CREATED)
 
         return Response(
             {"error": "No services provided. Provide 'services' data to add to the visa application."},
@@ -2296,7 +3333,8 @@ def manage_visa_applications(request):
 
     except Exception as e:
         logger.error(f"Error managing visa applications: {str(e)}", exc_info=True)
-        return Response({"error": "An internal error occurred. Please try again later."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"error": "An internal error occurred. Please try again later."},
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
@@ -2401,8 +3439,6 @@ def get_visa_clients_users_list(request):
 
     except Exception as e:
         return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 
 
 

@@ -8,7 +8,12 @@ urlpatterns = [
     # URL for retrieving, updating, or deleting a specific PayrollOrg by its ID
     path('orgs/<int:pk>/', views.PayrollOrgDetail.as_view(), name='payroll_org_detail'),
 
-    path('business-payroll/<int:business_id>/', views.PayrollOrgBusinessDetail.as_view(), name='payroll-org-detail'),
+    # path('business-payroll/<int:business_id>/', views.PayrollOrgBusinessDetail.as_view(), name='payroll-org-detail'),
+
+    path('business-payroll/<int:business_id>/', views.PayrollOrgBusinessDetailView.as_view(),
+         name='payroll-org-business-detail'),
+
+    path('payroll-setup-status', views.business_payroll_check, name='business_payroll_check'),
 
     # URL for listing and creating WorkLocation instances
     path('work-locations/', views.work_location_list, name='work_location_list'),
@@ -44,25 +49,25 @@ urlpatterns = [
 
     path('designations/bulk-designations-upload/', views.bulk_designation_upload, name='bulk_designation_upload'),
 
-    path('epf/', views.epf_list, name='epf_list'),
-    path('epf/<int:pk>/', views.epf_detail, name='epf_detail'),
+    path('epf', views.epf_list, name='epf_list'),
+    path('epf/<int:pk>', views.epf_detail, name='epf_detail'),
 
     # ESI Endpoints
-    path('esi/', views.esi_list, name='esi_list'),
-    path('esi/<int:pk>/', views.esi_detail, name='esi_detail'),
+    path('esi', views.esi_list, name='esi_list'),
+    path('esi/<int:pk>', views.esi_detail, name='esi_detail'),
 
     # URL for listing and creating PF records
-    path('pf/', views.pf_list, name='pf_list'),
+    path('pt', views.pt_list, name='pf_list'),
 
     # URL for retrieving, updating, or deleting a specific PF record by its ID
-    path('pf/<int:pk>/', views.pf_detail, name='pf_detail'),
+    path('pt/<int:pk>', views.pt_detail, name='pf_detail'),
 
     # URL for listing and creating Earnings records
-    path('earnings/', views.earnings_list, name='earnings_list'),
+
+    path('earnings', views.earnings_list, name='earnings_list'),
 
     # URL for retrieving, updating, or deleting a specific Earnings record by its ID
-    path('earnings/<int:pk>/', views.earnings_detail, name='earnings_detail'),
-
+    path('earnings/<int:pk>', views.earnings_detail, name='earnings_detail'),
 
     path('deductions/', views.deduction_list_create, name='deduction-list-create'),
     path('deductions/<int:id>/', views.deduction_detail, name='deduction-detail'),
@@ -75,5 +80,35 @@ urlpatterns = [
     path('benefits/', views.benefits_list_create, name='benefit-list-create'),
     path('benefits/<int:id>/', views.benefits_detail_update_delete, name='benefit-detail'),
 
+    # Salary Template Endpoints
+    path('salary-templates', views.salary_template_list_create, name='salary_template_list_create'),
+    path('salary-templates/<int:template_id>', views.salary_template_detail_update_delete,
+         name='salary_template_detail_update_delete'),
+
+    # pay-schedules Endpoints
+    path('pay-schedules',  views.pay_schedule_list_create, name='pay_schedule_list_create'),
+    path('pay-schedules/<int:schedule_id>',  views.pay_schedule_detail_update_delete,
+         name='pay_schedule_detail_update_delete'),
+
+    path('leave-management', views.leave_management_list_create, name='leave-management-list-create'),
+    path('leave-management/<int:leave_id>', views.leave_management_detail_update_delete,
+         name='leave-management-detail-update-delete'),
+
+    # Holiday Management URLs
+    path('holiday-management', views.holiday_management_list_create, name='holiday-management-list-create'),
+    path('holiday-management/<int:holiday_id>', views.holiday_management_detail_update_delete,
+         name='holiday-management-detail-update-delete'),
+
+    path('employees', views.employee_list, name='employee-list'),
+    path('employees/<int:pk>', views.employee_detail, name='employee-detail'),
+
+    path('employee-salary', views.employee_salary_list, name='employee-salary-list'),
+    path('employee-salary/<int:pk>', views.employee_salary_detail, name='employee-salary-detail'),
+
+    path('employee-personal-details', views.employee_personal_list, name='employee-personal-list'),
+    path('employee-personal-details/<int:pk>/', views.employee_personal_detail, name='employee-personal-detail'),
+
+    path('employee-bank-details', views.employee_bank_list, name='employee-bank-list'),
+    path('employee-bank-details/<int:pk>', views.employee_bank_detail, name='employee-bank-detail'),
 
 ]

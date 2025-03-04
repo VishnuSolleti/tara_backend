@@ -65,7 +65,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'invoicing',
     'django_celery_beat',
-    'payroll'
+    'payroll',
+    'storages',
 ]
 
 MIDDLEWARE = [
@@ -180,7 +181,7 @@ MIGRATION_MODULES = {
 }
 
 
-FRONTEND_URL = 'http://tara-first.s3-website.ap-south-1.amazonaws.com/'
+FRONTEND_URL = 'http://dev.tarafirst.com/'
 
 
 REST_FRAMEWORK = {
@@ -369,4 +370,19 @@ SANDBOX_API_KEY = 'key_live_KAbyGU4p0Hu4bkkTuZCUJb9HyEiaGxcu'
 SANDBOX_API_SECRET = 'secret_live_ZTyQBPYUHJtU3aLDtcH6ofRMMlrjmjKD'
 SANDBOX_API_URL = 'https://api.sandbox.co.in'
 SANDBOX_API_VERSION = '1.0'
+
+
+AWS_S3_SIGNATURE_VERSION = 's3v4'
+
+AWS_STORAGE_BUCKET_NAME = "tarafirstdevelopment"
+
+AWS_DEFAULT_ACL = 'private'
+AWS_S3_OBJECT_PARAMETERS = {
+    'CacheControl': 'max-age=86400',
+}
+AWS_QUERYSTRING_AUTH = True
+AWS_S3_CUSTOM_DOMAIN = f'{S3_BUCKET_NAME}.s3.amazonaws.com'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+AWS_LOCATION = 'media'
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/{AWS_LOCATION}/"
 
