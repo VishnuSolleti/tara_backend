@@ -301,12 +301,14 @@ class PayrollOrgBusinessDetailView(APIView):
                             and Reimbursement.objects.filter(payroll=payroll_org.id).exists()
                     )
                 ) if organisation_details else False,
-                "pay_schedule": payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists(),
+                "pay_schedule": payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists()
+                if organisation_details else False,
                 "leave_and_attendance": (payroll_org.leave_management or False) and (
                             payroll_org.holiday_management or False) if organisation_details else False,
-                "employee_master": payroll_org.employee_master or False,
+                "employee_master": payroll_org.employee_master or False if organisation_details else False,
                 "salary_template": payroll_org.salary_template or
                                    SalaryTemplate.objects.filter(payroll=payroll_org.id).exists()
+                if organisation_details else False
                 }
 
             return Response(response_data,  status=status.HTTP_200_OK)
