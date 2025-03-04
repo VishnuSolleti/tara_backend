@@ -34,7 +34,6 @@ class PayrollOrg(models.Model):
     leave_management = models.BooleanField(default=False)
     holiday_management = models.BooleanField(default=False)
     employee_master = models.BooleanField(default=False)
-    organisation_address = JSONField(default=dict, null=True, blank=True)
 
     def to_representation(self, instance):
         """Convert OrderedDict to dict before returning JSON."""

@@ -263,7 +263,7 @@ class PayrollOrgBusinessDetailView(APIView):
             response_data = {
                 "business": business.id,
                 "organisation_name": business.nameOfBusiness,
-                "organisation_address": payroll_org.organisation_address,
+                "organisation_address": business.headOffice,
                 # Checking existence of related objects
                 "organisation_details": organisation_details,
                 "payroll_id": payroll_org.id if organisation_details else None,
