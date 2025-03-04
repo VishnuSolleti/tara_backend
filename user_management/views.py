@@ -265,7 +265,7 @@ def assign_permissions(data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 25
+            "CA": 24
         }
 
         if user_type not in group_id_mapping:
@@ -282,7 +282,7 @@ def assign_permissions(data):
             raise ValueError(f"User with ID {user_id} not found.")
 
         # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
-        user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user, flag=False)
+        user_group = UserAffiliatedRole.objects.create(user=user, affiliated=user, flag=False)
         user_group.group = group  # Assigning a single group
         user_group.custom_permissions.set(group.permissions.all())  # Default permissions
         user_group.save()
@@ -581,7 +581,7 @@ def assign_group_with_user_affiliated_permissions(user_group_permission_data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 25
+            "CA": 24
         }
 
         if user_type not in group_id_mapping:
@@ -648,7 +648,7 @@ def assign_group_with_affiliated_permissions(user_group_permission_data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 25
+            "CA": 24
         }
 
         if user_type not in group_id_mapping:
@@ -2520,7 +2520,7 @@ def business_corporation_affiliation(user_group_permission_data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 25
+            "CA": 24
         }
         group = CustomGroup.objects.get(id=group_id_mapping[user_type])
 
