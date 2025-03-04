@@ -99,15 +99,21 @@ def business_payroll_check(request):
     API to retrieve a business by client ID.
     """
     try:
+
         client_id = request.query_params.get('user_id')
+        business_id = request.query_params.get('business_id')
+        if client_id:
 
-        if not client_id:
-            return Response({'error': 'User ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                business = Business.objects.get(client=client_id)  # Using get() instead of filter()
+            except Business.DoesNotExist:
+                return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            business = Business.objects.get(client=client_id)  # Using get() instead of filter()
-        except Business.DoesNotExist:
-            return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
+        if business_id:
+            try:
+                business = Business.objects.get(id=business_id)  # Using get() instead of filter()
+            except Business.DoesNotExist:
+                return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Serialize business data
         serializer = BusinessSerializer(business)
