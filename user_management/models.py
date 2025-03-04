@@ -294,24 +294,24 @@ class Business(BaseModel):
         ('retail', 'Retail'),
     ]
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='business_clients_id')
-    nameOfBusiness = models.CharField(max_length=200, unique=True, db_index=True, null=False, blank=False)
-    registrationNumber = models.CharField(max_length=120, null=True, blank=True)
-    entityType = models.CharField(max_length=50)
-    headOffice = JSONField(default=dict, null=True, blank=True)
-    pan = models.CharField(max_length=15, unique=True, null=False, blank=False)
-    business_nature = models.CharField(max_length=50, choices=business_nature_choices, null=True,
-                                       blank=True)  # Choices field
-    trade_name = models.CharField(max_length=100, null=True, blank=True)  # New field
-    mobile_number = models.CharField(max_length=15, null=True, blank=True)  # New field
-    email = models.EmailField(null=True, blank=True)
-    dob_or_incorp_date = models.DateField(null=False)
+    nameOfBusiness = models.CharField(max_length=200, unique=True, db_index=True)
+    registrationNumber = models.CharField(max_length=120, null=True, blank=True, default=None)
+    entityType = models.CharField(max_length=50, null=True, blank=True, default=None)
+    headOffice = models.JSONField(default=dict, null=True, blank=True)
+    pan = models.CharField(max_length=15, null=True, blank=True, default=None)
+    business_nature = models.CharField(
+        max_length=50, choices=business_nature_choices, null=True, blank=True, default=None
+    )  # Default as None
+    trade_name = models.CharField(max_length=100, null=True, blank=True, default=None)
+    mobile_number = models.CharField(max_length=15, null=True, blank=True, default=None)
+    email = models.EmailField(null=True, blank=True, default=None)
+    dob_or_incorp_date = models.DateField(null=True, blank=True, default=None)
 
     class Meta:
-        unique_together = ('nameOfBusiness', 'pan')
+        unique_together = [('nameOfBusiness', 'pan')]
 
     def __str__(self):
         return str(self.nameOfBusiness)
-
 
 class GSTDetails(BaseModel):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='gst_details')
