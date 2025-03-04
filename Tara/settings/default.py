@@ -337,7 +337,7 @@ DATABASES = {
 }
 
 
-Reference_link = "http://dev.tarafirst.com/"
+Reference_link = "http://test.tarafirst.com/"
 
 TEMPLATES = [
     {
