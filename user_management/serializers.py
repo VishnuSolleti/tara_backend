@@ -187,10 +187,6 @@ class BusinessSerializer(serializers.ModelSerializer):
         model = Business
         fields = '__all__'
 
-    def validate(self, data):
-        if not data.get('nameOfBusiness'):
-            raise serializers.ValidationError({'name_as_per_pan': 'This field is required.'})
-        return data
 
     def create(self, validated_data):
         """
