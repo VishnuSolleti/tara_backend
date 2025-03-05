@@ -397,17 +397,65 @@ class PayrollOrgBusinessDetailView(APIView):
 # List all WorkLocations
 @api_view(['GET'])
 def work_location_list(request):
-    payroll_id = request.query_params.get('payroll_id')  # Get payroll_id from query parameters
+    business_id = request.query_params.get('business_id')
+    payroll_id = request.query_params.get('payroll_id')
 
-    if payroll_id:
-        # Filter work locations by payroll_id
-        work_locations = WorkLocations.objects.filter(payroll_id=payroll_id).order_by('-created_at')
-    else:
-        # Retrieve all work locations if no payroll_id is provided
-        work_locations = WorkLocations.objects.all().order_by('-created_at')
+    try:
+        if business_id:
+            # Retrieve the Business and return only Head Office address
+            business = Business.objects.get(id=business_id)
 
-    serializer = WorkLocationSerializer(work_locations, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+            if business.headOffice:
+                head_office_data = {
+                    "id": "head_office",
+                    "location_name": "Head Office",
+                    "address_line1": business.headOffice.get("address_line1", ""),
+                    "address_line2": business.headOffice.get("address_line2", ""),
+                    "address_city": business.headOffice.get("address_city", ""),
+                    "address_state": business.headOffice.get("address_state", ""),
+                    "address_pincode": business.headOffice.get("address_pincode", ""),
+                    "is_head_office": True
+                }
+                return Response([head_office_data], status=status.HTTP_200_OK)
+            else:
+                return Response({"error": "Head Office address not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if payroll_id:
+            # Retrieve Work Locations for given payroll
+            payroll_org = PayrollOrg.objects.get(id=payroll_id)
+            business = payroll_org.business  # Fetch business linked to PayrollOrg
+
+            work_locations = WorkLocations.objects.filter(payroll=payroll_org).order_by('-created_at')
+            work_location_data = WorkLocationSerializer(work_locations, many=True).data
+
+            # Append Head Office at the TOP
+            if business.headOffice:
+                head_office_data = {
+                    "id": "head_office",
+                    "location_name": "Head Office",
+                    "address_line1": business.headOffice.get("address_line1", ""),
+                    "address_line2": business.headOffice.get("address_line2", ""),
+                    "address_city": business.headOffice.get("address_city", ""),
+                    "address_state": business.headOffice.get("address_state", ""),
+                    "address_pincode": business.headOffice.get("address_pincode", ""),
+                    "is_head_office": True
+                }
+                work_location_data.insert(0, head_office_data)
+
+            return Response(work_location_data, status=status.HTTP_200_OK)
+
+        return Response({"error": "Either business_id or payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Business.DoesNotExist:
+        return Response({"error": "Invalid Business ID"}, status=status.HTTP_404_NOT_FOUND)
+
+    except PayrollOrg.DoesNotExist:
+        return Response({"error": "Invalid Payroll ID"}, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 
 
 # Create a new WorkLocation
