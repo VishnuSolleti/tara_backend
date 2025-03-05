@@ -411,9 +411,9 @@ def work_location_list(request):
                     "location_name": "Head Office",
                     "address_line1": business.headOffice.get("address_line1", ""),
                     "address_line2": business.headOffice.get("address_line2", ""),
-                    "address_city": business.headOffice.get("address_city", ""),
-                    "address_state": business.headOffice.get("address_state", ""),
-                    "address_pincode": business.headOffice.get("address_pincode", ""),
+                    "address_city": business.headOffice.get("city", ""),
+                    "address_state": business.headOffice.get("state", ""),
+                    "address_pincode": business.headOffice.get("pincode", ""),
                     "is_head_office": True
                 }
                 return Response([head_office_data], status=status.HTTP_200_OK)
@@ -435,9 +435,9 @@ def work_location_list(request):
                     "location_name": "Head Office",
                     "address_line1": business.headOffice.get("address_line1", ""),
                     "address_line2": business.headOffice.get("address_line2", ""),
-                    "address_city": business.headOffice.get("address_city", ""),
-                    "address_state": business.headOffice.get("address_state", ""),
-                    "address_pincode": business.headOffice.get("address_pincode", ""),
+                    "address_city": business.headOffice.get("city", ""),
+                    "address_state": business.headOffice.get("state", ""),
+                    "address_pincode": business.headOffice.get("pincode", ""),
                     "is_head_office": True
                 }
                 work_location_data.insert(0, head_office_data)
