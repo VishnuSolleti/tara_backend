@@ -276,7 +276,7 @@ class Business(BaseModel):
         ('others', 'Others (Specify)'),
     ]
 
-    business_nature_choices  = [
+    business_nature_choices = [
         ('agency_sales_house', 'Agency or Sales House'),
         ('agriculture', 'Agriculture'),
         ('art_design', 'Art and Design'),
