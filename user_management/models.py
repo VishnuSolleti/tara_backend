@@ -276,42 +276,60 @@ class Business(BaseModel):
         ('others', 'Others (Specify)'),
     ]
 
-    business_nature_choices = [
-        ('service_provider', 'Service Provider'),
-        ('trading_business', 'Trading Business'),
-        ('manufacturing_business', 'Manufacturing Business'),
-        ('consultancy', 'Consultancy'),
-        ('freelancing', 'Freelancing'),
-        ('e_commerce', 'E-commerce'),
-        ('real_estate', 'Real Estate'),
-        ('financial_services', 'Financial Services'),
-        ('healthcare', 'Healthcare'),
-        ('education', 'Education'),
-        ('information_technology', 'Information Technology'),
-        ('hospitality', 'Hospitality'),
-        ('transportation_logistics', 'Transportation and Logistics'),
+    business_nature_choices  = [
+        ('agency_sales_house', 'Agency or Sales House'),
         ('agriculture', 'Agriculture'),
-        ('retail', 'Retail'),
+        ('art_design', 'Art and Design'),
+        ('automotive', 'Automotive'),
+        ('construction', 'Construction'),
+        ('consulting', 'Consulting'),
+        ('consumer_packaged_goods', 'Consumer Packaged Goods'),
+        ('education', 'Education'),
+        ('engineering', 'Engineering'),
+        ('entertainment', 'Entertainment'),
+        ('financial_services', 'Financial Services'),
+        ('food_services', 'Food Services (Restaurants/Fast Food)'),
+        ('gaming', 'Gaming'),
+        ('government', 'Government'),
+        ('health_care', 'Health Care'),
+        ('interior_design', 'Interior Design'),
+        ('internal', 'Internal'),
+        ('legal', 'Legal'),
+        ('manufacturing', 'Manufacturing'),
+        ('marketing', 'Marketing'),
+        ('mining_logistics', 'Mining and Logistics'),
+        ('non_profit', 'Non-Profit'),
+        ('publishing_web_media', 'Publishing and Web Media'),
+        ('real_estate', 'Real Estate'),
+        ('retail', 'Retail (E-Commerce and Offline)'),
+        ('services', 'Services'),
+        ('technology', 'Technology'),
+        ('telecommunications', 'Telecommunications'),
+        ('travel_hospitality', 'Travel/Hospitality'),
+        ('web_designing', 'Web Designing'),
+        ('web_development', 'Web Development'),
+        ('writers', 'Writers'),
     ]
+
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='business_clients_id')
-    nameOfBusiness = models.CharField(max_length=200, unique=True, db_index=True, null=False, blank=False)
-    registrationNumber = models.CharField(max_length=120, null=True, blank=True)
-    entityType = models.CharField(max_length=50)
+    nameOfBusiness = models.CharField(max_length=200, unique=True, db_index=True)
+    registrationNumber = models.CharField(max_length=120, null=True, blank=True, default=None)
+    entityType = models.CharField(max_length=50, null=True, blank=True, default=None)
     headOffice = JSONField(default=dict, null=True, blank=True)
-    pan = models.CharField(max_length=15, unique=True, null=False, blank=False)
-    business_nature = models.CharField(max_length=50, choices=business_nature_choices, null=True,
-                                       blank=True)  # Choices field
-    trade_name = models.CharField(max_length=100, null=True, blank=True)  # New field
-    mobile_number = models.CharField(max_length=15, null=True, blank=True)  # New field
-    email = models.EmailField(null=True, blank=True)
-    dob_or_incorp_date = models.DateField(null=False)
+    pan = models.CharField(max_length=15, null=True, blank=True, default=None)
+    business_nature = models.CharField(
+        max_length=50, choices=business_nature_choices, null=True, blank=True, default=None
+    )  # Default as None
+    trade_name = models.CharField(max_length=100, null=True, blank=True, default=None)
+    mobile_number = models.CharField(max_length=15, null=True, blank=True, default=None)
+    email = models.EmailField(null=True, blank=True, default=None)
+    dob_or_incorp_date = models.DateField(null=True, blank=True, default=None)
 
     class Meta:
-        unique_together = ('nameOfBusiness', 'pan')
+        unique_together = [('nameOfBusiness', 'pan')]
 
     def __str__(self):
         return str(self.nameOfBusiness)
-
 
 class GSTDetails(BaseModel):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='gst_details')

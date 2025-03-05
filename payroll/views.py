@@ -99,15 +99,21 @@ def business_payroll_check(request):
     API to retrieve a business by client ID.
     """
     try:
+
         client_id = request.query_params.get('user_id')
+        business_id = request.query_params.get('business_id')
+        if client_id:
 
-        if not client_id:
-            return Response({'error': 'User ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                business = Business.objects.get(client=client_id)  # Using get() instead of filter()
+            except Business.DoesNotExist:
+                return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            business = Business.objects.get(client=client_id)  # Using get() instead of filter()
-        except Business.DoesNotExist:
-            return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
+        if business_id:
+            try:
+                business = Business.objects.get(id=business_id)  # Using get() instead of filter()
+            except Business.DoesNotExist:
+                return Response({'error': 'No business found for this client.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Serialize business data
         serializer = BusinessSerializer(business)
@@ -233,6 +239,61 @@ class PayrollOrgDetail(APIView):
             return Response({"error": "PayrollOrg not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+@api_view(['PUT'])
+def update_payroll_org(request, business_id):
+    try:
+        business = Business.objects.get(pk=business_id)
+    except Business.DoesNotExist:
+        return Response({"error": "Business not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        payroll_org = PayrollOrg.objects.get(business_id=business_id)
+    except PayrollOrg.DoesNotExist:
+        return Response({"error": "PayrollOrg not found for this business"}, status=status.HTTP_404_NOT_FOUND)
+
+    data = request.data.copy()
+    file = request.FILES.get('logo')  # Handle uploaded file (logo)
+    bucket_name = S3_BUCKET_NAME
+
+    if file:
+        # Sanitize file name
+        sanitized_file_name = file.name.replace(" ", "_")
+        business_name = request.data.get('org_name', 'default_org').replace(" ", "_")
+        object_key = f'{business_name}/business_logo/{sanitized_file_name}'
+
+        try:
+            # Upload file to S3
+            url = upload_to_s3(file.read(), bucket_name, object_key)
+            data['logo'] = url
+        except Exception as e:
+            return Response({"error": f"File upload failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Get fields dynamically from serializers
+    payroll_org_fields = set(PayrollOrgSerializer().get_fields().keys())
+    business_fields = set(BusinessSerializer().get_fields().keys())
+
+    payroll_org_data = {key: value for key, value in data.items() if key in payroll_org_fields}
+    business_data = {key: value for key, value in data.items() if key in business_fields}
+
+    # Use a transaction to ensure atomicity
+    with transaction.atomic():
+        if payroll_org_data:
+            payroll_serializer = PayrollOrgSerializer(payroll_org, data=payroll_org_data, partial=True)
+            if payroll_serializer.is_valid():
+                payroll_serializer.save()
+            else:
+                return Response(payroll_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        if business_data:
+            business_serializer = BusinessSerializer(business, data=business_data, partial=True)
+            if business_serializer.is_valid():
+                business_serializer.save()
+            else:
+                return Response(business_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({"message": "Successfully updated"}, status=status.HTTP_200_OK)
+
+
 class PayrollOrgBusinessDetail(APIView):
     """
     Retrieve a payroll organization instance by its business ID.
@@ -263,7 +324,7 @@ class PayrollOrgBusinessDetailView(APIView):
             response_data = {
                 "business": business.id,
                 "organisation_name": business.nameOfBusiness,
-                "organisation_address": payroll_org.organisation_address,
+                "organisation_address": business.headOffice,
                 # Checking existence of related objects
                 "organisation_details": organisation_details,
                 "payroll_id": payroll_org.id if organisation_details else None,
@@ -295,12 +356,14 @@ class PayrollOrgBusinessDetailView(APIView):
                             and Reimbursement.objects.filter(payroll=payroll_org.id).exists()
                     )
                 ) if organisation_details else False,
-                "pay_schedule": payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists(),
+                "pay_schedule": payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists()
+                if organisation_details else False,
                 "leave_and_attendance": (payroll_org.leave_management or False) and (
                             payroll_org.holiday_management or False) if organisation_details else False,
-                "employee_master": payroll_org.employee_master or False,
+                "employee_master": payroll_org.employee_master or False if organisation_details else False,
                 "salary_template": payroll_org.salary_template or
                                    SalaryTemplate.objects.filter(payroll=payroll_org.id).exists()
+                if organisation_details else False
                 }
 
             return Response(response_data,  status=status.HTTP_200_OK)

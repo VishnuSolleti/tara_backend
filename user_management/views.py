@@ -265,7 +265,7 @@ def assign_permissions(data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 25
+            "CA": 24
         }
 
         if user_type not in group_id_mapping:
@@ -282,7 +282,7 @@ def assign_permissions(data):
             raise ValueError(f"User with ID {user_id} not found.")
 
         # Get or Create UserGroup (Ensure one user has only one UserGroup entry)
-        user_group, created = UserAffiliatedRole.objects.get_or_create(user=user, affiliated=user, flag=False)
+        user_group = UserAffiliatedRole.objects.create(user=user, affiliated=user, flag=False)
         user_group.group = group  # Assigning a single group
         user_group.custom_permissions.set(group.permissions.all())  # Default permissions
         user_group.save()
@@ -581,7 +581,7 @@ def assign_group_with_user_affiliated_permissions(user_group_permission_data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 25
+            "CA": 24
         }
 
         if user_type not in group_id_mapping:
@@ -648,7 +648,7 @@ def assign_group_with_affiliated_permissions(user_group_permission_data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 25
+            "CA": 24
         }
 
         if user_type not in group_id_mapping:
@@ -2520,7 +2520,7 @@ def business_corporation_affiliation(user_group_permission_data):
             "Individual": 10,
             "Business": 11,
             "ServiceProvider": 1,
-            "CA": 25
+            "CA": 24
         }
         group = CustomGroup.objects.get(id=group_id_mapping[user_type])
 
@@ -2744,23 +2744,38 @@ def business_list(request):
         serializer = BusinessSerializer(businesses, many=True)
         return Response(serializer.data)
 
-    elif request.method == 'POST':
-        request_data = request.data
-        request_data['nameOfBusiness'] = request_data.get('nameOfBusiness', '').title()
 
-        if request_data.get('entityType') != 'individual':
-            qs = Business.objects.filter(nameOfBusiness__iexact=request_data.get('nameOfBusiness'))
-            if qs.exists():
+    elif request.method == 'POST':
+
+        request_data = request.data.copy()  # Create a mutable copy of request data
+
+        request_data['nameOfBusiness'] = request_data.get('nameOfBusiness', '').strip().title()
+
+        entity_type = request_data.get('entityType', '').strip().lower()
+
+        business_name = request_data.get('nameOfBusiness')
+
+        pan = request_data.get('pan', '').strip()
+
+        # Check if a non-individual business with the same name exists
+
+        if entity_type and entity_type != 'individual':
+
+            if Business.objects.filter(nameOfBusiness__iexact=business_name).exists():
                 return Response({'error_message': 'Business already exists'}, status=status.HTTP_400_BAD_REQUEST)
-            qs = Business.objects.filter(pan=request_data.get('pan'))
-            if qs.exists():
-                return Response({'error_message': 'Business with PAN already exists'},
-                                status=status.HTTP_400_BAD_REQUEST)
+
+        # Check if a business with the same PAN exists
+
+        if pan and Business.objects.filter(pan=pan).exists():
+            return Response({'error_message': 'Business with PAN already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = BusinessSerializer(data=request_data)
+
         if serializer.is_valid():
             serializer.save()
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

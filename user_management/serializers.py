@@ -166,6 +166,7 @@ class UserGroupSerializer(serializers.ModelSerializer):
 class UserActivationSerializer(serializers.Serializer):
     token = serializers.CharField()
 
+
 class AddressSerializer(serializers.Serializer):
     address_line1 = serializers.CharField(max_length=255, required=False)
     address_line2 = serializers.CharField(max_length=255, required=False)
@@ -175,9 +176,10 @@ class AddressSerializer(serializers.Serializer):
     city = serializers.CharField(max_length=20, required=False)
     country = serializers.CharField(max_length=20, required=False)
 
+
 class BusinessSerializer(serializers.ModelSerializer):
     entityType = serializers.CharField(max_length=50, required=False)
-    pan = serializers.CharField(max_length=15, required=True)
+    pan = serializers.CharField(max_length=15, required=False, default=None)
     headOffice = serializers.JSONField(default=dict)
 
 
@@ -186,12 +188,8 @@ class BusinessSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate(self, data):
-        if not data.get('pan'):
-            raise serializers.ValidationError({'PAN': 'This field is required.'})
         if not data.get('nameOfBusiness'):
             raise serializers.ValidationError({'name_as_per_pan': 'This field is required.'})
-        if not data.get('dob_or_incorp_date'):
-            raise serializers.ValidationError({'establishment_date': 'This field is required.'})
         return data
 
     def create(self, validated_data):
