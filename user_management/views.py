@@ -3903,3 +3903,110 @@ def list_contacts_by_date(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def send_email_notification(to_email, consultation):
+    # Initialize S3 client
+    ses_client = boto3.client(
+        'ses',
+        region_name=AWS_REGION,
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    )
+
+    """ Sends an email notification using AWS SES """
+    subject = "Consultation Booking Confirmation"
+    body = f"""
+    Hello {consultation.name},
+
+    Your consultation has been successfully booked.
+
+    📅 Date: {consultation.date}
+    ⏰ Time: {consultation.time}
+    📞 Mobile: {consultation.mobile_number}
+
+    Our team will contact you soon.
+
+    Best Regards,
+    TaraFirst
+    """
+
+    response = ses_client.send_email(
+        Source="admin@tarafirst.com",  # Must be verified in AWS SES
+        Destination={"ToAddresses": [to_email]},
+        Message={
+            "Subject": {"Data": subject},
+            "Body": {"Text": {"Data": body}},
+        },
+    )
+    return response
+
+
+def send_admin_notification(consultation):
+    # Initialize SES client
+    ses_client = boto3.client(
+        'ses',
+        region_name=AWS_REGION,
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    )
+
+    """ Sends an email notification to the admin when a consultation is booked """
+    subject = "New Consultation Booking Notification"
+    body = f"""
+    📢 New Consultation Booking Alert!
+
+    A new consultation has been scheduled:
+
+    🧑 Name: {consultation.name}
+    📧 Email: {consultation.email}
+    📞 Mobile: {consultation.mobile_number}
+    📅 Date: {consultation.date}
+    ⏰ Time: {consultation.time}
+
+    Please follow up with the customer as required.
+
+    Best Regards,
+    TaraFirst Admin
+    """
+
+    response = ses_client.send_email(
+        Source="admin@tarafirst.com",  # Must be verified in AWS SES
+        Destination={"ToAddresses": ["admin@tarafirst.com"]},  # Replace with actual admin email
+        Message={
+            "Subject": {"Data": subject},
+            "Body": {"Text": {"Data": body}},
+        },
+    )
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def create_consultation(request):
+    """ API to create a new consultation with 30-minute slot validation """
+    serializer = ConsultationSerializer(data=request.data)
+
+    if serializer.is_valid():
+        consultation = serializer.save()
+        # Send email notification
+        send_email_notification(consultation.email, consultation)
+        send_admin_notification(consultation)
+        return Response({"message": "Consultation booked successfully! Email sent."},
+                        status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET"])
+def list_consultations(request):
+    """ API to list all consultations or filter by date """
+    date = request.GET.get("date")  # User passes date as a query param (YYYY-MM-DD)
+
+    if date:
+        consultations = Consultation.objects.filter(date=date)
+    else:
+        consultations = Consultation.objects.all()
+
+    serializer = ConsultationSerializer(consultations, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

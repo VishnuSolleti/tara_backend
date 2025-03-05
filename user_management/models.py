@@ -408,3 +408,26 @@ class Contact(models.Model):
         return f"{self.first_name} {self.last_name} - {self.email}"
 
 
+class Consultation(models.Model):
+    name = models.CharField(max_length=40)
+    email = models.EmailField()  # No unique constraint
+    mobile_number = models.CharField(
+        max_length=20,
+        validators=[
+            RegexValidator(
+                regex=r'^\+?\d{10,15}$',
+                message="Enter a valid mobile number with 10-15 digits, optionally starting with +"
+            )
+        ]
+    )
+    message = models.TextField()
+    date = models.DateField()
+    time = models.TimeField()
+    created_date = models.DateField(auto_now_add=True)  # Stores only Date (YYYY-MM-DD)
+    created_time = models.TimeField(auto_now_add=True)  # Stores only Time (HH:MM:SS)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} - {self.email}"
+
+
+

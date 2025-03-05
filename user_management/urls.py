@@ -100,4 +100,7 @@ urlpatterns = [
 
     path("contacts", list_contacts_by_date, name="list_contacts_by_specific_day"),
 
+    path("consultation", create_consultation, name="create-consultation"),
+    path("consultations", list_consultations, name="list-consultations-by-date")
+
 ]

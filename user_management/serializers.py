@@ -542,3 +542,26 @@ class ContactSerializer(serializers.ModelSerializer):
         return value
 
 
+class ConsultationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Consultation
+        fields = "__all__"
+
+    def validate_time(self, value):
+        """ Ensure time is stored in HH:MM format only (remove seconds) """
+        return value.replace(second=0)
+
+    def validate(self, data):
+        """ Prevent duplicate bookings for the same date, time slot, and email """
+        email = data.get("email")
+        date = data.get("date")
+        time = data.get("time")
+
+        # Check if the same email has already booked this slot
+        if Consultation.objects.filter(email=email, date=date, time=time).exists():
+            raise serializers.ValidationError(
+                {"time": "This time slot is already booked. Please select a different slot."}
+            )
+
+        return data
+
