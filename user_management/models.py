@@ -10,6 +10,7 @@ from djongo.models import ArrayField, EmbeddedField, JSONField
 from django.dispatch import receiver
 from django.db.models.signals import post_save, post_delete
 from .helpers import *
+from django.core.validators import RegexValidator
 
 
 KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='  # Fernet key
@@ -331,6 +332,7 @@ class Business(BaseModel):
     def __str__(self):
         return str(self.nameOfBusiness)
 
+
 class GSTDetails(BaseModel):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='gst_details')
     gstin = models.CharField(max_length=120, unique=True, null=True, blank=True)
@@ -383,3 +385,26 @@ class VisaApplications(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.visa_type}"
+
+
+class Contact(models.Model):
+    first_name = models.CharField(max_length=40)
+    last_name = models.CharField(max_length=40)
+    email = models.EmailField()  # No unique constraint
+    mobile_number = models.CharField(
+        max_length=20,
+        validators=[
+            RegexValidator(
+                regex=r'^\+?\d{10,15}$',
+                message="Enter a valid mobile number with 10-15 digits, optionally starting with +"
+            )
+        ]
+    )
+    message = models.TextField()
+    created_date = models.DateField(auto_now_add=True)  # Stores only Date (YYYY-MM-DD)
+    created_time = models.TimeField(auto_now_add=True)  # Stores only Time (HH:MM:SS)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} - {self.email}"
+
+

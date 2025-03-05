@@ -5,6 +5,9 @@ from .models import *
 import json
 from collections import OrderedDict
 from collections import defaultdict
+from django.utils.timezone import now
+
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
     Serializer for user registration.
@@ -524,3 +527,18 @@ class VisaClientUserListSerializer(serializers.ModelSerializer):
     def get_user(self, obj):
         # Assuming the related User model has the mobile_number field
         return obj.user.id if obj.user else None
+
+
+class ContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = "__all__"
+
+    def validate_email(self, value):
+        """ Ensure only one request per email per day """
+        today = now().date()  # Get today's date
+        if Contact.objects.filter(email=value, created_date=today).exists():
+            raise serializers.ValidationError("You can only submit one request per day.")
+        return value
+
+

@@ -96,4 +96,8 @@ urlpatterns = [
 
     path('service-details/<int:pk>/', ServiceDetailsAPIView.as_view(), name='service-details'),
 
+    path("contact", create_contact, name="create_contact"),
+
+    path("contacts", list_contacts_by_date, name="list_contacts_by_specific_day"),
+
 ]

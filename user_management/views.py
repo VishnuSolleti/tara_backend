@@ -43,6 +43,7 @@ from collections import defaultdict
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from urllib.parse import urlparse, unquote
+from django.db.models.functions import TruncDate
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
 
@@ -3867,3 +3868,38 @@ class ServiceDetailsAPIView(APIView):
         service = get_object_or_404(ServiceDetails, pk=pk)
         service.delete()
         return Response({"message": "Service deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def create_contact(request):
+    """ API to handle contact form submissions """
+    serializer = ContactSerializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response(
+            {
+                "message": "Request submitted successfully! One of our executives will get in touch with you."
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET"])
+def list_contacts_by_date(request):
+    """API to list contacts for a specific date"""
+    date_str = request.GET.get("date")  # Get date from query parameters (YYYY-MM-DD)
+
+    if not date_str:
+        return Response({"error": "Date parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        contacts = Contact.objects.filter(created_date=date_str)  # Filter by created_date
+        serializer = ContactSerializer(contacts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
