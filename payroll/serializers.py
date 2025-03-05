@@ -31,6 +31,8 @@ class PayrollOrgSerializer(serializers.ModelSerializer):
         return instance
 
 
+
+
 class WorkLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkLocations

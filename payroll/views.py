@@ -13,7 +13,8 @@ from io import TextIOWrapper
 from django.shortcuts import get_object_or_404
 from user_management.serializers import *
 from django.db import transaction, DatabaseError
-
+from django.core.exceptions import ObjectDoesNotExist
+import json
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -61,35 +62,53 @@ class PayrollOrgList(APIView):
         data = request.data.copy()
         file = request.FILES.get('logo')  # Handle uploaded file (logo)
         bucket_name = S3_BUCKET_NAME
+        business_id = data.get('business')
+        business_data = data.pop('business_details', None)
 
+        # Fetch business instance
+        try:
+            business = Business.objects.get(pk=business_id)
+        except ObjectDoesNotExist:
+            return Response({"error": "Business not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Update business details if provided
+        if business_data:
+            if isinstance(business_data, list):  # Ensure we are working with a list
+                business_data = business_data[0]  # Extract the first element (string)
+            try:
+                business_data = json.loads(business_data)  # Convert JSON string to dictionary
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid JSON format in business_details"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            business_serializer = BusinessSerializer(business, data=business_data, partial=True)
+            if business_serializer.is_valid():
+                business_serializer.save()
+            else:
+                return Response(business_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Handle file upload
         if file:
-            # Replace spaces with underscores in the file name
             sanitized_file_name = file.name.replace(" ", "_")
-            business_name = request.data.get('org_name', 'default_org').replace(" ",
-                                                                                "_")  # Ensure no spaces in org_name
-            object_key = f'{business_name}/business_logo/{sanitized_file_name}'
+            object_key = f'{business.nameOfBusiness}/business_logo/{sanitized_file_name}'
 
             try:
-                # Upload file to S3 as private
-                url = upload_to_s3(file.read(), bucket_name, object_key)  # Read file content for upload
-                # Store the S3 URL in the `logo` field
-                data['logo'] = url
+                data['logo'] = upload_to_s3(file.read(), bucket_name, object_key)
             except Exception as e:
-                return Response(
-                    {"error": f"File upload failed: {str(e)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({"error": f"File upload failed: {str(e)}"},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Validate and save the serializer
-        serializer = PayrollOrgSerializer(data=data)
+        # Fetch or create PayrollOrg
+        try:
+            payroll_org = PayrollOrg.objects.get(business_id=business_id)
+            serializer = PayrollOrgSerializer(payroll_org, data=data, partial=True)
+        except PayrollOrg.DoesNotExist:
+            serializer = PayrollOrgSerializer(data=data)
+
+        # Validate and save PayrollOrg
         if serializer.is_valid():
-            payroll_org = serializer.save()  # Save the instance directly
-            return Response(
-                PayrollOrgSerializer(payroll_org).data,
-                status=status.HTTP_201_CREATED
-            )
+            payroll_org = serializer.save()
+            return Response(PayrollOrgSerializer(payroll_org).data, status=status.HTTP_201_CREATED)
 
-        # Handle validation errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -167,6 +186,7 @@ class PayrollOrgDetail(APIView):
     """
     Retrieve, update or delete a payroll organization instance.
     """
+
     def get(self, request, pk):
         try:
             # Fetch PayrollOrg or return 404
@@ -176,14 +196,14 @@ class PayrollOrgDetail(APIView):
             business = payroll_org.business
 
             # Serialize PayrollOrg
-            serializer = PayrollOrgSerializer(payroll_org)
+            payroll_serializer = PayrollOrgSerializer(payroll_org)
 
-            # Construct response with additional business details
-            response_data = serializer.data  # Get serialized data
-            response_data.update({
-                "business": business.id,
-                "organisation_name": business.nameOfBusiness,
-            })
+            # Serialize Business
+            business_serializer = BusinessSerializer(business)  # Serialize full business data
+
+            # Construct response with full business details
+            response_data = payroll_serializer.data  # Get serialized PayrollOrg data
+            response_data["business_details"] = business_serializer.data  # Add full Business details
 
             return Response(response_data, status=status.HTTP_200_OK)
 

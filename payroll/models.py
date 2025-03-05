@@ -15,7 +15,6 @@ class PayrollOrg(models.Model):
     business = models.OneToOneField(Business, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)  # Use auto_now_add for creation timestamp
     logo = models.CharField(max_length=200, null=True, blank=True)
-    contact_email = models.EmailField(max_length=120, null=True, blank=True)
     sender_email = models.EmailField(max_length=120, null=True, blank=True)
     filling_address_line1 = models.CharField(max_length=150, null=True, blank=True)
     filling_address_line2 = models.CharField(max_length=150, null=True, blank=True)
@@ -30,7 +29,6 @@ class PayrollOrg(models.Model):
     salary_component = models.BooleanField(default=False)
     salary_template = models.BooleanField(default=False)
     pay_schedule = models.BooleanField(default=False)
-    industry = models.CharField(max_length=150, null=False, blank=False)
     leave_management = models.BooleanField(default=False)
     holiday_management = models.BooleanField(default=False)
     employee_master = models.BooleanField(default=False)
