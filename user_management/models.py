@@ -163,6 +163,7 @@ class User(AbstractBaseUser):
 
     USERNAME_FIELD = 'user_name'
     REQUIRED_FIELDS = []
+    service_request = models.CharField(max_length=40, null=True, blank=True, default=None)
 
     def __str__(self):
         return self.user_name or "User"

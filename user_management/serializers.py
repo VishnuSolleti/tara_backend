@@ -22,11 +22,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     is_active = serializers.BooleanField(default=False)
     user_name = serializers.CharField(max_length=120, allow_null=False, allow_blank=False)
+    service_request = serializers.CharField(max_length=40, allow_null=False, allow_blank=False)
 
     class Meta:
         model = User
         fields = ('id', 'email', 'mobile_number', 'password', 'created_by', 'user_type', 'user_name'
-                  , 'first_name', 'last_name', 'is_active')
+                  , 'first_name', 'last_name', 'is_active', 'service_request')
 
     def validate(self, attrs):
         email = attrs.get('email')
@@ -50,6 +51,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         first_name = validated_data.get('first_name', '')
         last_name = validated_data.get('last_name', '')
         user_name = validated_data.get('user_name')
+        service_request = validated_data.get('service_request', '')
 
         # Create the user with the provided data
         user = User.objects.create_user(
@@ -60,13 +62,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             first_name=first_name,
             last_name=last_name,
             user_name=user_name,
-            created_by=created_by
+            created_by=created_by,
+            service_request=service_request
         )
 
         return user
 
+
 class UserSerializer(serializers.ModelSerializer):
     date_joined = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = ['id', 'user_name', 'email', 'mobile_number',
@@ -80,6 +85,7 @@ class CustomPermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomPermission
         fields = ['id', 'action_name', 'module_name', 'description']
+
 
 class CustomGroupSerializer(serializers.ModelSerializer):
     permissions = serializers.SerializerMethodField()
@@ -185,11 +191,9 @@ class BusinessSerializer(serializers.ModelSerializer):
     pan = serializers.CharField(max_length=15, required=False, default=None)
     headOffice = serializers.JSONField(default=dict)
 
-
     class Meta:
         model = Business
         fields = '__all__'
-
 
     def create(self, validated_data):
         """
@@ -247,6 +251,7 @@ class UserBusinessRetrieveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Business
         fields = ['id', 'nameOfBusiness', 'entityType', 'client']
+
 
 class BusinessWithGSTSerializer(serializers.ModelSerializer):
     gst_details = GSTDetailsSerializer(many=True, read_only=True)
