@@ -22,7 +22,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     is_active = serializers.BooleanField(default=False)
     user_name = serializers.CharField(max_length=120, allow_null=False, allow_blank=False)
-    service_request = serializers.CharField(max_length=40, allow_null=False, allow_blank=False)
+    service_request = serializers.CharField(max_length=40, allow_null=False, allow_blank=False, default='')
 
     class Meta:
         model = User
