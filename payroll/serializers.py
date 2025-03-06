@@ -107,7 +107,7 @@ class EPFSerializer(serializers.ModelSerializer):
         fields = ['id', 'payroll', 'epf_number', 'employee_contribution_rate', 'employer_contribution_rate',
                   'employer_edil_contribution_in_ctc', 'include_employer_contribution_in_ctc',
                   'admin_charge_in_ctc', 'allow_employee_level_override', 'prorate_restricted_pf_wage',
-                  'apply_components_if_wage_below_15k']
+                  'apply_components_if_wage_below_15k', 'is_disabled']
 
     def create(self, validated_data):
         """

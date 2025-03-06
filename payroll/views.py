@@ -1277,7 +1277,10 @@ def pay_schedule_list_create(request):
         pay_schedules = PaySchedule.objects.all()
 
         if payroll_id:
-            pay_schedules = pay_schedules.filter(payroll_id=payroll_id)
+            pay_schedules = PaySchedule.objects.get(payroll_id=payroll_id)
+            serializer = PayScheduleSerializer(pay_schedules)
+            return Response(serializer.data,
+                            status=status.HTTP_200_OK)
 
         serializer = PayScheduleSerializer(pay_schedules, many=True)
         return Response({"data": serializer.data, "message": "Pay Schedules retrieved successfully."},
