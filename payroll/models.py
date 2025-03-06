@@ -129,6 +129,7 @@ class EPF(models.Model):
     admin_charge_in_ctc = models.BooleanField()  # Admin charge included in CTC
     allow_employee_level_override = models.BooleanField()  # Can employee override PF?
     prorate_restricted_pf_wage = models.BooleanField()  # Prorate restricted PF wage?
+    apply_components_if_wage_below_15k = models.BooleanField()
 
     def __str__(self):
         return f"EPF Details for Payroll: {self.payroll.business.nameOfBusiness} (EPF No: {self.epf_number})"
