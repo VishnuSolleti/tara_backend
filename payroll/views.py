@@ -1274,17 +1274,24 @@ def pay_schedule_list_create(request):
     """
     if request.method == 'GET':
         payroll_id = request.query_params.get('payroll_id')
-        pay_schedules = PaySchedule.objects.all()
 
         if payroll_id:
-            pay_schedules = PaySchedule.objects.get(payroll_id=payroll_id)
-            serializer = PayScheduleSerializer(pay_schedules)
-            return Response(serializer.data,
-                            status=status.HTTP_200_OK)
+            try:
+                pay_schedule = PaySchedule.objects.get(payroll_id=payroll_id)
+                serializer = PayScheduleSerializer(pay_schedule)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except ObjectDoesNotExist:
+                return Response(
+                    {"error": "No Pay Schedule found for the provided payroll_id."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
+        pay_schedules = PaySchedule.objects.all()
         serializer = PayScheduleSerializer(pay_schedules, many=True)
-        return Response({"data": serializer.data, "message": "Pay Schedules retrieved successfully."},
-                        status=status.HTTP_200_OK)
+        return Response(
+            {"data": serializer.data, "message": "Pay Schedules retrieved successfully."},
+            status=status.HTTP_200_OK
+        )
 
     elif request.method == 'POST':
         serializer = PayScheduleSerializer(data=request.data)
