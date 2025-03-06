@@ -399,27 +399,7 @@ class PayrollOrgBusinessDetailView(APIView):
 def work_location_list(request):
     business_id = request.query_params.get('business_id')
     payroll_id = request.query_params.get('payroll_id')
-
     try:
-        if business_id:
-            # Retrieve the Business and return only Head Office address
-            business = Business.objects.get(id=business_id)
-
-            if business.headOffice:
-                head_office_data = {
-                    "id": "head_office",
-                    "location_name": "Head Office",
-                    "address_line1": business.headOffice.get("address_line1", ""),
-                    "address_line2": business.headOffice.get("address_line2", ""),
-                    "address_city": business.headOffice.get("city", ""),
-                    "address_state": business.headOffice.get("state", ""),
-                    "address_pincode": business.headOffice.get("pincode", ""),
-                    "is_head_office": True
-                }
-                return Response([head_office_data], status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "Head Office address not found"}, status=status.HTTP_404_NOT_FOUND)
-
         if payroll_id:
             # Retrieve Work Locations for given payroll
             payroll_org = PayrollOrg.objects.get(id=payroll_id)
@@ -427,21 +407,6 @@ def work_location_list(request):
 
             work_locations = WorkLocations.objects.filter(payroll=payroll_org).order_by('-created_at')
             work_location_data = WorkLocationSerializer(work_locations, many=True).data
-
-            # Append Head Office at the TOP
-            if business.headOffice:
-                head_office_data = {
-                    "id": "head_office",
-                    "location_name": "Head Office",
-                    "address_line1": business.headOffice.get("address_line1", ""),
-                    "address_line2": business.headOffice.get("address_line2", ""),
-                    "address_city": business.headOffice.get("city", ""),
-                    "address_state": business.headOffice.get("state", ""),
-                    "address_pincode": business.headOffice.get("pincode", ""),
-                    "is_head_office": True
-                }
-                work_location_data.insert(0, head_office_data)
-
             return Response(work_location_data, status=status.HTTP_200_OK)
 
         return Response({"error": "Either business_id or payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -454,8 +419,6 @@ def work_location_list(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 
 
 # Create a new WorkLocation

@@ -4,6 +4,7 @@ from djongo.models import ArrayField, EmbeddedField, JSONField
 from user_management.models import *
 from datetime import date
 from collections import OrderedDict
+from django.db.models.signals import pre_save, post_save
 
 
 def validate_pincode(value):
@@ -42,6 +43,33 @@ class PayrollOrg(models.Model):
 
     def __str__(self):
         return f"PayrollOrg {self.business.id}"
+
+
+@receiver(pre_save, sender=PayrollOrg)
+def check_business_head_office(sender, instance, **kwargs):
+    """ Prevent PayrollOrg creation if business.headOffice is empty """
+    if not instance.business.headOffice or instance.business.headOffice in [{}, OrderedDict()]:
+        raise ValidationError("Business headOffice cannot be empty. Please set headOffice before creating PayrollOrg.")
+
+
+@receiver(post_save, sender=PayrollOrg)
+def create_work_location(sender, instance, created, **kwargs):
+    """Automatically create a Work Location based on Business Head Office details."""
+    if created:  # Ensure it runs only when PayrollOrg is created
+        business = instance.business
+
+        # Extracting head_office details from JSONField
+        head_office = business.headOffice or {}  # Default to empty dict if None
+
+        WorkLocations.objects.create(
+            payroll=instance,
+            location_name="Head Office",
+            address_line1=head_office.get("address_line1"),
+            address_line2=head_office.get("address_line2"),
+            address_state=head_office.get("state"),
+            address_city=head_office.get("city"),
+            address_pincode=head_office.get("pincode"),
+        )
 
 
 class WorkLocations(models.Model):

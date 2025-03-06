@@ -2745,7 +2745,6 @@ def business_list(request):
         serializer = BusinessSerializer(businesses, many=True)
         return Response(serializer.data)
 
-
     elif request.method == 'POST':
 
         request_data = request.data.copy()  # Create a mutable copy of request data
