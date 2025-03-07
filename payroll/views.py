@@ -378,8 +378,9 @@ class PayrollOrgBusinessDetailView(APIView):
                 ) if organisation_details else False,
                 "pay_schedule": payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists()
                 if organisation_details else False,
-                "leave_and_attendance": (payroll_org.leave_management or False) and (
-                            payroll_org.holiday_management or False) if organisation_details else False,
+                "leave_and_attendance": (LeaveManagement.objects.filter(payroll=payroll_org.id).exists()) and (
+                            HolidayManagement.objects.filter(payroll=payroll_org.id).exists()) if organisation_details
+                else False,
                 "employee_master": payroll_org.employee_master or False if organisation_details else False,
                 "salary_template": payroll_org.salary_template or
                                    SalaryTemplate.objects.filter(payroll=payroll_org.id).exists()
