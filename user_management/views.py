@@ -2615,14 +2615,14 @@ def send_account_email(user, email, password):
 def business_set_up(business_data):
     """
     Handle business registration.
-    Returns True if the business is successfully saved,
-    Raises ValueError if the data is invalid.
+    Returns the instance and serialized data.
     """
     serializer = BusinessSerializer(data=business_data)
     if serializer.is_valid():
-        business_instance = serializer.save()  # Save and get the instance
-        return business_instance
+        business_instance = serializer.save()
+        return business_instance, serializer.data  # Returning both
     raise ValueError(f"Invalid business data provided: {serializer.errors}")
+
 
 
 def object_remove(created_objects):
@@ -2647,6 +2647,7 @@ def businessEntityRegistration(request):
 
     if request.method == 'POST':
         created_objects = []
+        resultant_data = []
         try:
             request_data = request.data.copy()
             user_creation = request_data.get('user_creation', {})
@@ -2678,6 +2679,7 @@ def businessEntityRegistration(request):
                 user = serializer.save()
                 user_data = serializer.data
                 created_objects.append(user)
+                resultant_data.append(user_data)
                 logger.info(f"User created successfully by superadmin: {user.pk}")
                 user_data['group'] = group
                 user_data['custom_permissions'] = custom_permissions
@@ -2688,16 +2690,17 @@ def businessEntityRegistration(request):
                     created_objects.extend(affiliation_result)  # Track created affiliations
 
                 business_data['client'] = user_data['id']
-                setup_result = business_set_up(business_data)
+                setup_result, serialized_data = business_set_up(business_data)
                 if setup_result:
-                    created_objects.append(setup_result)
+                    created_objects.append(setup_result)  # Append instance
+                    resultant_data.append(serialized_data)  # Append serialized data
 
                 # Send email with the username and password
                 if email:
                     send_account_email(user, email, password)
 
                 return Response(
-                    {"data": created_objects, "message": "User created successfully."
+                    {"data": resultant_data, "message": "User created successfully."
                                                          " Check your email for the username and password."},
                     status=status.HTTP_201_CREATED,
                 )
