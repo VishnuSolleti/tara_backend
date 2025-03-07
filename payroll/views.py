@@ -1430,15 +1430,14 @@ def holiday_management_list_create(request):
             holidays = holidays.filter(payroll_id=payroll_id)
 
         serializer = HolidayManagementSerializer(holidays, many=True)
-        return Response({"data": serializer.data, "message": "Holiday Management data retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         serializer = HolidayManagementSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"data": serializer.data,
-                             "message": "Holiday Management record created successfully."},
+            return Response(serializer.data,
                             status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1455,15 +1454,14 @@ def holiday_management_detail_update_delete(request, holiday_id):
 
     if request.method == 'GET':
         serializer = HolidayManagementSerializer(holiday)
-        return Response({"data": serializer.data, "message": "Holiday Management record retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         serializer = HolidayManagementSerializer(holiday, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"data": serializer.data,
-                             "message": "Holiday Management record updated successfully."},
+            return Response(serializer.data,
                             status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
