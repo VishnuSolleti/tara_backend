@@ -43,6 +43,7 @@ from collections import defaultdict
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from urllib.parse import urlparse, unquote
+from django.db.models.functions import TruncDate
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
 
@@ -2614,14 +2615,14 @@ def send_account_email(user, email, password):
 def business_set_up(business_data):
     """
     Handle business registration.
-    Returns True if the business is successfully saved,
-    Raises ValueError if the data is invalid.
+    Returns the instance and serialized data.
     """
     serializer = BusinessSerializer(data=business_data)
     if serializer.is_valid():
-        business_instance = serializer.save()  # Save and get the instance
-        return business_instance
+        business_instance = serializer.save()
+        return business_instance, serializer.data  # Returning both
     raise ValueError(f"Invalid business data provided: {serializer.errors}")
+
 
 
 def object_remove(created_objects):
@@ -2646,6 +2647,7 @@ def businessEntityRegistration(request):
 
     if request.method == 'POST':
         created_objects = []
+        resultant_data = []
         try:
             request_data = request.data.copy()
             user_creation = request_data.get('user_creation', {})
@@ -2677,6 +2679,7 @@ def businessEntityRegistration(request):
                 user = serializer.save()
                 user_data = serializer.data
                 created_objects.append(user)
+                resultant_data.append(user_data)
                 logger.info(f"User created successfully by superadmin: {user.pk}")
                 user_data['group'] = group
                 user_data['custom_permissions'] = custom_permissions
@@ -2687,16 +2690,18 @@ def businessEntityRegistration(request):
                     created_objects.extend(affiliation_result)  # Track created affiliations
 
                 business_data['client'] = user_data['id']
-                setup_result = business_set_up(business_data)
+                setup_result, serialized_data = business_set_up(business_data)
                 if setup_result:
-                    created_objects.append(setup_result)
+                    created_objects.append(setup_result)  # Append instance
+                    resultant_data.append(serialized_data)  # Append serialized data
 
                 # Send email with the username and password
                 if email:
                     send_account_email(user, email, password)
 
                 return Response(
-                    {"message": "User created successfully. Check your email for the username and password."},
+                    {"data": resultant_data, "message": "User created successfully."
+                                                         " Check your email for the username and password."},
                     status=status.HTTP_201_CREATED,
                 )
 
@@ -2709,7 +2714,7 @@ def businessEntityRegistration(request):
             logger.error(f"Integrity error during registration: {str(e)}")
             object_remove(created_objects)
             return Response(
-                {"error": "A user with this email or mobile number already exists."},
+                {"error": "A user with this email already exists."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         except DatabaseError as e:
@@ -2743,7 +2748,6 @@ def business_list(request):
         businesses = Business.objects.all()
         serializer = BusinessSerializer(businesses, many=True)
         return Response(serializer.data)
-
 
     elif request.method == 'POST':
 
@@ -3867,3 +3871,145 @@ class ServiceDetailsAPIView(APIView):
         service = get_object_or_404(ServiceDetails, pk=pk)
         service.delete()
         return Response({"message": "Service deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def create_contact(request):
+    """ API to handle contact form submissions """
+    serializer = ContactSerializer(data=request.data)
+
+    if serializer.is_valid():
+        serializer.save()
+        return Response(
+            {
+                "message": "Request submitted successfully! One of our executives will get in touch with you."
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET"])
+def list_contacts_by_date(request):
+    """API to list contacts for a specific date"""
+    date_str = request.GET.get("date")  # Get date from query parameters (YYYY-MM-DD)
+
+    if not date_str:
+        return Response({"error": "Date parameter is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        contacts = Contact.objects.filter(created_date=date_str)  # Filter by created_date
+        serializer = ContactSerializer(contacts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def send_email_notification(to_email, consultation):
+    # Initialize S3 client
+    ses_client = boto3.client(
+        'ses',
+        region_name=AWS_REGION,
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    )
+
+    """ Sends an email notification using AWS SES """
+    subject = "Consultation Booking Confirmation"
+    body = f"""
+    Hello {consultation.name},
+
+    Your consultation has been successfully booked.
+
+    📅 Date: {consultation.date}
+    ⏰ Time: {consultation.time}
+    📞 Mobile: {consultation.mobile_number}
+
+    Our team will contact you soon.
+
+    Best Regards,
+    TaraFirst
+    """
+
+    response = ses_client.send_email(
+        Source="admin@tarafirst.com",  # Must be verified in AWS SES
+        Destination={"ToAddresses": [to_email]},
+        Message={
+            "Subject": {"Data": subject},
+            "Body": {"Text": {"Data": body}},
+        },
+    )
+    return response
+
+
+def send_admin_notification(consultation):
+    # Initialize SES client
+    ses_client = boto3.client(
+        'ses',
+        region_name=AWS_REGION,
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+    )
+
+    """ Sends an email notification to the admin when a consultation is booked """
+    subject = "New Consultation Booking Notification"
+    body = f"""
+    📢 New Consultation Booking Alert!
+
+    A new consultation has been scheduled:
+
+    🧑 Name: {consultation.name}
+    📧 Email: {consultation.email}
+    📞 Mobile: {consultation.mobile_number}
+    📅 Date: {consultation.date}
+    ⏰ Time: {consultation.time}
+
+    Please follow up with the customer as required.
+
+    Best Regards,
+    TaraFirst Admin
+    """
+
+    response = ses_client.send_email(
+        Source="admin@tarafirst.com",  # Must be verified in AWS SES
+        Destination={"ToAddresses": ["admin@tarafirst.com"]},  # Replace with actual admin email
+        Message={
+            "Subject": {"Data": subject},
+            "Body": {"Text": {"Data": body}},
+        },
+    )
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def create_consultation(request):
+    """ API to create a new consultation with 30-minute slot validation """
+    serializer = ConsultationSerializer(data=request.data)
+
+    if serializer.is_valid():
+        consultation = serializer.save()
+        # Send email notification
+        send_email_notification(consultation.email, consultation)
+        send_admin_notification(consultation)
+        return Response({"message": "Consultation booked successfully! Email sent."},
+                        status=status.HTTP_201_CREATED)
+
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET"])
+def list_consultations(request):
+    """ API to list all consultations or filter by date """
+    date = request.GET.get("date")  # User passes date as a query param (YYYY-MM-DD)
+
+    if date:
+        consultations = Consultation.objects.filter(date=date)
+    else:
+        consultations = Consultation.objects.all()
+
+    serializer = ConsultationSerializer(consultations, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

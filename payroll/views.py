@@ -13,7 +13,8 @@ from io import TextIOWrapper
 from django.shortcuts import get_object_or_404
 from user_management.serializers import *
 from django.db import transaction, DatabaseError
-
+from django.core.exceptions import ObjectDoesNotExist
+import json
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -61,35 +62,53 @@ class PayrollOrgList(APIView):
         data = request.data.copy()
         file = request.FILES.get('logo')  # Handle uploaded file (logo)
         bucket_name = S3_BUCKET_NAME
+        business_id = data.get('business')
+        business_data = data.pop('business_details', None)
 
+        # Fetch business instance
+        try:
+            business = Business.objects.get(pk=business_id)
+        except ObjectDoesNotExist:
+            return Response({"error": "Business not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Update business details if provided
+        if business_data:
+            if isinstance(business_data, list):  # Ensure we are working with a list
+                business_data = business_data[0]  # Extract the first element (string)
+            try:
+                business_data = json.loads(business_data)  # Convert JSON string to dictionary
+            except json.JSONDecodeError:
+                return Response({"error": "Invalid JSON format in business_details"},
+                                status=status.HTTP_400_BAD_REQUEST)
+            business_serializer = BusinessSerializer(business, data=business_data, partial=True)
+            if business_serializer.is_valid():
+                business_serializer.save()
+            else:
+                return Response(business_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # Handle file upload
         if file:
-            # Replace spaces with underscores in the file name
             sanitized_file_name = file.name.replace(" ", "_")
-            business_name = request.data.get('org_name', 'default_org').replace(" ",
-                                                                                "_")  # Ensure no spaces in org_name
-            object_key = f'{business_name}/business_logo/{sanitized_file_name}'
+            object_key = f'{business.nameOfBusiness}/business_logo/{sanitized_file_name}'
 
             try:
-                # Upload file to S3 as private
-                url = upload_to_s3(file.read(), bucket_name, object_key)  # Read file content for upload
-                # Store the S3 URL in the `logo` field
-                data['logo'] = url
+                data['logo'] = upload_to_s3(file.read(), bucket_name, object_key)
             except Exception as e:
-                return Response(
-                    {"error": f"File upload failed: {str(e)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+                return Response({"error": f"File upload failed: {str(e)}"},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # Validate and save the serializer
-        serializer = PayrollOrgSerializer(data=data)
+        # Fetch or create PayrollOrg
+        try:
+            payroll_org = PayrollOrg.objects.get(business_id=business_id)
+            serializer = PayrollOrgSerializer(payroll_org, data=data, partial=True)
+        except PayrollOrg.DoesNotExist:
+            serializer = PayrollOrgSerializer(data=data)
+
+        # Validate and save PayrollOrg
         if serializer.is_valid():
-            payroll_org = serializer.save()  # Save the instance directly
-            return Response(
-                PayrollOrgSerializer(payroll_org).data,
-                status=status.HTTP_201_CREATED
-            )
+            payroll_org = serializer.save()
+            return Response(PayrollOrgSerializer(payroll_org).data, status=status.HTTP_201_CREATED)
 
-        # Handle validation errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -167,6 +186,7 @@ class PayrollOrgDetail(APIView):
     """
     Retrieve, update or delete a payroll organization instance.
     """
+
     def get(self, request, pk):
         try:
             # Fetch PayrollOrg or return 404
@@ -176,14 +196,14 @@ class PayrollOrgDetail(APIView):
             business = payroll_org.business
 
             # Serialize PayrollOrg
-            serializer = PayrollOrgSerializer(payroll_org)
+            payroll_serializer = PayrollOrgSerializer(payroll_org)
 
-            # Construct response with additional business details
-            response_data = serializer.data  # Get serialized data
-            response_data.update({
-                "business": business.id,
-                "organisation_name": business.nameOfBusiness,
-            })
+            # Serialize Business
+            business_serializer = BusinessSerializer(business)  # Serialize full business data
+
+            # Construct response with full business details
+            response_data = payroll_serializer.data  # Get serialized PayrollOrg data
+            response_data["business_details"] = business_serializer.data  # Add full Business details
 
             return Response(response_data, status=status.HTTP_200_OK)
 
@@ -377,17 +397,28 @@ class PayrollOrgBusinessDetailView(APIView):
 # List all WorkLocations
 @api_view(['GET'])
 def work_location_list(request):
-    payroll_id = request.query_params.get('payroll_id')  # Get payroll_id from query parameters
+    business_id = request.query_params.get('business_id')
+    payroll_id = request.query_params.get('payroll_id')
+    try:
+        if payroll_id:
+            # Retrieve Work Locations for given payroll
+            payroll_org = PayrollOrg.objects.get(id=payroll_id)
+            business = payroll_org.business  # Fetch business linked to PayrollOrg
 
-    if payroll_id:
-        # Filter work locations by payroll_id
-        work_locations = WorkLocations.objects.filter(payroll_id=payroll_id).order_by('-created_at')
-    else:
-        # Retrieve all work locations if no payroll_id is provided
-        work_locations = WorkLocations.objects.all().order_by('-created_at')
+            work_locations = WorkLocations.objects.filter(payroll=payroll_org).order_by('-created_at')
+            work_location_data = WorkLocationSerializer(work_locations, many=True).data
+            return Response(work_location_data, status=status.HTTP_200_OK)
 
-    serializer = WorkLocationSerializer(work_locations, many=True)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"error": "Either business_id or payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Business.DoesNotExist:
+        return Response({"error": "Invalid Business ID"}, status=status.HTTP_404_NOT_FOUND)
+
+    except PayrollOrg.DoesNotExist:
+        return Response({"error": "Invalid Payroll ID"}, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 # Create a new WorkLocation
@@ -814,21 +845,33 @@ def pt_list(request):
     List PF records or create a new one, based on payroll_id.
     """
     if request.method == 'GET':
-        payroll_id = request.query_params.get('payroll_id')  # Get payroll_id from query parameters
+        payroll_id = request.query_params.get('payroll_id')
 
-        if payroll_id:
-            pt_instances = PT.objects.filter(payroll_id=payroll_id)
+        if not payroll_id:
+            return Response({"error": "payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not pt_instances.exists():
-                return Response({"error": "PT details not found for the given payroll ID."},
+        pt_instances = PT.objects.filter(payroll_id=payroll_id)
+
+        if not pt_instances.exists():
+            # Fetch work locations linked to this payroll_id
+            work_location_instances = WorkLocations.objects.filter(payroll_id=payroll_id)
+
+            if not work_location_instances.exists():
+                return Response({"error": "No PT records or work locations found for the given payroll ID."},
                                 status=status.HTTP_404_NOT_FOUND)
 
-            serializer = PTSerializerRetrieval(pt_instances, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            pt_instances = PT.objects.all()
-            serializer = PTSerializerRetrieval(pt_instances, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Create PT objects dynamically
+            pt_objects = []
+            for wl in work_location_instances:
+                pt = PT(payroll_id=payroll_id, work_location=wl)
+                pt.save()  # Automatically assigns the slab in the model's `save()` method
+                pt_objects.append(pt)
+
+            # Fetch newly created PT objects
+            pt_instances = PT.objects.filter(payroll_id=payroll_id)
+
+        serializer = PTSerializer(pt_instances, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         serializer = PTSerializer(data=request.data)
@@ -1243,14 +1286,24 @@ def pay_schedule_list_create(request):
     """
     if request.method == 'GET':
         payroll_id = request.query_params.get('payroll_id')
-        pay_schedules = PaySchedule.objects.all()
 
         if payroll_id:
-            pay_schedules = pay_schedules.filter(payroll_id=payroll_id)
+            try:
+                pay_schedule = PaySchedule.objects.get(payroll_id=payroll_id)
+                serializer = PayScheduleSerializer(pay_schedule)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except ObjectDoesNotExist:
+                return Response(
+                    {"error": "No Pay Schedule found for the provided payroll_id."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
 
+        pay_schedules = PaySchedule.objects.all()
         serializer = PayScheduleSerializer(pay_schedules, many=True)
-        return Response({"data": serializer.data, "message": "Pay Schedules retrieved successfully."},
-                        status=status.HTTP_200_OK)
+        return Response(
+            {"data": serializer.data, "message": "Pay Schedules retrieved successfully."},
+            status=status.HTTP_200_OK
+        )
 
     elif request.method == 'POST':
         serializer = PayScheduleSerializer(data=request.data)
@@ -1322,7 +1375,7 @@ def leave_management_list_create(request):
             leaves = leaves.filter(payroll_id=payroll_id)
 
         serializer = LeaveManagementSerializer(leaves, many=True)
-        return Response({"data": serializer.data, "message": "Leave Management data retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
@@ -1353,7 +1406,7 @@ def leave_management_detail_update_delete(request, leave_id):
         serializer = LeaveManagementSerializer(leave, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"data": serializer.data, "message": "Leave Management record updated successfully."},
+            return Response(serializer.data,
                             status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1377,15 +1430,14 @@ def holiday_management_list_create(request):
             holidays = holidays.filter(payroll_id=payroll_id)
 
         serializer = HolidayManagementSerializer(holidays, many=True)
-        return Response({"data": serializer.data, "message": "Holiday Management data retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         serializer = HolidayManagementSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"data": serializer.data,
-                             "message": "Holiday Management record created successfully."},
+            return Response(serializer.data,
                             status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -1402,15 +1454,14 @@ def holiday_management_detail_update_delete(request, holiday_id):
 
     if request.method == 'GET':
         serializer = HolidayManagementSerializer(holiday)
-        return Response({"data": serializer.data, "message": "Holiday Management record retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         serializer = HolidayManagementSerializer(holiday, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"data": serializer.data,
-                             "message": "Holiday Management record updated successfully."},
+            return Response(serializer.data,
                             status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

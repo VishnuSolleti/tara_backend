@@ -1483,32 +1483,33 @@ def createDocument(request, id):
         total_in_words = num2words(total)
         total_in_words = total_in_words.capitalize()
         total_in_words = total_in_words.replace("<br/>", ' ')
-        total_in_words = total_in_words + ' ' + 'Rupees Only'
+        total_in_words = total_in_words.title() + ' ' + 'Rupees Only'
 
         invoice_date = invoice.invoice_date
         # terms = int(invoice.terms) if invoice else 0
         # due_date = invoice_date + timedelta(days=terms)
         due_date_str = invoice_date.strftime('%d-%m-%Y')
 
-        if len(invoice.invoicing_profile.business.email) > 26:
-            business_name = split_address(invoice.invoicing_profile.business.email)
+        if len(invoice.invoicing_profile.email) > 26:
+            business_name = split_address(invoice.invoicing_profile.email)
             adjust_layout = True
         else:
             business_name = invoice.invoicing_profile.business.email
             adjust_layout = False
 
         context = {
-            'company_name': getattr(invoice.invoicing_profile.business, 'email', ''),
-            'business_type': "Individual",
-            'address': "XYZ pvt limited",
-            'state': "Telangana",
+            'company_name': getattr(invoice.invoicing_profile.business, 'nameOfBusiness', ''),
+            'business_type': getattr(invoice.invoicing_profile.business, 'entityType', '') or
+                              getattr(invoice.invoicing_profile, 'business_type', ''),
+            'address': getattr(invoice.invoicing_profile, 'address_line1', ''),
+            'state': getattr(invoice.invoicing_profile, 'state', ''),
             'country': "India",
-            'pincode': 500068,
-            'registration_number': "XYZ123233",
-            'gst_registered': "Yes",
+            'pincode': getattr(invoice.invoicing_profile, 'pinCode', ''),
+            'registration_number': getattr(invoice.invoicing_profile, 'business_registration_number', ''),
+            'gst_registered': getattr(invoice.invoicing_profile, 'gst_registered', ''),
             'gstin': getattr(invoice.invoicing_profile, 'gstin', ''),
-            'email': getattr(invoice.invoicing_profile.business, 'email', ''),
-            'mobile': getattr(invoice.invoicing_profile.business, 'mobile', ''),
+            'email': getattr(invoice.invoicing_profile, 'email', ''),
+            'mobile': getattr(invoice.invoicing_profile, 'mobile', ''),
             'pan': getattr(invoice.invoicing_profile, 'pan_number', ''),
             'bank_name': getattr(invoice.invoicing_profile, 'bank_name', ''),
             'account_number': getattr(invoice.invoicing_profile, 'account_number', ''),
@@ -1549,8 +1550,8 @@ def createDocument(request, id):
             'sgst_amt': f"{round(float(getattr(invoice, 'total_sgst_amount', 0)), 2):.2f}",
             'total': total_str,
             'total_in_words': total_in_words,
-            'cgst': round(float(getattr(invoice, 'cgst_amount', 0)), 2),
-            'sgst': round(float(getattr(invoice, 'sgst_amount', 0)), 2),
+            'cgst': round(float(getattr(invoice, 'total_cgst_amount', 0)), 2),
+            'sgst': round(float(getattr(invoice, 'total_sgst_amount', 0)), 2),
             'igst_amt': getattr(invoice, 'total_igst_amount', 0),
             'payment_status': getattr(invoice, 'payment_status', ''),
             'terms_and_conditions': getattr(invoice, 'terms_and_conditions', ''),

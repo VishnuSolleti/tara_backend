@@ -10,6 +10,7 @@ from djongo.models import ArrayField, EmbeddedField, JSONField
 from django.dispatch import receiver
 from django.db.models.signals import post_save, post_delete
 from .helpers import *
+from django.core.validators import RegexValidator
 
 
 KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='  # Fernet key
@@ -162,6 +163,7 @@ class User(AbstractBaseUser):
 
     USERNAME_FIELD = 'user_name'
     REQUIRED_FIELDS = []
+    service_request = models.CharField(max_length=40, null=True, blank=True, default=None)
 
     def __str__(self):
         return self.user_name or "User"
@@ -277,38 +279,38 @@ class Business(BaseModel):
     ]
 
     business_nature_choices = [
-        ('agency_sales_house', 'Agency or Sales House'),
-        ('agriculture', 'Agriculture'),
-        ('art_design', 'Art and Design'),
-        ('automotive', 'Automotive'),
-        ('construction', 'Construction'),
-        ('consulting', 'Consulting'),
-        ('consumer_packaged_goods', 'Consumer Packaged Goods'),
-        ('education', 'Education'),
-        ('engineering', 'Engineering'),
-        ('entertainment', 'Entertainment'),
-        ('financial_services', 'Financial Services'),
-        ('food_services', 'Food Services (Restaurants/Fast Food)'),
-        ('gaming', 'Gaming'),
-        ('government', 'Government'),
-        ('health_care', 'Health Care'),
-        ('interior_design', 'Interior Design'),
-        ('internal', 'Internal'),
-        ('legal', 'Legal'),
-        ('manufacturing', 'Manufacturing'),
-        ('marketing', 'Marketing'),
-        ('mining_logistics', 'Mining and Logistics'),
-        ('non_profit', 'Non-Profit'),
-        ('publishing_web_media', 'Publishing and Web Media'),
-        ('real_estate', 'Real Estate'),
-        ('retail', 'Retail (E-Commerce and Offline)'),
-        ('services', 'Services'),
-        ('technology', 'Technology'),
-        ('telecommunications', 'Telecommunications'),
-        ('travel_hospitality', 'Travel/Hospitality'),
-        ('web_designing', 'Web Designing'),
-        ('web_development', 'Web Development'),
-        ('writers', 'Writers'),
+        ('Agency or Sales House', 'Agency or Sales House'),
+        ('Agriculture', 'Agriculture'),
+        ('Art and Design', 'Art and Design'),
+        ('Automotive', 'Automotive'),
+        ('Construction', 'Construction'),
+        ('Consulting', 'Consulting'),
+        ('Consumer Packaged Goods', 'Consumer Packaged Goods'),
+        ('Education', 'Education'),
+        ('Engineering', 'Engineering'),
+        ('Entertainment', 'Entertainment'),
+        ('Financial Services', 'Financial Services'),
+        ('Food Services (Restaurants/Fast Food)', 'Food Services (Restaurants/Fast Food)'),
+        ('Gaming', 'Gaming'),
+        ('Government', 'Government'),
+        ('Health Care', 'Health Care'),
+        ('Interior Design', 'Interior Design'),
+        ('Internal', 'Internal'),
+        ('Legal', 'Legal'),
+        ('Manufacturing', 'Manufacturing'),
+        ('Marketing', 'Marketing'),
+        ('Mining and Logistics', 'Mining and Logistics'),
+        ('Non-Profit', 'Non-Profit'),
+        ('Publishing and Web Media', 'Publishing and Web Media'),
+        ('Real Estate', 'Real Estate'),
+        ('Retail (E-Commerce and Offline)', 'Retail (E-Commerce and Offline)'),
+        ('Services', 'Services'),
+        ('Technology', 'Technology'),
+        ('Telecommunications', 'Telecommunications'),
+        ('Travel/Hospitality', 'Travel/Hospitality'),
+        ('Web Designing', 'Web Designing'),
+        ('Web Development', 'Web Development'),
+        ('Writers', 'Writers'),
     ]
 
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='business_clients_id')
@@ -330,6 +332,7 @@ class Business(BaseModel):
 
     def __str__(self):
         return str(self.nameOfBusiness)
+
 
 class GSTDetails(BaseModel):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='gst_details')
@@ -383,3 +386,49 @@ class VisaApplications(models.Model):
 
     def __str__(self):
         return f"{self.user.email} - {self.visa_type}"
+
+
+class Contact(models.Model):
+    first_name = models.CharField(max_length=40)
+    last_name = models.CharField(max_length=40)
+    email = models.EmailField()  # No unique constraint
+    mobile_number = models.CharField(
+        max_length=20,
+        validators=[
+            RegexValidator(
+                regex=r'^\+?\d{10,15}$',
+                message="Enter a valid mobile number with 10-15 digits, optionally starting with +"
+            )
+        ]
+    )
+    message = models.TextField()
+    created_date = models.DateField(auto_now_add=True)  # Stores only Date (YYYY-MM-DD)
+    created_time = models.TimeField(auto_now_add=True)  # Stores only Time (HH:MM:SS)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} - {self.email}"
+
+
+class Consultation(models.Model):
+    name = models.CharField(max_length=40)
+    email = models.EmailField()  # No unique constraint
+    mobile_number = models.CharField(
+        max_length=20,
+        validators=[
+            RegexValidator(
+                regex=r'^\+?\d{10,15}$',
+                message="Enter a valid mobile number with 10-15 digits, optionally starting with +"
+            )
+        ]
+    )
+    message = models.TextField()
+    date = models.DateField()
+    time = models.TimeField()
+    created_date = models.DateField(auto_now_add=True)  # Stores only Date (YYYY-MM-DD)
+    created_time = models.TimeField(auto_now_add=True)  # Stores only Time (HH:MM:SS)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name} - {self.email}"
+
+
+

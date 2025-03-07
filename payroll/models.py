@@ -4,6 +4,7 @@ from djongo.models import ArrayField, EmbeddedField, JSONField
 from user_management.models import *
 from datetime import date
 from collections import OrderedDict
+from django.db.models.signals import pre_save, post_save
 
 
 def validate_pincode(value):
@@ -15,7 +16,6 @@ class PayrollOrg(models.Model):
     business = models.OneToOneField(Business, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)  # Use auto_now_add for creation timestamp
     logo = models.CharField(max_length=200, null=True, blank=True)
-    contact_email = models.EmailField(max_length=120, null=True, blank=True)
     sender_email = models.EmailField(max_length=120, null=True, blank=True)
     filling_address_line1 = models.CharField(max_length=150, null=True, blank=True)
     filling_address_line2 = models.CharField(max_length=150, null=True, blank=True)
@@ -30,7 +30,6 @@ class PayrollOrg(models.Model):
     salary_component = models.BooleanField(default=False)
     salary_template = models.BooleanField(default=False)
     pay_schedule = models.BooleanField(default=False)
-    industry = models.CharField(max_length=150, null=False, blank=False)
     leave_management = models.BooleanField(default=False)
     holiday_management = models.BooleanField(default=False)
     employee_master = models.BooleanField(default=False)
@@ -44,6 +43,33 @@ class PayrollOrg(models.Model):
 
     def __str__(self):
         return f"PayrollOrg {self.business.id}"
+
+
+@receiver(pre_save, sender=PayrollOrg)
+def check_business_head_office(sender, instance, **kwargs):
+    """ Prevent PayrollOrg creation if business.headOffice is empty """
+    if not instance.business.headOffice or instance.business.headOffice in [{}, OrderedDict()]:
+        raise ValidationError("Business headOffice cannot be empty. Please set headOffice before creating PayrollOrg.")
+
+
+@receiver(post_save, sender=PayrollOrg)
+def create_work_location(sender, instance, created, **kwargs):
+    """Automatically create a Work Location based on Business Head Office details."""
+    if created:  # Ensure it runs only when PayrollOrg is created
+        business = instance.business
+
+        # Extracting head_office details from JSONField
+        head_office = business.headOffice or {}  # Default to empty dict if None
+
+        WorkLocations.objects.create(
+            payroll=instance,
+            location_name="Head Office",
+            address_line1=head_office.get("address_line1"),
+            address_line2=head_office.get("address_line2"),
+            address_state=head_office.get("state"),
+            address_city=head_office.get("city"),
+            address_pincode=head_office.get("pincode"),
+        )
 
 
 class WorkLocations(models.Model):
@@ -103,6 +129,8 @@ class EPF(models.Model):
     admin_charge_in_ctc = models.BooleanField()  # Admin charge included in CTC
     allow_employee_level_override = models.BooleanField()  # Can employee override PF?
     prorate_restricted_pf_wage = models.BooleanField()  # Prorate restricted PF wage?
+    apply_components_if_wage_below_15k = models.BooleanField()
+    is_disabled = models.BooleanField(default=False)
 
     def __str__(self):
         return f"EPF Details for Payroll: {self.payroll.business.nameOfBusiness} (EPF No: {self.epf_number})"
@@ -122,8 +150,9 @@ class ESI(models.Model):
 class PT(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='pt_details')
     work_location = models.ForeignKey('WorkLocations', on_delete=models.CASCADE, related_name='pt_records')
-    pt_number = models.CharField(max_length=100, unique=True)  # Added unique constraint
-    slab = JSONField(default=list, blank=True)  # Flexible JSON storage for slab data
+    pt_number = models.CharField(max_length=100, null=True, blank=True)  # Can be null by default
+    slab = JSONField(default=list, blank=True)  # Stores PT slab dynamically
+    deduction_cycle = models.CharField(max_length=20, default="Monthly")
 
     class Meta:
         unique_together = ('payroll', 'work_location')  # Ensures one PT per payroll-location pair
@@ -131,6 +160,39 @@ class PT(models.Model):
     def __str__(self):
         return (f"PT Details - Payroll: {self.payroll.business.nameOfBusiness}, "
                 f"Location: {self.work_location.location_name}")
+
+    def save(self, *args, **kwargs):
+        """
+        Assign the PT slab dynamically based on the state of the work location.
+        """
+        state = self.work_location.address_state  # Assuming `state` is a field in WorkLocations
+        self.slab = self.get_slab_for_state(state)  # Fetch the correct slab
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def get_slab_for_state(state):
+        """
+        Returns the PT slab with only Monthly Salary and Professional Tax.
+        """
+        slabs = {
+            "Telangana": [
+                {"Monthly Salary (₹)": "Up to 15,000", "Professional Tax (₹ per month)": "Nil"},
+                {"Monthly Salary (₹)": "15,001 to 20,000", "Professional Tax (₹ per month)": "150"},
+                {"Monthly Salary (₹)": "20,001 to 25,000", "Professional Tax (₹ per month)": "200"},
+                {"Monthly Salary (₹)": "25,001 and above", "Professional Tax (₹ per month)": "250"},
+            ],
+            "Karnataka": [
+                {"Monthly Salary (₹)": "Up to 15,000", "Professional Tax (₹ per month)": "Nil"},
+                {"Monthly Salary (₹)": "Above 15,000", "Professional Tax (₹ per month)": "200"},
+            ],
+            "Andhra Pradesh": [
+                {"Monthly Salary (₹)": "Up to 15,000", "Professional Tax (₹ per month)": "Nil"},
+                {"Monthly Salary (₹)": "15,001 to 20,000", "Professional Tax (₹ per month)": "150"},
+                {"Monthly Salary (₹)": "20,001 to 25,000", "Professional Tax (₹ per month)": "200"},
+                {"Monthly Salary (₹)": "25,001 and above", "Professional Tax (₹ per month)": "250"},
+            ],
+        }
+        return slabs.get(state, [])
 
 
 class Earnings(models.Model):
@@ -281,7 +343,12 @@ class LeaveManagement(models.Model):
     employee_leave_period = models.CharField(max_length=80)
     number_of_leaves = models.IntegerField(default=0)
     pro_rate_leave_balance_of_new_joinees_based_on_doj = models.BooleanField(default=False)
-    reset_leave_balance = models.CharField(max_length=80)
+    reset_leave_balance = models.BooleanField(default=False)
+    reset_leave_balance_type = models.CharField(max_length=20)
+    carry_forward_unused_leaves = models.BooleanField(default=False)
+    max_carry_forward_days = models.IntegerField(default=None, null=True)
+    encash_remaining_leaves = models.BooleanField(default=False)
+    encashment_days = models.IntegerField(default=None, null=True)
 
     class Meta:
         verbose_name = "Leave Management"
@@ -295,7 +362,8 @@ class HolidayManagement(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='holiday_managements')
     financial_year = models.CharField(max_length=20)  # Format: "2024-2025"
     holiday_name = models.CharField(max_length=120)
-    date = models.DateField()
+    start_date = models.DateField()
+    end_date = models.DateField()
     description = models.TextField(blank=True, null=True)  # Optional
     applicable_for = models.CharField(max_length=60)
 

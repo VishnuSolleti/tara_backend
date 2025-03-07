@@ -5,6 +5,9 @@ from .models import *
 import json
 from collections import OrderedDict
 from collections import defaultdict
+from django.utils.timezone import now
+
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     """
     Serializer for user registration.
@@ -19,11 +22,12 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     last_name = serializers.CharField(required=False, allow_null=True, allow_blank=True)
     is_active = serializers.BooleanField(default=False)
     user_name = serializers.CharField(max_length=120, allow_null=False, allow_blank=False)
+    service_request = serializers.CharField(max_length=40, allow_null=False, allow_blank=False, default='')
 
     class Meta:
         model = User
         fields = ('id', 'email', 'mobile_number', 'password', 'created_by', 'user_type', 'user_name'
-                  , 'first_name', 'last_name', 'is_active')
+                  , 'first_name', 'last_name', 'is_active', 'service_request')
 
     def validate(self, attrs):
         email = attrs.get('email')
@@ -47,6 +51,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         first_name = validated_data.get('first_name', '')
         last_name = validated_data.get('last_name', '')
         user_name = validated_data.get('user_name')
+        service_request = validated_data.get('service_request', '')
 
         # Create the user with the provided data
         user = User.objects.create_user(
@@ -57,13 +62,16 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             first_name=first_name,
             last_name=last_name,
             user_name=user_name,
-            created_by=created_by
+            created_by=created_by,
+            service_request=service_request
         )
 
         return user
 
+
 class UserSerializer(serializers.ModelSerializer):
     date_joined = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = ['id', 'user_name', 'email', 'mobile_number',
@@ -77,6 +85,7 @@ class CustomPermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomPermission
         fields = ['id', 'action_name', 'module_name', 'description']
+
 
 class CustomGroupSerializer(serializers.ModelSerializer):
     permissions = serializers.SerializerMethodField()
@@ -182,15 +191,9 @@ class BusinessSerializer(serializers.ModelSerializer):
     pan = serializers.CharField(max_length=15, required=False, default=None)
     headOffice = serializers.JSONField(default=dict)
 
-
     class Meta:
         model = Business
         fields = '__all__'
-
-    def validate(self, data):
-        if not data.get('nameOfBusiness'):
-            raise serializers.ValidationError({'name_as_per_pan': 'This field is required.'})
-        return data
 
     def create(self, validated_data):
         """
@@ -248,6 +251,7 @@ class UserBusinessRetrieveSerializer(serializers.ModelSerializer):
     class Meta:
         model = Business
         fields = ['id', 'nameOfBusiness', 'entityType', 'client']
+
 
 class BusinessWithGSTSerializer(serializers.ModelSerializer):
     gst_details = GSTDetailsSerializer(many=True, read_only=True)
@@ -528,3 +532,41 @@ class VisaClientUserListSerializer(serializers.ModelSerializer):
     def get_user(self, obj):
         # Assuming the related User model has the mobile_number field
         return obj.user.id if obj.user else None
+
+
+class ContactSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = "__all__"
+
+    def validate_email(self, value):
+        """ Ensure only one request per email per day """
+        today = now().date()  # Get today's date
+        if Contact.objects.filter(email=value, created_date=today).exists():
+            raise serializers.ValidationError("You can only submit one request per day.")
+        return value
+
+
+class ConsultationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Consultation
+        fields = "__all__"
+
+    def validate_time(self, value):
+        """ Ensure time is stored in HH:MM format only (remove seconds) """
+        return value.replace(second=0)
+
+    def validate(self, data):
+        """ Prevent duplicate bookings for the same date, time slot, and email """
+        email = data.get("email")
+        date = data.get("date")
+        time = data.get("time")
+
+        # Check if the same email has already booked this slot
+        if Consultation.objects.filter(email=email, date=date, time=time).exists():
+            raise serializers.ValidationError(
+                {"time": "This time slot is already booked. Please select a different slot."}
+            )
+
+        return data
+

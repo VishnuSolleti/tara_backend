@@ -31,6 +31,8 @@ class PayrollOrgSerializer(serializers.ModelSerializer):
         return instance
 
 
+
+
 class WorkLocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkLocations
@@ -104,7 +106,8 @@ class EPFSerializer(serializers.ModelSerializer):
         model = EPF
         fields = ['id', 'payroll', 'epf_number', 'employee_contribution_rate', 'employer_contribution_rate',
                   'employer_edil_contribution_in_ctc', 'include_employer_contribution_in_ctc',
-                  'admin_charge_in_ctc', 'allow_employee_level_override', 'prorate_restricted_pf_wage']
+                  'admin_charge_in_ctc', 'allow_employee_level_override', 'prorate_restricted_pf_wage',
+                  'apply_components_if_wage_below_15k', 'is_disabled']
 
     def create(self, validated_data):
         """
@@ -149,9 +152,11 @@ class ESISerializer(serializers.ModelSerializer):
 
 
 class PTSerializer(serializers.ModelSerializer):
+    slab = serializers.JSONField(default=list)
+
     class Meta:
         model = PT
-        fields = ['id', 'payroll', 'work_location', 'pt_number', 'slab']
+        fields = ['id', 'payroll', 'work_location', 'pt_number', 'slab', 'deduction_cycle']
 
     def create(self, validated_data):
         """
@@ -348,6 +353,7 @@ class LeaveManagementSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        return instance
 
 
 class HolidayManagementSerializer(serializers.ModelSerializer):
@@ -369,6 +375,7 @@ class HolidayManagementSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        return instance
 
 
 class EmployeeManagementSerializer(serializers.ModelSerializer):

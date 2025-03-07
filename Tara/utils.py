@@ -135,6 +135,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             'business_affiliated': list(user_type_map['Business']),
             'refresh': str(refresh),
             'access': str(refresh.access_token),
+            'service_request': user.service_request
         }
         if user.user_type == "Business":
             business_exists = Business.objects.filter(client=user).exists()
