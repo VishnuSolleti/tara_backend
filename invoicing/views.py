@@ -1483,7 +1483,7 @@ def createDocument(request, id):
         total_in_words = num2words(total)
         total_in_words = total_in_words.capitalize()
         total_in_words = total_in_words.replace("<br/>", ' ')
-        total_in_words = total_in_words + ' ' + 'Rupees Only'
+        total_in_words = total_in_words.title() + ' ' + 'Rupees Only'
 
         invoice_date = invoice.invoice_date
         # terms = int(invoice.terms) if invoice else 0
