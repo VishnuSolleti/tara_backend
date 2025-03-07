@@ -1498,14 +1498,15 @@ def createDocument(request, id):
             adjust_layout = False
 
         context = {
-            'company_name': getattr(invoice.invoicing_profile.business, 'email', ''),
-            'business_type': "Individual",
-            'address': "XYZ pvt limited",
-            'state': "Telangana",
+            'company_name': getattr(invoice.invoicing_profile.business, 'nameOfBusiness', ''),
+            'business_type': getattr(invoice.invoicing_profile.business, 'entityType', '') or
+                              getattr(invoice.invoicing_profile, 'business_type', ''),
+            'address': getattr(invoice.invoicing_profile, 'address_line1', ''),
+            'state': getattr(invoice.invoicing_profile, 'state', ''),
             'country': "India",
-            'pincode': 500068,
-            'registration_number': "XYZ123233",
-            'gst_registered': "Yes",
+            'pincode': getattr(invoice.invoicing_profile, 'pinCode', ''),
+            'registration_number': getattr(invoice.invoicing_profile, 'business_registration_number', ''),
+            'gst_registered': getattr(invoice.invoicing_profile, 'gst_registered', ''),
             'gstin': getattr(invoice.invoicing_profile, 'gstin', ''),
             'email': getattr(invoice.invoicing_profile, 'email', ''),
             'mobile': getattr(invoice.invoicing_profile, 'mobile', ''),
