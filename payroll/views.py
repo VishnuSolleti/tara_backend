@@ -1406,7 +1406,7 @@ def leave_management_detail_update_delete(request, leave_id):
         serializer = LeaveManagementSerializer(leave, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"data": serializer.data, "message": "Leave Management record updated successfully."},
+            return Response(serializer.data,
                             status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

@@ -2697,7 +2697,8 @@ def businessEntityRegistration(request):
                     send_account_email(user, email, password)
 
                 return Response(
-                    {"message": "User created successfully. Check your email for the username and password."},
+                    {"data": created_objects, "message": "User created successfully."
+                                                         " Check your email for the username and password."},
                     status=status.HTTP_201_CREATED,
                 )
 
