@@ -204,12 +204,13 @@ class Earnings(models.Model):
     is_part_of_employee_salary_structure = models.BooleanField(default=False)  # Part of salary structure
     is_taxable = models.BooleanField(default=True)  # Taxable earning
     is_pro_rate_basis = models.BooleanField(default=False)  # Pro-rata basis
-    is_flexible_benefit_plan = models.BooleanField(default=False)  # Flexible benefit plan
+    is_fbp_component = models.BooleanField(default=False)  # Flexible benefit plan
     includes_epf_contribution = models.BooleanField(default=False)  # EPF contribution
     includes_esi_contribution = models.BooleanField(default=False)  # ESI contribution
     is_included_in_payslip = models.BooleanField(default=True)  # Included in payslip
     tax_deduction_preference = models.CharField(max_length=120, null=True, blank=True)
     is_scheduled_earning = models.BooleanField(default=True)
+    pf_wage_less_than_15k = models.BooleanField(default=False)
 
     def clean(self):
         # Ensure tax_deduction_preference is required if component_name is "Bonus"
