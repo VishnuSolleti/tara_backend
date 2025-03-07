@@ -871,7 +871,7 @@ def pt_list(request):
             # Fetch newly created PT objects
             pt_instances = PT.objects.filter(payroll_id=payroll_id)
 
-        serializer = PTSerializer(pt_instances, many=True)
+        serializer = PTSerializerRetrieval(pt_instances, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
