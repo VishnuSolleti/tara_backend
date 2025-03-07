@@ -409,7 +409,7 @@ def work_location_list(request):
             payroll_org = PayrollOrg.objects.get(id=payroll_id)
             business = payroll_org.business  # Fetch business linked to PayrollOrg
 
-            work_locations = WorkLocations.objects.filter(payroll=payroll_org).order_by('-created_at')
+            work_locations = WorkLocations.objects.filter(payroll=payroll_org)
             work_location_data = WorkLocationSerializer(work_locations, many=True).data
             return Response(work_location_data, status=status.HTTP_200_OK)
 
