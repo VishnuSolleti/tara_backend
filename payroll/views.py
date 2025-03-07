@@ -1378,6 +1378,31 @@ def holiday_management_list_create(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+def holiday_management_filtered_list(request):
+    """
+    API for retrieving Holiday Management records based on payroll_id, financial_year, and applicable_for.
+    - GET: Retrieves holidays filtered by provided query parameters.
+    """
+    filters = {}
+
+    payroll_id = request.query_params.get('payroll_id')
+    financial_year = request.query_params.get('financial_year')
+    applicable_for = request.query_params.get('applicable_for')
+
+    if payroll_id:
+        filters['payroll_id'] = payroll_id
+    if financial_year:
+        filters['financial_year'] = financial_year
+    if applicable_for:
+        filters['applicable_for'] = applicable_for
+
+    holidays = HolidayManagement.objects.filter(**filters)  # Apply filters directly
+
+    serializer = HolidayManagementSerializer(holidays, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 @api_view(['GET', 'PUT', 'DELETE'])
 def holiday_management_detail_update_delete(request, holiday_id):
     """
