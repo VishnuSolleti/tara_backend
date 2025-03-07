@@ -1490,8 +1490,8 @@ def createDocument(request, id):
         # due_date = invoice_date + timedelta(days=terms)
         due_date_str = invoice_date.strftime('%d-%m-%Y')
 
-        if len(invoice.invoicing_profile.business.email) > 26:
-            business_name = split_address(invoice.invoicing_profile.business.email)
+        if len(invoice.invoicing_profile.email) > 26:
+            business_name = split_address(invoice.invoicing_profile.email)
             adjust_layout = True
         else:
             business_name = invoice.invoicing_profile.business.email
@@ -1507,8 +1507,8 @@ def createDocument(request, id):
             'registration_number': "XYZ123233",
             'gst_registered': "Yes",
             'gstin': getattr(invoice.invoicing_profile, 'gstin', ''),
-            'email': getattr(invoice.invoicing_profile.business, 'email', ''),
-            'mobile': getattr(invoice.invoicing_profile.business, 'mobile', ''),
+            'email': getattr(invoice.invoicing_profile, 'email', ''),
+            'mobile': getattr(invoice.invoicing_profile, 'mobile', ''),
             'pan': getattr(invoice.invoicing_profile, 'pan_number', ''),
             'bank_name': getattr(invoice.invoicing_profile, 'bank_name', ''),
             'account_number': getattr(invoice.invoicing_profile, 'account_number', ''),

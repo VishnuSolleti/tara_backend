@@ -845,21 +845,33 @@ def pt_list(request):
     List PF records or create a new one, based on payroll_id.
     """
     if request.method == 'GET':
-        payroll_id = request.query_params.get('payroll_id')  # Get payroll_id from query parameters
+        payroll_id = request.query_params.get('payroll_id')
 
-        if payroll_id:
-            pt_instances = PT.objects.filter(payroll_id=payroll_id)
+        if not payroll_id:
+            return Response({"error": "payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not pt_instances.exists():
-                return Response({"error": "PT details not found for the given payroll ID."},
+        pt_instances = PT.objects.filter(payroll_id=payroll_id)
+
+        if not pt_instances.exists():
+            # Fetch work locations linked to this payroll_id
+            work_location_instances = WorkLocations.objects.filter(payroll_id=payroll_id)
+
+            if not work_location_instances.exists():
+                return Response({"error": "No PT records or work locations found for the given payroll ID."},
                                 status=status.HTTP_404_NOT_FOUND)
 
-            serializer = PTSerializerRetrieval(pt_instances, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
-        else:
-            pt_instances = PT.objects.all()
-            serializer = PTSerializerRetrieval(pt_instances, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            # Create PT objects dynamically
+            pt_objects = []
+            for wl in work_location_instances:
+                pt = PT(payroll_id=payroll_id, work_location=wl)
+                pt.save()  # Automatically assigns the slab in the model's `save()` method
+                pt_objects.append(pt)
+
+            # Fetch newly created PT objects
+            pt_instances = PT.objects.filter(payroll_id=payroll_id)
+
+        serializer = PTSerializer(pt_instances, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         serializer = PTSerializer(data=request.data)

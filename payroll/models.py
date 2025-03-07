@@ -150,8 +150,9 @@ class ESI(models.Model):
 class PT(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='pt_details')
     work_location = models.ForeignKey('WorkLocations', on_delete=models.CASCADE, related_name='pt_records')
-    pt_number = models.CharField(max_length=100, unique=True)  # Added unique constraint
-    slab = JSONField(default=list, blank=True)  # Flexible JSON storage for slab data
+    pt_number = models.CharField(max_length=100, null=True, blank=True)  # Can be null by default
+    slab = JSONField(default=list, blank=True)  # Stores PT slab dynamically
+    deduction_cycle = models.CharField(max_length=20, default="Monthly")
 
     class Meta:
         unique_together = ('payroll', 'work_location')  # Ensures one PT per payroll-location pair
@@ -159,6 +160,39 @@ class PT(models.Model):
     def __str__(self):
         return (f"PT Details - Payroll: {self.payroll.business.nameOfBusiness}, "
                 f"Location: {self.work_location.location_name}")
+
+    def save(self, *args, **kwargs):
+        """
+        Assign the PT slab dynamically based on the state of the work location.
+        """
+        state = self.work_location.state  # Assuming `state` is a field in WorkLocations
+        self.slab = self.get_slab_for_state(state)  # Fetch the correct slab
+        super().save(*args, **kwargs)
+
+    @staticmethod
+    def get_slab_for_state(state):
+        """
+        Returns the PT slab with only Monthly Salary and Professional Tax.
+        """
+        slabs = {
+            "Telangana": [
+                {"Monthly Salary (₹)": "Up to 15,000", "Professional Tax (₹ per month)": "Nil"},
+                {"Monthly Salary (₹)": "15,001 to 20,000", "Professional Tax (₹ per month)": "150"},
+                {"Monthly Salary (₹)": "20,001 to 25,000", "Professional Tax (₹ per month)": "200"},
+                {"Monthly Salary (₹)": "25,001 and above", "Professional Tax (₹ per month)": "250"},
+            ],
+            "Karnataka": [
+                {"Monthly Salary (₹)": "Up to 15,000", "Professional Tax (₹ per month)": "Nil"},
+                {"Monthly Salary (₹)": "Above 15,000", "Professional Tax (₹ per month)": "200"},
+            ],
+            "Andhra Pradesh": [
+                {"Monthly Salary (₹)": "Up to 15,000", "Professional Tax (₹ per month)": "Nil"},
+                {"Monthly Salary (₹)": "15,001 to 20,000", "Professional Tax (₹ per month)": "150"},
+                {"Monthly Salary (₹)": "20,001 to 25,000", "Professional Tax (₹ per month)": "200"},
+                {"Monthly Salary (₹)": "25,001 and above", "Professional Tax (₹ per month)": "250"},
+            ],
+        }
+        return slabs.get(state, [])
 
 
 class Earnings(models.Model):
@@ -310,6 +344,11 @@ class LeaveManagement(models.Model):
     number_of_leaves = models.IntegerField(default=0)
     pro_rate_leave_balance_of_new_joinees_based_on_doj = models.BooleanField(default=False)
     reset_leave_balance = models.BooleanField(default=False)
+    reset_leave_balance_type = models.CharField(max_length=20)
+    carry_forward_unused_leaves = models.BooleanField(default=False)
+    max_carry_forward_days = models.IntegerField(default=None, null=True)
+    en_cash_remaining_leaves = models.BooleanField(default=False)
+    en_cashment_days = models.IntegerField(default=None, null=True)
 
     class Meta:
         verbose_name = "Leave Management"
