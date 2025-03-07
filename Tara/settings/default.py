@@ -181,7 +181,7 @@ MIGRATION_MODULES = {
 }
 
 
-FRONTEND_URL = 'http://dev.tarafirst.com/'
+FRONTEND_URL = 'http://test.tarafirst.com/'
 
 
 REST_FRAMEWORK = {
