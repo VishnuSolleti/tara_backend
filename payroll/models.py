@@ -347,8 +347,8 @@ class LeaveManagement(models.Model):
     reset_leave_balance_type = models.CharField(max_length=20)
     carry_forward_unused_leaves = models.BooleanField(default=False)
     max_carry_forward_days = models.IntegerField(default=None, null=True)
-    en_cash_remaining_leaves = models.BooleanField(default=False)
-    en_cashment_days = models.IntegerField(default=None, null=True)
+    encash_remaining_leaves = models.BooleanField(default=False)
+    encashment_days = models.IntegerField(default=None, null=True)
 
     class Meta:
         verbose_name = "Leave Management"
