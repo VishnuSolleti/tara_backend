@@ -309,7 +309,7 @@ class LeaveManagement(models.Model):
     employee_leave_period = models.CharField(max_length=80)
     number_of_leaves = models.IntegerField(default=0)
     pro_rate_leave_balance_of_new_joinees_based_on_doj = models.BooleanField(default=False)
-    reset_leave_balance = models.CharField(max_length=80)
+    reset_leave_balance = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Leave Management"
