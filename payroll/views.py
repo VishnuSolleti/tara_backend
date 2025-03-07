@@ -1363,7 +1363,7 @@ def leave_management_list_create(request):
             leaves = leaves.filter(payroll_id=payroll_id)
 
         serializer = LeaveManagementSerializer(leaves, many=True)
-        return Response({"data": serializer.data, "message": "Leave Management data retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
