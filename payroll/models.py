@@ -362,7 +362,8 @@ class HolidayManagement(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='holiday_managements')
     financial_year = models.CharField(max_length=20)  # Format: "2024-2025"
     holiday_name = models.CharField(max_length=120)
-    date = models.DateField()
+    start_date = models.DateField()
+    end_date = models.DateField()
     description = models.TextField(blank=True, null=True)  # Optional
     applicable_for = models.CharField(max_length=60)
 
