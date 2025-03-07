@@ -89,6 +89,18 @@ class WorkLocations(models.Model):
         return self.location_name
 
 
+@receiver(post_save, sender=WorkLocations)
+def create_professional_tax(sender, instance, created, **kwargs):
+    """Automatically create a Professional Tax record when a new work location is added."""
+    if created:  # Ensure it runs only when a new WorkLocation is created
+        PT.objects.create(
+            payroll=instance.payroll,  # Assign the payroll
+            work_location=instance,  # Assign the new work location
+            pt_number=None,  # Keep it null by default
+            deduction_cycle="Monthly",  # Default deduction cycle
+        )
+
+
 class Departments(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='departments')
     dept_code = models.CharField(max_length=150)
