@@ -165,7 +165,7 @@ class PT(models.Model):
         """
         Assign the PT slab dynamically based on the state of the work location.
         """
-        state = self.work_location.state  # Assuming `state` is a field in WorkLocations
+        state = self.work_location.address_state  # Assuming `state` is a field in WorkLocations
         self.slab = self.get_slab_for_state(state)  # Fetch the correct slab
         super().save(*args, **kwargs)
 
