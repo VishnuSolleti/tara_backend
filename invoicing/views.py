@@ -1488,7 +1488,8 @@ def createDocument(request, id):
         invoice_date = invoice.invoice_date
         # terms = int(invoice.terms) if invoice else 0
         # due_date = invoice_date + timedelta(days=terms)
-        due_date_str = invoice_date.strftime('%d-%m-%Y')
+        invoice_date_str = invoice_date.strftime('%d-%m-%Y')
+        due_date_str = invoice.due_date.strftime('%d-%m-%Y')
 
         if len(invoice.invoicing_profile.email) > 26:
             business_name = split_address(invoice.invoicing_profile.email)
@@ -1496,6 +1497,7 @@ def createDocument(request, id):
         else:
             business_name = invoice.invoicing_profile.business.email
             adjust_layout = False
+
 
         context = {
             'company_name': getattr(invoice.invoicing_profile.business, 'nameOfBusiness', ''),
@@ -1523,7 +1525,7 @@ def createDocument(request, id):
             'due_date': due_date_str,
             'financial_year': getattr(invoice, 'financial_year', ''),
             'invoice_number': getattr(invoice, 'invoice_number', ''),
-            'invoice_date': getattr(invoice, 'invoice_date', ''),
+            'invoice_date': invoice_date_str,
             'place_of_supply': getattr(invoice, 'place_of_supply', ''),
 
             # Bill To address fields
@@ -2012,7 +2014,8 @@ def latest_invoice_id(request, invoicing_profile_id):
         invoicing_profile = get_object_or_404(InvoicingProfile, id=invoicing_profile_id)
 
         # Fetch the InvoiceFormat using gstin from the InvoicingProfile
-        invoice_format = InvoiceFormat.objects.get(gstin=invoicing_profile.gstin)
+        invoice_format = InvoiceFormat.objects.get(gstin=invoicing_profile.gstin,
+                                                   invoicing_profile_id=invoicing_profile_id)
 
         # Get the current format version
         current_format_version = invoice_format.invoice_format.get("format_version")
