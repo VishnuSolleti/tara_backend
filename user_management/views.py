@@ -2615,7 +2615,6 @@ def send_account_email(user, email, password):
 def business_set_up(business_data):
     """
     Handle business registration.
-    Returns the instance and serialized data.
     """
     serializer = BusinessSerializer(data=business_data)
     if serializer.is_valid():
