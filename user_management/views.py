@@ -51,6 +51,7 @@ logger = logging.getLogger(__name__)
 class Constants:
     SMS_API_POST_URL = 'https://www.fast2sms.com/dev/bulkV2'
 
+
 # Testing The production Environment
 def auto_generate_password():
     pwo = PasswordGenerator()
