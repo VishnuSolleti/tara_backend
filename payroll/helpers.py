@@ -16,7 +16,8 @@ default_earnings = [
                         "tax_deduction_preference": None,
                         "is_scheduled_earning": True,
                         "pf_wage_less_than_15k": False,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion": True
                     },
                     {
                         "component_name": "HRA",
@@ -35,7 +36,8 @@ default_earnings = [
                         "tax_deduction_preference": None,
                         "is_scheduled_earning": True,
                         "pf_wage_less_than_15k": False,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion": False
 
                     },
                     {
@@ -55,7 +57,8 @@ default_earnings = [
                         "tax_deduction_preference": None,
                         "is_scheduled_earning": True,
                         "pf_wage_less_than_15k": True,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion": False
                     },
                     {
                         "component_name": "Conveyance Allowance",
@@ -74,7 +77,8 @@ default_earnings = [
                         "tax_deduction_preference": None,
                         "is_scheduled_earning": True,
                         "pf_wage_less_than_15k": True,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion": False
                     },
                     {
                         "component_name": "Bonus",
@@ -93,7 +97,8 @@ default_earnings = [
                         "tax_deduction_preference": "TDS",
                         "is_scheduled_earning": True,
                         "pf_wage_less_than_15k": False,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion": False,
                     },
                     {
                         "component_name": "Commission",
@@ -112,7 +117,8 @@ default_earnings = [
                         "tax_deduction_preference": None,
                         "is_scheduled_earning": False,
                         "pf_wage_less_than_15k": False,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion":False
                     },
                     {
                         "component_name": "Children Education Allowance",
@@ -131,7 +137,8 @@ default_earnings = [
                         "tax_deduction_preference": None,
                         "is_scheduled_earning": True,
                         "pf_wage_less_than_15k": True,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion": False
                     },
                     {
                         "component_name": "Transport Allowance",
@@ -150,7 +157,8 @@ default_earnings = [
                         "tax_deduction_preference": None,
                         "is_scheduled_earning": True,
                         "pf_wage_less_than_15k": True,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion": False
                     },
                     {
                         "component_name": "Travelling Allowance",
@@ -169,7 +177,8 @@ default_earnings = [
                         "tax_deduction_preference": None,
                         "is_scheduled_earning": True,
                         "pf_wage_less_than_15k": True,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion": False,
                     },
                     {
                         "component_name": "Overtime Allowance",
@@ -188,7 +197,8 @@ default_earnings = [
                         "tax_deduction_preference": None,
                         "is_scheduled_earning": False,
                         "pf_wage_less_than_15k": False,
-                        "is_fbp_component": False
+                        "is_fbp_component": False,
+                        "always_consider_epf_inclusion": False
                     }
 
 ]

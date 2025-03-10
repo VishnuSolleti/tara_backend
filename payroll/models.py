@@ -223,6 +223,7 @@ class Earnings(models.Model):
     tax_deduction_preference = models.CharField(max_length=120, null=True, blank=True)
     is_scheduled_earning = models.BooleanField(default=True)
     pf_wage_less_than_15k = models.BooleanField(default=False)
+    always_consider_epf_inclusion = models.BooleanField(default=False)
 
     def clean(self):
         # Ensure tax_deduction_preference is required if component_name is "Bonus"

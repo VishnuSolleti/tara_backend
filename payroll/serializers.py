@@ -197,7 +197,9 @@ class EarningsSerializer(serializers.ModelSerializer):
             'id', 'payroll', 'component_name', 'component_type', 'is_active', 'calculation_type',
             'is_part_of_employee_salary_structure', 'is_taxable', 'is_pro_rate_basis',
             'is_fbp_component', 'includes_epf_contribution', 'includes_esi_contribution',
-            'is_included_in_payslip', 'tax_deduction_preference', 'is_scheduled_earning', 'pf_wage_less_than_15k'
+            'is_included_in_payslip', 'tax_deduction_preference', 'is_scheduled_earning', 'pf_wage_less_than_15k',
+            'always_consider_epf_inclusion'
+
         ]
 
     def create(self, validated_data):
