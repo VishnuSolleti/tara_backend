@@ -410,7 +410,7 @@ class EmployeeManagement(BaseModel):
     department = models.ForeignKey('Departments', on_delete=models.CASCADE, related_name='employee_department')
     enable_portal_access = models.BooleanField(default=False)
     statutory_components = models.JSONField()
-    employee_status = models.BooleanField()
+    employee_status = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.employee_id} ({self.gender})"
