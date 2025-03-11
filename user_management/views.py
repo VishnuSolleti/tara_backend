@@ -52,7 +52,7 @@ class Constants:
     SMS_API_POST_URL = 'https://www.fast2sms.com/dev/bulkV2'
 
 
-#  production Testing new Setup
+#  production Testing Successfull
 def auto_generate_password():
     pwo = PasswordGenerator()
     return pwo.shuffle_password('abcdefghijklmnopqrstuvwxyz', 8)  # Generates an 8-character password
