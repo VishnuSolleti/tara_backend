@@ -17,7 +17,7 @@ et-xmlfile==1.1.0
 fiscalyear==0.3.2
 graphene==2.1.9
 graphene-django==2.15.0
-graphql-core>=3.1.7
+graphql-core<3,>=2.1
 graphql-relay==2.0.1
 gunicorn==20.1.0
 idna==3.2
@@ -63,6 +63,6 @@ pip>=23.0
 setuptools>=67.0
 wheel
 pytesseract==0.3.8
-rx==3.2.0
+rx<2
 
 
