@@ -299,10 +299,10 @@ class SalaryTemplate(models.Model):
             for item in section:
                 if not isinstance(item, dict):
                     raise ValidationError(f"Each item in {section} must be a dictionary.")
-                if ('salary_component' not in item or 'calculation_type' not in item or 'monthly'
+                if ('component_name' not in item or 'calculation_type' not in item or 'monthly'
                         not in item or 'annually' not in item):
                     raise ValidationError(f"Each item in {section} "
-                                          f"must contain 'salary_component', 'calculation_type', "
+                                          f"must contain 'component_name', 'calculation_type', "
                                           f"'monthly', and 'annually'.")
 
         # Validate structure for gross_salary, total_ctc, and net_salary
@@ -450,7 +450,7 @@ class EmployeeSalaryDetails(models.Model):
             for item in section:
                 if not isinstance(item, dict):
                     raise ValidationError(f"Each item in {section_name} must be a dictionary.")
-                required_fields = {'salary_component', 'calculation_type', 'monthly', 'annually'}
+                required_fields = {'component_name', 'calculation_type', 'monthly', 'annually'}
                 if not required_fields.issubset(item):
                     raise ValidationError(f"Each item in {section_name} must contain {required_fields}.")
 
