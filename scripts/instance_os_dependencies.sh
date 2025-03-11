@@ -17,8 +17,10 @@ sudo apt-get update && sudo apt-get upgrade -y
 # Install necessary system dependencies
 sudo apt install -y wkhtmltopdf python3-pip nginx virtualenv libtesseract-dev tesseract-ocr poppler-utils
 
-# Create a virtual environment (Best practice in Ubuntu 24.04)
-VENV_PATH="/opt/my_project_venv"
+# Set virtual environment path inside home directory
+VENV_PATH="$HOME/my_project_venv"
+
+# Create virtual environment if it doesn't exist
 if [ ! -d "$VENV_PATH" ]; then
     python3 -m venv "$VENV_PATH"
 fi
