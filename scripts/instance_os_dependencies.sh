@@ -1,42 +1,27 @@
 #!/usr/bin/env bash
 
-set -e  # Exit immediately if a command exits with a non-zero status
+set -e  # Exit on error
 LOGFILE="/tmp/codepipeline_log.txt"
 
-# Function to handle dpkg interruption
-fix_dpkg() {
-  echo "Running 'sudo dpkg --configure -a'" | tee -a $LOGFILE
-  sudo dpkg --configure -a >> $LOGFILE 2>&1
-}
-
-# Log all output to file and stdout
+# Log all output
 exec > >(tee -a $LOGFILE) 2>&1
 
 echo "Starting dependency installation script..."
 
-# Run fix_dpkg before proceeding
-fix_dpkg
-
-# Update package list
-echo "Updating package list..."
-sudo apt-get update && sudo apt-get upgrade -y
-
-# Fix potential dpkg lock issue
-echo "Checking for dpkg lock issues..."
-sudo killall apt apt-get || true
-sudo rm -rf /var/lib/dpkg/lock
-sudo rm -rf /var/lib/dpkg/lock-frontend
+# Fix dpkg if interrupted
 sudo dpkg --configure -a
 
-# Install required system dependencies
-echo "Installing dependencies..."
+# Update & upgrade system packages
+sudo apt-get update && sudo apt-get upgrade -y
+
+# Install necessary system dependencies
 sudo apt install -y wkhtmltopdf python3-pip nginx virtualenv libtesseract-dev tesseract-ocr poppler-utils
 
-# Upgrade pip and setuptools to avoid build issues
-echo "Upgrading pip and setuptools..."
+# Upgrade pip and setuptools
 python3 -m pip install --upgrade pip setuptools wheel
+python3 -m pip install "setuptools<66"  # Avoid known issue
 
-echo "Installation complete!"
+# Install required Python packages separately
+python3 -m pip install --no-cache-dir rx djongo pytesseract
 
-# Print logs at the end
-cat $LOGFILE
+echo "Dependency installation completed successfully!"
