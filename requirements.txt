@@ -59,5 +59,10 @@ num2words==0.5.13
 pdfkit==0.6.1
 django-celery-beat==2.7.0  # Use the version you need
 django-storages==1.13.1
+pip>=23.0
+setuptools>=67.0
+wheel
+pytesseract
+rx
 
 
