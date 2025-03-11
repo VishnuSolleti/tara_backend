@@ -62,7 +62,7 @@ django-storages==1.13.1
 pip>=23.0
 setuptools>=67.0
 wheel
-pytesseract
-rx
+pytesseract==0.3.10
+rx==3.2.0
 
 
