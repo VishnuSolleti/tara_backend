@@ -53,4 +53,8 @@ sudo systemctl start nginx
 echo "Upgrading pip and setuptools"
 pip install --upgrade pip setuptools wheel
 
+# Install required Python packages
+pip install 'setuptools<60'
+pip install djongo pytesseract rx
+
 echo "Installation completed successfully!"
