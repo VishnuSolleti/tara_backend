@@ -15,7 +15,7 @@ sudo dpkg --configure -a
 sudo apt-get update && sudo apt-get upgrade -y
 
 # Install necessary system dependencies
-sudo apt install -y wkhtmltopdf python3-pip nginx virtualenv libtesseract-dev tesseract-ocr poppler-utils
+sudo apt install -y wkhtmltopdf python3-pip nginx virtualenv libtesseract-dev tesseract-ocr poppler-utils python3-venv
 
 # Set virtual environment path inside home directory
 VENV_PATH="$HOME/my_project_venv"
