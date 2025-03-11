@@ -1,41 +1,22 @@
 #!/usr/bin/env bash
 
-set -e  # Exit on error
-LOGFILE="/tmp/codepipeline_log.txt"
+# Function to handle dpkg interruption
+fix_dpkg() {
+  echo "Running 'sudo dpkg --configure -a' to fix any interrupted dpkg processes"
+  sudo dpkg --configure -a
+}
 
-# Log all output
-exec > >(tee -a $LOGFILE) 2>&1
+# Run the fix_dpkg function before proceeding
+fix_dpkg
 
-echo "Starting dependency installation script..."
+# Update the package list
+echo "Updating package list"
+sudo apt-get update
+sudo apt-get upgrade
 
-# Fix dpkg if interrupted
-sudo dpkg --configure -a
+echo "Installing wkhtmltopdf"
+sudo apt-get install -y wkhtmltopdf
 
-# Update & upgrade system packages
-sudo apt-get update && sudo apt-get upgrade -y
-
-# Install necessary system dependencies
-sudo apt install -y wkhtmltopdf python3-pip nginx virtualenv libtesseract-dev tesseract-ocr poppler-utils python3-venv
-
-# Set virtual environment path inside home directory
-VENV_PATH="$HOME/my_project_venv"
-
-# Create virtual environment if it doesn't exist
-if [ ! -d "$VENV_PATH" ]; then
-    python3 -m venv "$VENV_PATH"
-fi
-
-# Activate virtual environment
-source "$VENV_PATH/bin/activate"
-
-# Upgrade pip and setuptools within the virtual environment
-pip install --upgrade pip setuptools wheel
-pip install "setuptools<66"  # Avoid known issue
-
-# Install required Python packages inside the virtual environment
-pip install --no-cache-dir rx djongo pytesseract
-
-# Deactivate the virtual environment
-deactivate
-
-echo "Dependency installation completed successfully!"
+sudo apt install -y python3-pip
+sudo apt install -y nginx
+sudo apt install -y virtualenv
