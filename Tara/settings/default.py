@@ -181,7 +181,7 @@ MIGRATION_MODULES = {
 }
 
 
-FRONTEND_URL = 'http://test.tarafirst.com/'
+FRONTEND_URL = 'http://tarafirst.com/'
 
 
 REST_FRAMEWORK = {
@@ -334,7 +334,7 @@ DATABASES = {
 }
 
 
-Reference_link = "https://tarafirst.com/"
+Reference_link = "http://tarafirst.com/"
 
 TEMPLATES = [
     {
