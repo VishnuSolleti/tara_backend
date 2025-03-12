@@ -314,25 +314,22 @@ S3_BUCKET_NAME = "tarafirstdevelopment"
 # database connections
 userName = os.getenv('database_username')
 password = os.getenv('password')
-print(userName, password, "*******")
+
 
 DATABASES = {
         'default': {
             'ENGINE': 'djongo',
-            'NAME': 'testing',
+            'NAME': 'Production',
             'ENFORCE_SCHEMA': False,
             'CLIENT': {
-                'host': f'mongodb+srv://{userName}:{password}@cluster0.4vvpp.mongodb.net/Testing'
+                'host': f'mongodb+srv://{userName}:{password}@cluster0.onilu.mongodb.net/Production'
                         '?tls=true&tlsAllowInvalidCertificates=true',
                 'port': 27017,
                 'username': f'{userName}',
                 'password': f'{password}',
-                'authSource': 'admin',
+                'authSource': 'Production',
                 'authMechanism': 'SCRAM-SHA-1',
-                'tls': True,
-                'tlsAllowInvalidCertificates': True
-            },
-            'CONN_MAX_AGE': None
+            }
         }
 }
 
