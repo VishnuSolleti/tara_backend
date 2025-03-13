@@ -22,6 +22,8 @@ source /home/ubuntu/env/bin/activate
 # Upgrade pip & setuptools
 pip install --upgrade pip setuptools wheel
 
+pip install pandas
+
 # Install dependencies
 if [ -f "/home/ubuntu/TaraFirst/requirements.txt" ]; then
     pip install -r /home/ubuntu/TaraFirst/requirements.txt
