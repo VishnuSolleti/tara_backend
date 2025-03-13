@@ -1170,7 +1170,7 @@ def salary_template_list_create(request):
             salary_templates = SalaryTemplate.objects.filter(payroll_id=payroll_id)
 
         serializer = SalaryTemplateSerializer(salary_templates, many=True)
-        return Response({"data": serializer.data, "message": "Salary Templates retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'POST':

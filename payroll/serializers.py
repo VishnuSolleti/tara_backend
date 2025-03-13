@@ -326,6 +326,13 @@ class ReimbursementSerializer(serializers.ModelSerializer):
 
 
 class SalaryTemplateSerializer(serializers.ModelSerializer):
+    earnings = serializers.JSONField(default=list)
+    gross_salary = serializers.JSONField(default=list)
+    benefits = serializers.JSONField(default=list)
+    total_ctc = serializers.JSONField(default=list)
+    deductions = serializers.JSONField(default=list)
+    net_salary = serializers.JSONField(default=list)
+
     class Meta:
         model = SalaryTemplate
         fields = '__all__'
