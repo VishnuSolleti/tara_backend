@@ -1440,7 +1440,7 @@ def employee_list(request):
             employees = EmployeeManagement.objects.filter(payroll_id=payroll_id)
         else:
             employees = EmployeeManagement.objects.all()
-        serializer = EmployeeManagementSerializer(employees, many=True)
+        serializer = EmployeeDataSerializer(employees, many=True)
         return Response(serializer.data)
 
     elif request.method == 'POST':
@@ -1456,7 +1456,7 @@ def employee_detail(request, pk):
     employee = get_object_or_404(EmployeeManagement, pk=pk)
 
     if request.method == 'GET':
-        serializer = EmployeeManagementSerializer(employee)
+        serializer = EmployeeDataSerializer(employee)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':

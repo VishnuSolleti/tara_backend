@@ -495,7 +495,7 @@ class EmployeePersonalDetails(BaseModel):
         ('O-', 'O Negative (O-)'),
     ]
 
-    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE,
+    employee = models.OneToOneField('EmployeeManagement', on_delete=models.CASCADE,
                                  related_name='employee_personal_details')
     dob = models.DateField()
     age = models.IntegerField()

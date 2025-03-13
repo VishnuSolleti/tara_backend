@@ -429,6 +429,7 @@ class HolidayManagementSerializer(serializers.ModelSerializer):
 
 
 class EmployeeManagementSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = EmployeeManagement
         fields = '__all__'
@@ -449,4 +450,14 @@ class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):
 class EmployeeBankDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeBankDetails
+        fields = '__all__'
+
+
+class EmployeeDataSerializer(serializers.ModelSerializer):
+    employee_salary = EmployeeSalaryDetailsSerializer(many=True)
+    employee_personal_details = EmployeePersonalDetailsSerializer()
+    employee_bank_details = EmployeeBankDetailsSerializer(many=True)
+
+    class Meta:
+        model = EmployeeManagement
         fields = '__all__'
