@@ -18,9 +18,18 @@ sudo apt-get upgrade -y
 echo "Installing required packages..."
 sudo apt-get install -y wkhtmltopdf python3-pip nginx virtualenv python3-venv python3-setuptools python3-wheel
 
-# Ensure pip and setuptools are updated
-echo "Upgrading pip and setuptools..."
-python3 -m ensurepip --default-pip
-python3 -m pip install --upgrade pip setuptools wheel
+# Ensure pip and setuptools are updated **only in virtual environment**
+echo "Upgrading pip and setuptools in virtual environment..."
+
+# Create a virtual environment if not already created
+if [ ! -d "myenv" ]; then
+  python3 -m venv myenv
+fi
+
+# Activate virtual environment
+source myenv/bin/activate
+
+# Upgrade pip and setuptools inside the virtual environment
+pip install --upgrade pip setuptools wheel
 
 echo "All dependencies installed successfully."
