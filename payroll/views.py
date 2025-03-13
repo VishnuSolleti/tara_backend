@@ -1197,14 +1197,14 @@ def salary_template_detail_update_delete(request, template_id):
 
     if request.method == 'GET':
         serializer = SalaryTemplateSerializer(salary_template)
-        return Response({"data": serializer.data, "message": "Salary Template retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         serializer = SalaryTemplateSerializer(salary_template, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"data": serializer.data, "message": "Salary Template updated successfully."},
+            return Response(serializer.data,
                             status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
