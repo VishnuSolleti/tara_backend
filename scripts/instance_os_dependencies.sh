@@ -10,16 +10,17 @@ fix_dpkg() {
 fix_dpkg
 
 # Update the package list
-echo "Updating package list"
+echo "Updating package list..."
 sudo apt-get update
-sudo apt-get upgrade
+sudo apt-get upgrade -y
 
+# Install required system dependencies
 echo "Installing required packages..."
-sudo apt-get install -y wkhtmltopdf python3-pip nginx virtualenv python3-distutils python3-setuptools
+sudo apt-get install -y wkhtmltopdf python3-pip nginx virtualenv python3-venv python3-setuptools python3-wheel
 
-# Ensure pip is updated
-echo "Upgrading pip..."
-python3 -m ensurepip
+# Ensure pip and setuptools are updated
+echo "Upgrading pip and setuptools..."
+python3 -m ensurepip --default-pip
 python3 -m pip install --upgrade pip setuptools wheel
 
 echo "All dependencies installed successfully."
