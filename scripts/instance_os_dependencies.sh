@@ -23,13 +23,15 @@ echo "Upgrading pip and setuptools in virtual environment..."
 
 # Create a virtual environment if not already created
 if [ ! -d "myenv" ]; then
-  python3 -m venv myenv
+  sudo python3 -m venv myenv
 fi
 
 # Activate virtual environment
 source myenv/bin/activate
 
+sudo chmod -R 777 myenv
+
 # Upgrade pip and setuptools inside the virtual environment
-pip install --upgrade pip setuptools wheel
+pip install --upgrade pip setuptools wheel pandas
 
 echo "All dependencies installed successfully."
