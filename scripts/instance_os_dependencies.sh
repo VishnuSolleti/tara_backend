@@ -14,9 +14,12 @@ echo "Updating package list"
 sudo apt-get update
 sudo apt-get upgrade
 
-echo "Installing wkhtmltopdf"
-sudo apt-get install -y wkhtmltopdf
+echo "Installing required packages..."
+sudo apt-get install -y wkhtmltopdf python3-pip nginx virtualenv python3-distutils python3-setuptools
 
-sudo apt install -y python3-pip
-sudo apt install -y nginx
-sudo apt install -y virtualenv
+# Ensure pip is updated
+echo "Upgrading pip..."
+python3 -m ensurepip
+python3 -m pip install --upgrade pip setuptools wheel
+
+echo "All dependencies installed successfully."
