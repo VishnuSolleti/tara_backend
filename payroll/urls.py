@@ -110,7 +110,7 @@ urlpatterns = [
     path('employee-salary/<int:pk>', views.employee_salary_detail, name='employee-salary-detail'),
 
     path('employee-personal-details', views.employee_personal_list, name='employee-personal-list'),
-    path('employee-personal-details/<int:pk>/', views.employee_personal_detail, name='employee-personal-detail'),
+    path('employee-personal-details/<int:pk>', views.employee_personal_detail, name='employee-personal-detail'),
 
     path('employee-bank-details', views.employee_bank_list, name='employee-bank-list'),
     path('employee-bank-details/<int:pk>', views.employee_bank_detail, name='employee-bank-detail'),
