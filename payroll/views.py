@@ -1188,7 +1188,7 @@ def salary_template_list_create(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 def calculate_payroll(request):
     try:
         data = request.data
