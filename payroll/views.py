@@ -1188,6 +1188,10 @@ def salary_template_list_create(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
 @api_view(['POST'])
 def calculate_payroll(request):
     try:
@@ -1209,23 +1213,51 @@ def calculate_payroll(request):
         benefits = {}
 
         # EPF (Always applicable)
-        benefits["EPF"] = 0.12 * pf_restricted_wage
+        benefits["EPF"] = {
+            "monthly": 0.12 * pf_restricted_wage / 12,
+            "annually": 0.12 * pf_restricted_wage,
+            "calculation_type": "Percentage (12%) of PF wage"
+        }
 
         # EDLI & Admin Charges
         if basic_monthly <= 15000:
-            benefits["EDLI"] = 0.005 * pf_restricted_wage
-            benefits["EPF admin charges"] = 0.005 * pf_restricted_wage
+            benefits["EDLI"] = {
+                "monthly": 0.005 * pf_restricted_wage / 12,
+                "annually": 0.005 * pf_restricted_wage,
+                "calculation_type": "Percentage (0.5%) of PF wage"
+            }
+            benefits["EPF admin charges"] = {
+                "monthly": 0.005 * pf_restricted_wage / 12,
+                "annually": 0.005 * pf_restricted_wage,
+                "calculation_type": "Percentage (0.5%) of PF wage"
+            }
         else:
-            benefits["EDLI"] = 75
-            benefits["EPF admin charges"] = 75
+            benefits["EDLI"] = {
+                "monthly": 75,
+                "annually": 900,
+                "calculation_type": "Fixed Amount"
+            }
+            benefits["EPF admin charges"] = {
+                "monthly": 75,
+                "annually": 900,
+                "calculation_type": "Fixed Amount"
+            }
 
         # ESI (Only if PF wage is <= 21000)
         if basic_monthly <= 21000:
-            benefits["ESI"] = 0.0325 * pf_restricted_wage
+            benefits["ESI"] = {
+                "monthly": 0.0325 * pf_restricted_wage / 12,
+                "annually": 0.0325 * pf_restricted_wage,
+                "calculation_type": "Percentage (3.25%) of PF wage"
+            }
         else:
-            benefits["ESI"] = 0
+            benefits["ESI"] = {
+                "monthly": 0,
+                "annually": 0,
+                "calculation_type": "Not Applicable"
+            }
 
-        total_benefits = sum(benefits.values())
+        total_benefits = sum(item["annually"] for item in benefits.values())
 
         # Adjust Fixed Allowance so that Gross Salary = Annual CTC - Benefits
         total_earnings = sum(item["annually"] for item in earnings if item["component_name"] != "Fixed Allowance")
@@ -1240,10 +1272,19 @@ def calculate_payroll(request):
 
         # Compute Deductions
         deductions = {
-            "EPF Employee Contribution": 0.12 * pf_restricted_wage,
-            "ESI Employee Contribution": 0.0075 * pf_restricted_wage if basic_monthly <= 21000 else 0
+            "EPF Employee Contribution": {
+                "monthly": 0.12 * pf_restricted_wage / 12,
+                "annually": 0.12 * pf_restricted_wage,
+                "calculation_type": "Percentage (12%) of PF wage"
+            },
+            "ESI Employee Contribution": {
+                "monthly": (0.0075 * pf_restricted_wage / 12) if basic_monthly <= 21000 else 0,
+                "annually": (0.0075 * pf_restricted_wage) if basic_monthly <= 21000 else 0,
+                "calculation_type": "Percentage (0.75%) of PF wage" if basic_monthly <= 21000 else "Not Applicable"
+            }
         }
-        total_deductions = sum(deductions.values())
+
+        total_deductions = sum(item["annually"] for item in deductions.values())
 
         # Compute Net Salary
         net_salary = gross_salary - total_deductions
@@ -1253,20 +1294,18 @@ def calculate_payroll(request):
 
         # Prepare Response Data
         response_data = {
-            "payroll":data['payroll'],
+            "payroll": data.get('payroll', ''),
             "template_name": data["template_name"],
             "description": data["description"],
             "annual_ctc": annual_ctc,
             "earnings": earnings,
             "gross_salary": {"monthly": gross_salary / 12, "annually": gross_salary},
             "benefits": [
-                {"component_name": key, "monthly": value, "annually": value * 12}
-                for key, value in benefits.items()
+                {"component_name": key, **value} for key, value in benefits.items()
             ],
             "total_ctc": {"monthly": total_ctc / 12, "annually": total_ctc},
             "deductions": [
-                {"component_name": key, "monthly": value / 12, "annually": value}
-                for key, value in deductions.items()
+                {"component_name": key, **value} for key, value in deductions.items()
             ],
             "net_salary": {"monthly": net_salary / 12, "annually": net_salary},
             "errorMessage": ""
@@ -1276,6 +1315,7 @@ def calculate_payroll(request):
 
     except Exception as e:
         return Response({"errorMessage": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
