@@ -1188,6 +1188,95 @@ def salary_template_list_create(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+def calculate_payroll(request):
+    try:
+        data = request.data
+        annual_ctc = float(data["annual_ctc"])
+
+        # Extract Earnings
+        earnings = data["earnings"]
+        basic_salary = next((item for item in earnings if item["component_name"] == "Basic"), None)
+
+        if not basic_salary:
+            return Response({"errorMessage": "Basic component is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        basic_annual = basic_salary["annually"]
+        basic_monthly = basic_annual / 12
+        pf_restricted_wage = min(basic_annual, 180000)  # Max PF restricted wage = 15000 per month (180000 per year)
+
+        # Compute Benefits
+        benefits = {}
+
+        # EPF (Always applicable)
+        benefits["EPF"] = 0.12 * pf_restricted_wage
+
+        # EDLI & Admin Charges
+        if basic_monthly <= 15000:
+            benefits["EDLI"] = 0.005 * pf_restricted_wage
+            benefits["EPF admin charges"] = 0.005 * pf_restricted_wage
+        else:
+            benefits["EDLI"] = 75
+            benefits["EPF admin charges"] = 75
+
+        # ESI (Only if PF wage is <= 21000)
+        if basic_monthly <= 21000:
+            benefits["ESI"] = 0.0325 * pf_restricted_wage
+        else:
+            benefits["ESI"] = 0
+
+        total_benefits = sum(benefits.values())
+
+        # Adjust Fixed Allowance so that Gross Salary = Annual CTC - Benefits
+        total_earnings = sum(item["annually"] for item in earnings if item["component_name"] != "Fixed Allowance")
+        fixed_allowance = annual_ctc - total_benefits - total_earnings
+
+        for earning in earnings:
+            if earning["component_name"] == "Fixed Allowance":
+                earning["annually"] = fixed_allowance
+                earning["monthly"] = fixed_allowance / 12
+
+        gross_salary = sum(item["annually"] for item in earnings)
+
+        # Compute Deductions
+        deductions = {
+            "EPF Employee Contribution": 0.12 * pf_restricted_wage,
+            "ESI Employee Contribution": 0.0075 * pf_restricted_wage if basic_monthly <= 21000 else 0
+        }
+        total_deductions = sum(deductions.values())
+
+        # Compute Net Salary
+        net_salary = gross_salary - total_deductions
+
+        # Compute Total CTC
+        total_ctc = gross_salary + total_benefits
+
+        # Prepare Response Data
+        response_data = {
+            "template_name": data["template_name"],
+            "description": data["description"],
+            "annual_ctc": annual_ctc,
+            "earnings": earnings,
+            "gross_salary": {"monthly": gross_salary / 12, "annually": gross_salary},
+            "benefits": [
+                {"component_name": key, "monthly": value, "annually": value * 12}
+                for key, value in benefits.items()
+            ],
+            "total_ctc": {"monthly": total_ctc / 12, "annually": total_ctc},
+            "deductions": [
+                {"component_name": key, "monthly": value / 12, "annually": value}
+                for key, value in deductions.items()
+            ],
+            "net_salary": {"monthly": net_salary / 12, "annually": net_salary},
+            "errorMessage": ""
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"errorMessage": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(['GET', 'PUT', 'DELETE'])
 def salary_template_detail_update_delete(request, template_id):
     """

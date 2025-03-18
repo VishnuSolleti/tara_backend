@@ -117,4 +117,6 @@ urlpatterns = [
 
     path('salary-benefits-details/<int:payroll_id>', views.get_payroll_details, name='payroll-details'),
 
+    path("calculate-payroll",  views.calculate_payroll, name="calculate_payroll"),
+
 ]
