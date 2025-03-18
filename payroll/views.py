@@ -1579,21 +1579,30 @@ def employee_personal_detail(request, pk):
 @api_view(['GET', 'POST'])
 def employee_bank_list(request):
     """
-    Handles listing all employee bank details and creating a new entry.
+    Handles listing a single employee's bank details or all entries and allows adding new entries.
     """
     if request.method == 'GET':
+        employee_id = request.query_params.get('employee_id')
+
+        if employee_id:
+            bank_detail = get_object_or_404(EmployeeBankDetails, employee=employee_id)
+            serializer = EmployeeBankDetailsSerializer(bank_detail)
+            return Response(serializer.data,
+                            status=status.HTTP_200_OK)
+
         bank_details = EmployeeBankDetails.objects.all()
         serializer = EmployeeBankDetailsSerializer(bank_details, many=True)
-        return Response({"data": serializer.data, "message": "Bank details retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         serializer = EmployeeBankDetailsSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"data": serializer.data, "message": "Bank details added successfully."},
+            return Response(serializer.data,
                             status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"errors": serializer.errors, "message": "Invalid data provided."},
+                        status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -1605,14 +1614,14 @@ def employee_bank_detail(request, pk):
 
     if request.method == 'GET':
         serializer = EmployeeBankDetailsSerializer(bank_detail)
-        return Response({"data": serializer.data, "message": "Bank detail retrieved successfully."},
+        return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         serializer = EmployeeBankDetailsSerializer(bank_detail, data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({"data": serializer.data, "message": "Bank details updated successfully."},
+            return Response(serializer.data,
                             status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

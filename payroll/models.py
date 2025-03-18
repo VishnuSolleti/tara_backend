@@ -512,21 +512,16 @@ class EmployeePersonalDetails(BaseModel):
 
 
 class EmployeeBankDetails(BaseModel):
-    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE, related_name='employee_bank_details')
+    employee = models.OneToOneField('EmployeeManagement', on_delete=models.CASCADE, related_name='employee_bank_details')
     account_holder_name = models.CharField(max_length=150, null=False, blank=False)
     bank_name = models.CharField(max_length=150, null=False, blank=False)
     account_number = models.CharField(max_length=20, unique=True, null=False, blank=False)
     ifsc_code = models.CharField(max_length=20, null=False, blank=False)
     branch_name = models.CharField(max_length=150, null=True, blank=True)
-    upi_id = models.CharField(max_length=50, null=True, blank=True, default=None)  # Default is None
     is_active = models.BooleanField(default=True)  # To mark active/inactive bank details
 
     def __str__(self):
         return f"{self.employee.associate_id} - {self.bank_name} ({self.account_number})"
-
-
-
-
 
 
 
