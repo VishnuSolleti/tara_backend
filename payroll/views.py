@@ -51,7 +51,6 @@ def upload_to_s3(pdf_data, bucket_name, object_key):
 #     except Exception as e:
 #         raise Exception(f"Error generating presigned URL: {str(e)}")
 
-
 class PayrollOrgList(APIView):
     """
     List all PayrollOrg instances or create a new PayrollOrg.
@@ -113,6 +112,13 @@ class PayrollOrgList(APIView):
             return Response(PayrollOrgSerializer(payroll_org).data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+def get_payroll_details(request, payroll_id):
+    payroll = get_object_or_404(PayrollOrg, id=payroll_id)
+    serializer = PayrollEPFESISerializer(payroll)  # Fetch EPF & ESI details
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])

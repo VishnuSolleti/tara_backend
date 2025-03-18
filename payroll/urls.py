@@ -115,4 +115,6 @@ urlpatterns = [
     path('employee-bank-details', views.employee_bank_list, name='employee-bank-list'),
     path('employee-bank-details/<int:pk>', views.employee_bank_detail, name='employee-bank-detail'),
 
+    path('salary-benefits-details/<int:payroll_id>', views.get_payroll_details, name='payroll-details'),
+
 ]

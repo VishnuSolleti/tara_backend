@@ -154,6 +154,7 @@ class ESI(models.Model):
     employee_contribution = models.DecimalField(max_digits=5, decimal_places=2)  # e.g., 0.75
     employer_contribution = models.DecimalField(max_digits=5, decimal_places=2)  # e.g., 3.25
     include_employer_contribution_in_ctc = models.BooleanField()  # Include employer contribution in CTC?
+    is_disabled = models.BooleanField(default=False)
 
     def __str__(self):
         return f"ESI Details for Payroll: {self.payroll.business.nameOfBusiness} (ESI No: {self.esi_number})"

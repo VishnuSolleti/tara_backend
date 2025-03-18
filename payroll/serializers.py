@@ -465,3 +465,11 @@ class EmployeeDataSerializer(serializers.ModelSerializer):
         model = EmployeeManagement
         fields = '__all__'
 
+
+class PayrollEPFESISerializer(serializers.ModelSerializer):
+    epf_details = EPFSerializer(read_only=True)
+    esi_details = ESISerializer(read_only=True)
+
+    class Meta:
+        model = PayrollOrg
+        fields = ['id', 'epf_details', 'esi_details']
