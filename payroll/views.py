@@ -1253,6 +1253,7 @@ def calculate_payroll(request):
 
         # Prepare Response Data
         response_data = {
+            "payroll":data['payroll'],
             "template_name": data["template_name"],
             "description": data["description"],
             "annual_ctc": annual_ctc,
