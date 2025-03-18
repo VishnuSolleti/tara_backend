@@ -131,7 +131,7 @@ class ESISerializer(serializers.ModelSerializer):
     class Meta:
         model = ESI
         fields = ['id', 'payroll', 'esi_number', 'employee_contribution', 'employer_contribution',
-                  'include_employer_contribution_in_ctc']
+                  'include_employer_contribution_in_ctc', 'is_disabled']
 
     def create(self, validated_data):
         """
