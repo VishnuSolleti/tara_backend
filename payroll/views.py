@@ -985,6 +985,29 @@ def earnings_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+def earnings_in_payslip(request):
+    """
+    API to retrieve earnings where `is_included_in_payslip=True` for a specific payroll.
+    """
+    payroll_id = request.query_params.get('payroll_id')
+
+    if not payroll_id:
+        return Response({"error": "payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    payroll_instance = get_object_or_404(PayrollOrg, id=payroll_id)
+
+    # Filter only earnings included in payslip
+    earnings = Earnings.objects.filter(payroll=payroll_instance, is_included_in_payslip=True)
+
+    if not earnings.exists():
+        return Response({"message": "No earnings found for the given payroll with is_included_in_payslip=True"},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    serializer = EarningsSerializerRetrieval(earnings, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 @api_view(['GET', 'PUT', 'DELETE'])
 def earnings_detail(request, pk):
     """
@@ -1317,7 +1340,6 @@ def calculate_payroll(request):
         return Response({"errorMessage": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-
 @api_view(['GET', 'PUT', 'DELETE'])
 def salary_template_detail_update_delete(request, template_id):
     """
@@ -1608,6 +1630,44 @@ def employee_detail(request, pk):
                         status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['GET'])
+def new_employees_list(request):
+    try:
+        payroll_id = request.query_params.get('payroll_id')
+        current_date = now()
+
+        # Ensure filtering works regardless of DateField or DateTimeField
+        start_of_month = current_date.replace(day=1)
+        end_of_month = current_date.replace(day=31)  # Safe assumption for filtering
+
+        filter_criteria = {
+            "doj__gte": start_of_month,
+            "doj__lte": end_of_month
+        }
+
+        if payroll_id:
+            filter_criteria["payroll_id"] = payroll_id
+
+        employees = EmployeeManagement.objects.filter(**filter_criteria)
+
+        # If no employees found, return an error
+        if not employees.exists():
+            return Response(
+                {"error": "No employees found for the given criteria."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Serialize data and handle serializer errors
+        serializer = CurrentMonthEmployeeDataSerializer(employees, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": "Something went wrong!", "details": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
 # Employee Salary Views
 @api_view(['GET', 'POST'])
 def employee_salary_list(request):
@@ -1765,6 +1825,250 @@ def employee_bank_detail(request, pk):
         bank_detail.delete()
         return Response({"message": "Bank detail deleted successfully."},
                         status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET', 'POST'])
+def employee_exit_list(request):
+    """
+    Handles listing all employee exit records or a single employee's exit record.
+    Allows adding new employee exit records.
+    """
+    if request.method == 'GET':
+        employee_id = request.query_params.get('employee_id')
+
+        if employee_id:
+            exit_detail = get_object_or_404(EmployeeExit, employee=employee_id)
+            serializer = EmployeeExitSerializer(exit_detail)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        exit_details = EmployeeExit.objects.all()
+        serializer = EmployeeExitSerializer(exit_details, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = EmployeeExitSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"errors": serializer.errors, "message": "Invalid data provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def employee_exit_detail(request, pk):
+    """
+    Handles retrieving, updating, and deleting an employee exit record by ID.
+    """
+    exit_detail = get_object_or_404(EmployeeExit, pk=pk)
+
+    if request.method == 'GET':
+        serializer = EmployeeExitSerializer(exit_detail)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = EmployeeExitSerializer(exit_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        exit_detail.delete()
+        return Response({"message": "Employee exit record deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def payroll_exit_settlement_details(request):
+    """
+    API to retrieve exit details for all employees under a specific payroll in the current month.
+    Returns: Employee Name, Department, Designation, Exit Date, Total Days, Paid Days, Settlement Start Date, Annual CTC, Final Settlement Amount.
+    """
+    payroll_id = request.query_params.get('payroll_id')
+    if not payroll_id:
+        return Response({"error": "Payroll ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Get current month and year
+    current_date = now()
+    year, month = current_date.year, current_date.month
+    _, total_days_in_month = monthrange(year, month)
+
+    # Get Employees under Payroll
+    employees = EmployeeManagement.objects.filter(payroll_id=payroll_id)
+    if not employees.exists():
+        return Response({"error": "No employees found for the given payroll ID."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get Employees who exited this month
+    exits = EmployeeExit.objects.filter(
+        employee__payroll_id=payroll_id,
+        doe__gte=datetime(year, month, 1).date(),
+        doe__lte=datetime(year, month, total_days_in_month).date()
+    )
+
+    if not exits.exists():
+        return Response({"error": "No employee exits found for the given payroll ID in the current month."}, status=status.HTTP_404_NOT_FOUND)
+
+    response_data = []
+
+    for exit_detail in exits:
+        employee = exit_detail.employee
+
+        # Fetch Salary Details (Latest Active Salary)
+        salary_details = EmployeeSalaryDetails.objects.filter(employee=employee, valid_to__isnull=True).first()
+        annual_ctc = salary_details.annual_ctc if salary_details else 0
+
+        # Fetch Holidays for the Month
+        holidays = set(HolidayManagement.objects.filter(
+            payroll=employee.payroll,
+            start_date__gte=datetime(year, month, 1).date(),
+            start_date__lte=datetime(year, month, total_days_in_month).date()
+        ).values_list('start_date', flat=True))
+
+        # Fetch PaySchedule for Weekends & Off Days
+        pay_schedule = PaySchedule.objects.filter(payroll=employee.payroll).first()
+        off_days = set()
+        for day in range(1, total_days_in_month + 1):
+            date_obj = datetime(year, month, day).date()
+            weekday = date_obj.weekday()  # 0 = Monday, 6 = Sunday
+
+            if pay_schedule:
+                if (weekday == 0 and pay_schedule.monday) or \
+                   (weekday == 1 and pay_schedule.tuesday) or \
+                   (weekday == 2 and pay_schedule.wednesday) or \
+                   (weekday == 3 and pay_schedule.thursday) or \
+                   (weekday == 4 and pay_schedule.friday) or \
+                   (weekday == 5 and pay_schedule.saturday) or \
+                   (weekday == 6 and pay_schedule.sunday):
+                    off_days.add(date_obj)
+
+                # Handle Second & Fourth Saturday
+                if pay_schedule.second_saturday and (day >= 8 and day <= 14 and weekday == 5):
+                    off_days.add(date_obj)
+                if pay_schedule.fourth_saturday and (day >= 22 and day <= 28 and weekday == 5):
+                    off_days.add(date_obj)
+
+        # Calculate Paid Days (Excluding Holidays & Off Days)
+        paid_days = total_days_in_month - len(holidays) - len(off_days)
+        paid_days = max(0, paid_days)  # Ensure no negative values
+
+        # Calculate Final Settlement (Assume F&F is Gross Salary / Total Days * Paid Days)
+        gross_salary = salary_details.gross_salary.get('monthly', 0) if salary_details and salary_details.gross_salary else 0
+        final_settlement = (gross_salary / total_days_in_month) * paid_days if gross_salary else 0
+
+        # Append Data
+        response_data.append({
+            "employee_name": f"{employee.first_name} {employee.middle_name} {employee.last_name}".strip(),
+            "department": employee.department_name,
+            "designation": employee.designation_name,
+            "exit_date": exit_detail.doe,
+            "total_days": total_days_in_month,
+            "paid_days": paid_days,
+            "settlement_sdate": exit_detail.doe,  # Assuming settlement starts on exit date
+            "annual_ctc": annual_ctc,
+            "final_settlement_amount": round(final_settlement, 2)
+        })
+
+    return Response(response_data, status=status.HTTP_200_OK)
+
+
+
+@api_view(['GET', 'POST'])
+def advance_loan_list(request):
+    """
+    Handles listing all advance loans or retrieving a specific employee's advance loan.
+    Allows creating new advance loan entries.
+    """
+    if request.method == 'GET':
+        employee_id = request.query_params.get('employee_id')
+
+        if employee_id:
+            loan_detail = get_object_or_404(AdvanceLoan, employee_id=employee_id)
+            serializer = AdvanceLoanSerializer(loan_detail)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        loans = AdvanceLoan.objects.all()
+        serializer = AdvanceLoanSerializer(loans, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = AdvanceLoanSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"errors": serializer.errors, "message": "Invalid data provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def advance_loan_detail(request, pk):
+    """
+    Handles retrieving, updating, and deleting an advance loan by ID.
+    """
+    loan_detail = get_object_or_404(AdvanceLoan, pk=pk)
+
+    if request.method == 'GET':
+        serializer = AdvanceLoanSerializer(loan_detail)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = AdvanceLoanSerializer(loan_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        loan_detail.delete()
+        return Response({"message": "Advance loan record deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def payroll_advance_loans(request):
+    """
+    API to retrieve advance loans for employees under a specific payroll for the current month.
+    """
+    payroll_id = request.query_params.get('payroll_id')
+    if not payroll_id:
+        return Response({"error": "Payroll ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Get current month and year
+    current_date = now().date()
+
+    # Get Employees under Payroll
+    employees = EmployeeManagement.objects.filter(payroll_id=payroll_id)
+    if not employees.exists():
+        return Response({"error": "No employees found for the given payroll ID."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get Active Loans for Employees in This Payroll
+    loans = AdvanceLoan.objects.filter(
+        employee__payroll_id=payroll_id,
+        start_month__lte=current_date,
+        end_month__gte=current_date
+    )
+
+    if not loans.exists():
+        return Response({"error": "No active advance loans found for the given payroll ID in the current month."},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    # Serialize the data
+    serializer = AdvanceLoanSummarySerializer(loans, many=True, context={"current_date": current_date})
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 
 
 

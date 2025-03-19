@@ -69,6 +69,8 @@ urlpatterns = [
 
     path('earnings', views.earnings_list, name='earnings_list'),
 
+    path('earnings-in-payslip', views.earnings_in_payslip, name='earnings-in-payslip'),
+
     # URL for retrieving, updating, or deleting a specific Earnings record by its ID
     path('earnings/<int:pk>', views.earnings_detail, name='earnings_detail'),
 
@@ -118,5 +120,17 @@ urlpatterns = [
     path('salary-benefits-details/<int:payroll_id>', views.get_payroll_details, name='payroll-details'),
 
     path("calculate-payroll",  views.calculate_payroll, name="calculate_payroll"),
+
+    path('new-employees', views.new_employees_list, name='new-employees-list'),
+
+    path('employee-exit', views.employee_exit_list, name='employee-exit-list'),  # List or Create
+    path('employee-exit/<int:pk>', views.employee_exit_detail, name='employee-exit-detail'),
+
+    path('payroll-exit-settlement', views.payroll_exit_settlement_details, name='payroll-exit-settlement-details'),
+
+    path('advance-loans', views.advance_loan_list, name='advance-loan-list'),  # List or Create
+    path('advance-loans/<int:pk>', views.advance_loan_detail, name='advance-loan-detail'),  # Retrieve, Update, Delete
+
+    path('payroll-advance-summary', views.payroll_advance_loans, name='payroll-advance-loans'),
 
 ]

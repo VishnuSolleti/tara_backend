@@ -5,6 +5,7 @@ from user_management.models import *
 from datetime import date
 from collections import OrderedDict
 from django.db.models.signals import pre_save, post_save
+from dateutil.relativedelta import relativedelta
 
 
 def validate_pincode(value):
@@ -523,6 +524,67 @@ class EmployeeBankDetails(BaseModel):
 
     def __str__(self):
         return f"{self.employee.associate_id} - {self.bank_name} ({self.account_number})"
+
+
+class EmployeeExit(models.Model):
+    employee = models.OneToOneField(
+        'EmployeeManagement', on_delete=models.CASCADE, related_name='employee_exit_details'
+    )
+    doe = models.DateField()
+    exit_reason = models.CharField(max_length=256, null=True, blank=True, default=None)
+    regular_pay_schedule = models.BooleanField()
+    specify_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(null=True, blank=True, default='')
+
+    def clean(self):
+        """Validation before saving the model"""
+        if self.regular_pay_schedule and self.specify_date is not None:
+            raise ValidationError(
+                "If 'regular_pay_schedule' is True, 'specify_date' must be None."
+            )
+        if not self.regular_pay_schedule and self.specify_date is None:
+            raise ValidationError(
+                "If 'regular_pay_schedule' is False, 'specify_date' must be provided."
+            )
+
+    def save(self, *args, **kwargs):
+        """Call clean() before saving"""
+        self.clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Exit: {self.employee.first_name} {self.employee.last_name} ({self.doe})"
+
+
+class AdvanceLoan(models.Model):
+    employee = models.OneToOneField(
+        'EmployeeManagement', on_delete=models.CASCADE, related_name='employee_advance_loan'
+    )
+    loan_type = models.CharField(max_length=120, null=False, blank=False)  # Renamed 'type' to 'loan_type' (reserved keyword)
+    amount = models.IntegerField()
+    no_of_months = models.IntegerField()
+    emi_amount = models.IntegerField(editable=False)  # Auto-calculated
+    start_month = models.DateField()
+    end_month = models.DateField(editable=False)  # Auto-calculated
+
+    def clean(self):
+        """Validation: Ensure amount and months are positive."""
+        if self.amount <= 0:
+            raise ValidationError("Loan amount must be greater than zero.")
+        if self.no_of_months <= 0:
+            raise ValidationError("Number of months must be greater than zero.")
+
+    def save(self, *args, **kwargs):
+        """Auto-calculate EMI and End Month before saving."""
+        self.clean()
+        self.emi_amount = self.amount // self.no_of_months  # Equal installment
+        self.end_month = self.start_month + relativedelta(months=self.no_of_months)  # Auto-calculate end month
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.employee.first_name} - {self.loan_type} Loan ({self.amount})"
+
+
 
 
 
