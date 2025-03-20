@@ -380,9 +380,9 @@ class PayrollOrgBusinessDetailView(APIView):
                     if payroll_org.salary_component is True
                     else (
                             Earnings.objects.filter(payroll=payroll_org.id).exists()
-                            and Benefits.objects.filter(payroll=payroll_org.id).exists()
-                            and Deduction.objects.filter(payroll=payroll_org.id).exists()
-                            and Reimbursement.objects.filter(payroll=payroll_org.id).exists()
+                            # and Benefits.objects.filter(payroll=payroll_org.id).exists()
+                            # and Deduction.objects.filter(payroll=payroll_org.id).exists()
+                            # and Reimbursement.objects.filter(payroll=payroll_org.id).exists()
                     )
                 ) if organisation_details else False,
                 "pay_schedule": payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists()
@@ -390,7 +390,9 @@ class PayrollOrgBusinessDetailView(APIView):
                 "leave_and_attendance": (LeaveManagement.objects.filter(payroll=payroll_org.id).exists()) and (
                             HolidayManagement.objects.filter(payroll=payroll_org.id).exists()) if organisation_details
                 else False,
-                "employee_master": payroll_org.employee_master or False if organisation_details else False,
+                "employee_master": (payroll_org.employee_master or
+                                    EmployeeManagement.objects.filter(payroll=payroll_org.id).exists())
+                if organisation_details else False,
                 "salary_template": payroll_org.salary_template or
                                    SalaryTemplate.objects.filter(payroll=payroll_org.id).exists()
                 if organisation_details else False
