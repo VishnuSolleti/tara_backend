@@ -614,11 +614,11 @@ class AdvanceLoanSummarySerializer(serializers.ModelSerializer):
 
     def get_department(self, obj):
         """Fetch employee's department"""
-        return obj.employee.department_name
+        return obj.employee.department.dept_name
 
     def get_designation(self, obj):
         """Fetch employee's designation"""
-        return obj.employee.designation_name
+        return obj.employee.designation.designation_name
 
     def get_pending_balance(self, obj):
         """Calculates remaining loan balance"""
