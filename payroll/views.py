@@ -152,7 +152,7 @@ def business_payroll_check(request):
 
         if organisation_details:
             payroll_org = PayrollOrg.objects.get(business=business.id)
-
+            response_data['payroll_id'] = payroll_org.id
             # payroll_data = PayrollOrgSerializer(payroll_org).data  # Serialize PayrollOrg
             # payroll_data["organisation_address"] = dict(payroll_data.get("organisation_address", {}))
 
@@ -168,15 +168,15 @@ def business_payroll_check(request):
                 ]),
                 payroll_org.salary_component or all([
                     Earnings.objects.filter(payroll=payroll_org.id).exists(),
-                    Benefits.objects.filter(payroll=payroll_org.id).exists(),
-                    Deduction.objects.filter(payroll=payroll_org.id).exists(),
-                    Reimbursement.objects.filter(payroll=payroll_org.id).exists()
+                    # Benefits.objects.filter(payroll=payroll_org.id).exists(),
+                    # Deduction.objects.filter(payroll=payroll_org.id).exists(),
+                    # Reimbursement.objects.filter(payroll=payroll_org.id).exists()
                 ]),
                 payroll_org.salary_template or SalaryTemplate.objects.filter(payroll=payroll_org.id).exists(),
                 payroll_org.pay_schedule or PaySchedule.objects.filter(payroll=payroll_org.id).exists(),
-                payroll_org.leave_management or False,
-                payroll_org.holiday_management or False,
-                payroll_org.employee_master or False,
+                payroll_org.leave_management or LeaveManagement.objects.filter(payroll=payroll_org.id).exists() ,
+                payroll_org.holiday_management or HolidayManagement.objects.filter(payroll=payroll_org.id).exists(),
+                payroll_org.employee_master or EmployeeManagement.objects.filter(payroll=payroll_org.id).exists(),
             ])
         else:
             all_components = False  # If PayrollOrg does not exist, setup is incomplete
