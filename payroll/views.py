@@ -1965,8 +1965,8 @@ def payroll_exit_settlement_details(request):
         # Append Data
         response_data.append({
             "employee_name": f"{employee.first_name} {employee.middle_name} {employee.last_name}".strip(),
-            "department": employee.department_name,
-            "designation": employee.designation_name,
+            "department": employee.department.dept_name,
+            "designation": employee.designation.designation_name,
             "exit_date": exit_detail.doe,
             "total_days": total_days_in_month,
             "paid_days": paid_days,
@@ -1976,7 +1976,6 @@ def payroll_exit_settlement_details(request):
         })
 
     return Response(response_data, status=status.HTTP_200_OK)
-
 
 
 @api_view(['GET', 'POST'])
