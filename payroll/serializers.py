@@ -570,9 +570,20 @@ class PayrollEPFESISerializer(serializers.ModelSerializer):
 
 
 class EmployeeExitSerializer(serializers.ModelSerializer):
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+
     class Meta:
         model = EmployeeExit
         fields = '__all__'
+
+    def get_department(self, obj):
+        """Fetch employee's department"""
+        return obj.employee.department.dept_name
+
+    def get_designation(self, obj):
+        """Fetch employee's designation"""
+        return obj.employee.designation.designation_name
 
 
 class AdvanceLoanSerializer(serializers.ModelSerializer):
