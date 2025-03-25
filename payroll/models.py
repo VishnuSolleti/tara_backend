@@ -418,6 +418,69 @@ class EmployeeManagement(BaseModel):
         return f"{self.employee_id} ({self.gender})"
 
 
+@receiver(post_save, sender=EmployeeManagement)
+def allocate_pro_rated_leave(sender, instance, created, **kwargs):
+    """Automatically allocate leave balance based on the financial year when a new employee is created."""
+    if created:
+        leave_policies = LeaveManagement.objects.filter(payroll=instance.payroll)
+
+        # Automatically calculate financial year based on the current date
+        today = date.today()
+        if today.month >= 4:
+            start_year = today.year
+            end_year = today.year + 1
+        else:
+            start_year = today.year - 1
+            end_year = today.year
+
+        leave_period_start = date(start_year, 4, 1)
+        leave_period_end = date(end_year, 3, 31)
+
+        for leave in leave_policies:
+            total_leaves = leave.number_of_leaves
+            pro_rated_leave = total_leaves  # Default full allocation
+
+            # Calculate remaining months in the financial year
+            if instance.doj > leave_period_start:
+                remaining_months = max(1, (leave_period_end.year - instance.doj.year) * 12 +
+                                       (leave_period_end.month - instance.doj.month))
+
+                if leave.employee_leave_period == "Monthly":
+                    # If leave is allocated monthly, multiply remaining months by number_of_leaves
+                    pro_rated_leave = total_leaves * remaining_months
+
+                elif leave.employee_leave_period == "Annually":
+                    # If leave is allocated annually, divide annual leave by remaining months
+                    pro_rated_leave = round((total_leaves / 12) * remaining_months)
+
+            # Create Leave Balance Entry
+            EmployeeLeaveBalance.objects.create(
+                employee=instance,
+                leave_type=leave,
+                leave_entitled=pro_rated_leave,
+                leave_remaining=pro_rated_leave,
+                financial_year=f"{start_year}-{end_year}"
+            )
+
+
+class EmployeeLeaveBalance(models.Model):
+    """Leave Balance Model"""
+    employee = models.ForeignKey(EmployeeManagement, on_delete=models.CASCADE, related_name='leave_balances')
+    leave_type = models.ForeignKey(LeaveManagement, on_delete=models.CASCADE, related_name='leave_balances')
+    leave_entitled = models.IntegerField()  # Total entitled leave
+    leave_used = models.IntegerField(default=0)  # Leaves taken
+    leave_remaining = models.IntegerField()  # Auto-calculated
+    financial_year = models.CharField(max_length=10, null=False, blank=False)
+
+    def save(self, *args, **kwargs):
+        """Auto-calculate remaining leaves before saving."""
+        self.leave_remaining = self.leave_entitled - self.leave_used
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.employee.name} - {self.leave_type.name_of_leave}: {self.leave_remaining} remaining"
+
+
 class EmployeeSalaryDetails(models.Model):
     employee = models.ForeignKey(
         'EmployeeManagement', on_delete=models.CASCADE, related_name='employee_salary'
@@ -583,6 +646,60 @@ class AdvanceLoan(models.Model):
 
     def __str__(self):
         return f"{self.employee.first_name} - {self.loan_type} Loan ({self.amount})"
+
+
+class EmployeeAttendance(models.Model):
+    """Employee Attendance Tracking Model."""
+    employee = models.ForeignKey(EmployeeManagement, on_delete=models.CASCADE, related_name='employee_attendance')
+    financial_year = models.CharField(max_length=10, null=False, blank=False)
+    month = models.IntegerField(null=False)
+    total_days_of_month = models.IntegerField(null=False)
+    holidays = models.IntegerField(null=False)
+    week_offs = models.IntegerField(null=False)
+    present_days = models.IntegerField(null=False)
+    balance_days = models.IntegerField(null=False)
+    casual_leaves = models.IntegerField(null=False)
+    sick_leaves = models.IntegerField(null=False)
+    earned_leaves = models.IntegerField(null=False)
+
+    def __str__(self):
+        return (f"{self.employee.name} - {self.month}/{self.financial_year}: Present {self.present_days},"
+                f" Casual Leaves {self.casual_leaves}, Sick Leaves {self.sick_leaves}, "
+                f"Earned Leaves {self.earned_leaves}")
+
+
+@receiver(pre_save, sender=EmployeeAttendance)
+def update_leave_balance(sender, instance, **kwargs):
+    """Update Employee Leave Balance before saving attendance."""
+    if instance.pk:
+        previous = EmployeeAttendance.objects.get(pk=instance.pk)
+
+        leave_types = [
+            ('Casual Leave', previous.casual_leaves, instance.casual_leaves),
+            ('Sick Leave', previous.sick_leaves, instance.sick_leaves),
+            ('Earned Leave', previous.earned_leaves, instance.earned_leaves),
+        ]
+
+        for leave_name, prev_value, new_value in leave_types:
+            if new_value != prev_value:  # Update only if there is a change
+                leave_balance = EmployeeLeaveBalance.objects.get(
+                    employee=instance.employee, leave_type__name_of_leave=leave_name
+                )
+                diff = new_value - prev_value  # Calculate difference
+
+                if diff > 0:
+                    # Employee is taking more leave than before, subtract from remaining
+                    leave_balance.leave_used += diff
+                    leave_balance.leave_remaining = max(0, leave_balance.leave_remaining - diff)
+                else:
+                    # Employee reduced leave usage, adjust back
+                    leave_balance.leave_used += diff  # `diff` is negative, so this effectively decreases leave_used
+                    leave_balance.leave_remaining += abs(diff)
+
+                leave_balance.save()
+
+
+
 
 
 
