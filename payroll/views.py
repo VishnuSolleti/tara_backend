@@ -1967,6 +1967,7 @@ def payroll_exit_settlement_details(request):
         # Append Data
         response_data.append({
             "employee_name": f"{employee.first_name} {employee.middle_name} {employee.last_name}".strip(),
+            "id": exit_detail.id,
             "department": employee.department.dept_name,
             "designation": employee.designation.designation_name,
             "exit_date": exit_detail.doe,
