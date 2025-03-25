@@ -133,4 +133,12 @@ urlpatterns = [
 
     path('payroll-advance-summary', views.payroll_advance_loans, name='payroll-advance-loans'),
 
+    path('attendance/', views.employee_attendance_list, name='employee_attendance_list'),
+    path('attendance/<int:pk>', views.employee_attendance_detail, name='employee_attendance_detail'),
+
+    path('employee_attendance_automate', views.generate_next_month_attendance, name='generate-next-month-attendance'),
+
+    path('employee_attendance_current_month_automate', views.generate_current_month_attendance,
+         name='generate-current-month-attendance'),
+
 ]

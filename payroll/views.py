@@ -16,6 +16,9 @@ from django.db import transaction, DatabaseError
 from django.core.exceptions import ObjectDoesNotExist
 import json
 from .helpers import *
+import calendar
+from django.db.models import Q
+from django.db.models.functions import ExtractMonth
 
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
@@ -2070,6 +2073,266 @@ def payroll_advance_loans(request):
     serializer = AdvanceLoanSummarySerializer(loans, many=True, context={"current_date": current_date})
     return Response(serializer.data, status=status.HTTP_200_OK)
 
+
+@api_view(['GET', 'POST'])
+def employee_attendance_list(request):
+    """
+    Handles listing all employee attendance records or filtering by employee_id.
+    Allows adding new employee attendance records.
+    """
+    if request.method == 'GET':
+        employee_id = request.query_params.get('employee_id')
+
+        if employee_id:
+            attendance_records = EmployeeAttendance.objects.filter(employee=employee_id)
+            serializer = EmployeeAttendanceSerializer(attendance_records, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        attendance_records = EmployeeAttendance.objects.all()
+        serializer = EmployeeAttendanceSerializer(attendance_records, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = EmployeeAttendanceSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"errors": serializer.errors, "message": "Invalid data provided."},
+                        status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def employee_attendance_detail(request, pk):
+    """
+    Handles retrieving, updating, and deleting an employee attendance record by ID.
+    """
+    attendance_record = get_object_or_404(EmployeeAttendance, pk=pk)
+
+    if request.method == 'GET':
+        serializer = EmployeeAttendanceSerializer(attendance_record)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = EmployeeAttendanceSerializer(attendance_record, data=request.data, partial=True)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        attendance_record.delete()
+        return Response({"message": "Employee attendance record deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+def calculate_holidays_and_week_offs(payroll_id, year, month):
+    """
+    Calculates total holidays and week-offs for a given month using HolidayManagement and PaySchedule.
+    """
+    # Get the financial year in format "YYYY-YYYY"
+    financial_year = f"{year}-{year + 1}" if month >= 4 else f"{year - 1}-{year}"
+    financial_year_start = int(financial_year.split("-")[0])
+
+    # Get total days in the month
+    total_days = calendar.monthrange(year, month)[1]
+
+    # Get Payroll's Holiday Management
+    first_day = date(year, month, 1)
+    last_day = date(year, month, total_days)
+
+    holidays = HolidayManagement.objects.filter(
+        payroll_id=payroll_id,
+        financial_year=financial_year,
+        start_date__gte=first_day,
+        start_date__lte=last_day
+    )
+
+    holiday_days = set()
+    for holiday in holidays:
+        current_date = holiday.start_date
+        while current_date <= holiday.end_date:
+            if current_date.month == month:
+                holiday_days.add(current_date)
+            current_date += timedelta(days=1)
+
+    # Get Payroll's PaySchedule
+    try:
+        pay_schedule = PaySchedule.objects.get(payroll_id=payroll_id)
+    except PaySchedule.DoesNotExist:
+        return {"error": "PaySchedule not found for given payroll ID."}
+
+    week_off_days = set()
+    for day in range(1, total_days + 1):
+        current_date = date(year, month, day)
+        weekday = current_date.strftime('%A').lower()
+
+        if getattr(pay_schedule, weekday, False):
+            week_off_days.add(current_date)
+
+        if current_date.strftime('%A') == 'Saturday':
+            if (day > 7 and day <= 14) and pay_schedule.second_saturday:
+                week_off_days.add(current_date)
+            if (day > 21 and day <= 28) and pay_schedule.fourth_saturday:
+                week_off_days.add(current_date)
+
+    return {
+        "total_days": total_days,
+        "holiday_count": len(holiday_days),
+        "week_off_count": len(week_off_days),
+        "total_holidays": list(holiday_days),
+        "total_week_offs": list(week_off_days)
+    }
+
+
+@api_view(['POST'])
+def generate_next_month_attendance(request):
+    """
+    Automatically creates attendance records for all employees under a given payroll_id for the next month,
+    excluding employees who have left the organization.
+    """
+    payroll_id = request.query_params.get("payroll_id")
+
+    if not payroll_id:
+        return Response({"error": "Payroll ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    today = date.today()
+    next_month = today.month + 1 if today.month < 12 else 1
+    next_year = today.year if today.month < 12 else today.year + 1
+    first_day_next_month = date(next_year, next_month, 1)
+
+    # Exclude employees who have exited before the next month's start date
+    active_employees = EmployeeManagement.objects.filter(
+        payroll=payroll_id
+    ).exclude(
+        Q(employee_exit_details__doe__lt=first_day_next_month)  # Employees who exited before next month
+    )
+
+    if not active_employees.exists():
+        return Response({"error": "No active employees found for the given payroll ID."},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    # Fetch holiday and week-off details
+    holiday_data = calculate_holidays_and_week_offs(payroll_id, next_year, next_month)
+
+    if "error" in holiday_data:
+        return Response({"error": holiday_data["error"]}, status=status.HTTP_400_BAD_REQUEST)
+
+    total_days = holiday_data["total_days"]
+    holidays = holiday_data["holiday_count"]
+    week_offs = holiday_data["week_off_count"]
+
+    created_records = 0
+    for employee in active_employees:
+        # Determine financial year
+        financial_year = f"{next_year}-{next_year + 1}" if next_month >= 4 else f"{next_year - 1}-{next_year}"
+
+        # Calculate present and balance days
+        present_days = 0
+        balance_days = 0
+
+        EmployeeAttendance.objects.create(
+            employee=employee,
+            financial_year=financial_year,
+            month=next_month,
+            total_days_of_month=total_days,
+            holidays=holidays,
+            week_offs=week_offs,
+            present_days=present_days,
+            balance_days=balance_days,
+            casual_leaves=0,
+            sick_leaves=0,
+            earned_leaves=0,
+        )
+
+        created_records += 1
+
+    return Response({
+        "message": f"Attendance records for {date(next_year, next_month, 1).strftime('%B %Y')} created successfully.",
+        "created_records": created_records
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+def generate_current_month_attendance(request):
+    """
+    Automatically creates attendance records for all employees under a given payroll_id for the current month,
+    excluding employees who have left the organization. If records already exist, it skips them.
+    """
+    payroll_id = request.query_params.get("payroll_id")
+    if not payroll_id:
+        return Response({"error": "Payroll ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    today = date.today()
+    current_month = today.month
+    current_year = today.year
+    first_day_current_month = date(current_year, current_month, 1)
+
+    # Exclude employees who have exited before the current month
+    active_employees = EmployeeManagement.objects.filter(
+        payroll=payroll_id
+    ).exclude(
+        Q(employee_exit_details__doe__lt=first_day_current_month)
+    )
+
+    if not active_employees.exists():
+        return Response({"error": "No active employees found for the given payroll ID."},
+                        status=status.HTTP_404_NOT_FOUND)
+
+    # Fetch holiday and week-off details
+    holiday_data = calculate_holidays_and_week_offs(payroll_id, current_year, current_month)
+
+    if "error" in holiday_data:
+        return Response({"error": holiday_data["error"]}, status=status.HTTP_400_BAD_REQUEST)
+
+    total_days = holiday_data["total_days"]
+    holidays = holiday_data["holiday_count"]
+    week_offs = holiday_data["week_off_count"]
+
+    created_records = 0
+    skipped_records = 0
+
+    for employee in active_employees:
+        financial_year = f"{current_year}-{current_year + 1}" if current_month >= 4 else f"{current_year - 1}-{current_year}"
+
+        # Check if an attendance record already exists
+        existing_record = EmployeeAttendance.objects.filter(
+            employee=employee,
+            financial_year=financial_year,
+            month=current_month
+        ).exists()
+
+        if existing_record:
+            skipped_records += 1
+            continue  # Skip this employee
+
+        EmployeeAttendance.objects.create(
+            employee=employee,
+            financial_year=financial_year,
+            month=current_month,
+            total_days_of_month=total_days,
+            holidays=holidays,
+            week_offs=week_offs,
+            present_days=0,
+            balance_days=0,
+            casual_leaves=0,
+            sick_leaves=0,
+            earned_leaves=0,
+        )
+        created_records += 1
+
+    return Response({
+        "message": f"Attendance records for {date(current_year, current_month, 1).strftime('%B %Y')} processed successfully.",
+        "created_records": created_records,
+        "skipped_records": skipped_records
+    }, status=status.HTTP_201_CREATED)
 
 
 

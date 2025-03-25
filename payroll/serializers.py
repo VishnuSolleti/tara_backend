@@ -353,6 +353,7 @@ class SalaryTemplateSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        return instance
 
 
 class PayScheduleSerializer(serializers.ModelSerializer):
@@ -646,3 +647,9 @@ class AdvanceLoanSummarySerializer(serializers.ModelSerializer):
         """Returns EMI deduction for the current month"""
         pending_balance = self.get_pending_balance(obj)
         return obj.emi_amount if pending_balance > 0 else 0
+
+
+class EmployeeAttendanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeAttendance
+        fields = '__all__'
