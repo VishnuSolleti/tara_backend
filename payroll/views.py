@@ -2065,7 +2065,7 @@ def advance_loan_detail(request, pk):
     loan_detail = get_object_or_404(AdvanceLoan, pk=pk)
 
     if request.method == 'GET':
-        serializer = AdvanceLoanSerializer(loan_detail)
+        serializer = AdvanceLoanDetailSerializer(loan_detail)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
