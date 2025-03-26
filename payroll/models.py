@@ -467,9 +467,9 @@ class EmployeeLeaveBalance(models.Model):
     """Leave Balance Model"""
     employee = models.ForeignKey(EmployeeManagement, on_delete=models.CASCADE, related_name='leave_balances')
     leave_type = models.ForeignKey(LeaveManagement, on_delete=models.CASCADE, related_name='leave_balances')
-    leave_entitled = models.IntegerField()  # Total entitled leave
-    leave_used = models.IntegerField(default=0)  # Leaves taken
-    leave_remaining = models.IntegerField()  # Auto-calculated
+    leave_entitled = models.FloatField()  # Total entitled leave
+    leave_used = models.FloatField(default=0)  # Leaves taken
+    leave_remaining = models.FloatField()  # Auto-calculated
     financial_year = models.CharField(max_length=10, null=False, blank=False)
 
     def save(self, *args, **kwargs):
