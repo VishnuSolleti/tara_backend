@@ -1468,15 +1468,49 @@ def leave_management_list_create(request):
     - POST: Creates a new leave policy.
     """
     if request.method == 'GET':
-        payroll_id = request.query_params.get('payroll_id')
-        leaves = LeaveManagement.objects.all()
-        if payroll_id:
-            leaves = leaves.filter(payroll_id=payroll_id)
+        try:
+            payroll_id = request.query_params.get('payroll_id')
+            if not payroll_id:
+                return Response({"error": "payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        serializer = LeaveManagementSerializer(leaves, many=True)
-        return Response(serializer.data,
-                        status=status.HTTP_200_OK)
-
+            try:
+                payroll_instance = PayrollOrg.objects.get(id=payroll_id)  # Fetch PayrollOrg instance
+            except PayrollOrg.DoesNotExist:
+                return Response({"error": "Invalid payroll_id"}, status=status.HTTP_400_BAD_REQUEST)
+            leaves = LeaveManagement.objects.filter(payroll=payroll_id)
+            if not leaves.exists():
+                created_leaves = []  # Track created earnings to manually delete on error
+                try:
+                    with transaction.atomic():  # Ensures all-or-nothing behavior
+                        for leaves_data in default_leave_management:
+                            leaves_data['payroll'] = payroll_instance.id
+                            # Validate and save using serializer
+                            serializer = LeaveManagementSerializer(data=leaves_data)
+                            if serializer.is_valid(raise_exception=True):
+                                created_leave = serializer.save()
+                                created_leaves.append(created_leave)  # Track created object
+                            else:
+                                raise DatabaseError("Earning data is invalid, transaction will be rolled back.")
+                except (ValidationError, DatabaseError) as e:
+                    # Handle exceptions gracefully and rollback
+                    # Manually delete created earnings if an error occurs
+                    for leaves in created_leaves:
+                        leaves.delete()
+                    return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+                except Exception as e:
+                    # Clean up if something unexpected happens
+                    for leaves in created_leaves:
+                        leaves.delete()
+                    return Response({"error": f"Unexpected error occurred: {str(e)}"},
+                                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                # If everything works, get the leaves
+                leaves = LeaveManagement.objects.filter(payroll=payroll_id)
+            serializer = LeaveManagementSerializer(leaves, many=True)
+            return Response(serializer.data,
+                            status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"error": f"Unexpected error occurred: {str(e)}"},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     elif request.method == 'POST':
         serializer = LeaveManagementSerializer(data=request.data)
         if serializer.is_valid():

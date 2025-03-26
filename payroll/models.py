@@ -354,13 +354,13 @@ class PaySchedule(BaseModel):
 class LeaveManagement(models.Model):
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='leave_managements')
     name_of_leave = models.CharField(max_length=120)
-    code = models.CharField(max_length=20, unique=True)  # Ensuring code uniqueness
+    code = models.CharField(max_length=20, null=True, blank=True, default=None)  # Ensuring code uniqueness
     leave_type = models.CharField(max_length=60)  # Renamed from `type` to `leave_type`
-    employee_leave_period = models.CharField(max_length=80)
-    number_of_leaves = models.IntegerField(default=0)
+    employee_leave_period = models.CharField(max_length=80, default='-')
+    number_of_leaves = models.FloatField(null=True, blank=True, default=None)
     pro_rate_leave_balance_of_new_joinees_based_on_doj = models.BooleanField(default=False)
     reset_leave_balance = models.BooleanField(default=False)
-    reset_leave_balance_type = models.CharField(max_length=20)
+    reset_leave_balance_type = models.CharField(max_length=20, default=None, null=True)
     carry_forward_unused_leaves = models.BooleanField(default=False)
     max_carry_forward_days = models.IntegerField(default=None, null=True)
     encash_remaining_leaves = models.BooleanField(default=False)
