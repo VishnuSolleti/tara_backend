@@ -654,13 +654,14 @@ class EmployeeAttendance(models.Model):
     financial_year = models.CharField(max_length=10, null=False, blank=False)
     month = models.IntegerField(null=False)
     total_days_of_month = models.IntegerField(null=False)
-    holidays = models.IntegerField(null=False)
+    holidays = models.FloatField(null=False)
     week_offs = models.IntegerField(null=False)
-    present_days = models.IntegerField(null=False)
-    balance_days = models.IntegerField(null=False)
-    casual_leaves = models.IntegerField(null=False)
-    sick_leaves = models.IntegerField(null=False)
-    earned_leaves = models.IntegerField(null=False)
+    present_days = models.FloatField(null=False)
+    balance_days = models.FloatField(null=False)
+    casual_leaves = models.FloatField(null=False)
+    sick_leaves = models.FloatField(null=False)
+    earned_leaves = models.FloatField(null=False)
+    loss_of_pay = models.FloatField(null=False)
 
     def __str__(self):
         return (f"{self.employee.name} - {self.month}/{self.financial_year}: Present {self.present_days},"
@@ -670,32 +671,44 @@ class EmployeeAttendance(models.Model):
 
 @receiver(pre_save, sender=EmployeeAttendance)
 def update_leave_balance(sender, instance, **kwargs):
-    """Update Employee Leave Balance before saving attendance."""
-    if instance.pk:
+    """Validate and update Employee Leave Balance before saving attendance."""
+
+    if instance.pk:  # Only validate updates, not new records
         previous = EmployeeAttendance.objects.get(pk=instance.pk)
 
-        leave_types = [
-            ('Casual Leave', previous.casual_leaves, instance.casual_leaves),
-            ('Sick Leave', previous.sick_leaves, instance.sick_leaves),
-            ('Earned Leave', previous.earned_leaves, instance.earned_leaves),
-        ]
+        # Define all leave types including Loss of Pay
+        leave_types = {
+            'casual_leaves': 'Casual Leave',
+            'sick_leaves': 'Sick Leave',
+            'earned_leaves': 'Earned Leave',
+            'loss_of_pay': 'Loss of Pay'
+        }
 
-        for leave_name, prev_value, new_value in leave_types:
-            if new_value != prev_value:  # Update only if there is a change
-                leave_balance = EmployeeLeaveBalance.objects.get(
-                    employee=instance.employee, leave_type__name_of_leave=leave_name
-                )
-                diff = new_value - prev_value  # Calculate difference
+        for field, leave_name in leave_types.items():
+            prev_value = getattr(previous, field)
+            new_value = getattr(instance, field)
+            leave_diff = new_value - prev_value  # Change in leave usage
 
-                if diff > 0:
-                    # Employee is taking more leave than before, subtract from remaining
-                    leave_balance.leave_used += diff
-                    leave_balance.leave_remaining = max(0, leave_balance.leave_remaining - diff)
-                else:
-                    # Employee reduced leave usage, adjust back
-                    leave_balance.leave_used += diff  # `diff` is negative, so this effectively decreases leave_used
-                    leave_balance.leave_remaining += abs(diff)
+            if leave_diff != 0:  # Only process if there is a change
+                leave_balance = EmployeeLeaveBalance.objects.filter(
+                    employee=instance.employee,
+                    leave_type__name_of_leave=leave_name,
+                    financial_year=instance.financial_year  # Ensure financial year is considered
+                ).first()
 
+                if not leave_balance:
+                    raise ValidationError(f"Leave balance for {leave_name} not found for the financial year {instance.financial_year}.")
+
+                # If the leave type is NOT LOP, enforce balance limits
+                if leave_name != "Loss of Pay" and leave_diff > 0:
+                    if leave_balance.leave_remaining < leave_diff:
+                        raise ValidationError(f"Insufficient {leave_name}. You have only {leave_balance.leave_remaining} left.")
+
+                    # Deduct leave from balance
+                    leave_balance.leave_remaining -= leave_diff
+
+                # Update leave used count
+                leave_balance.leave_used += leave_diff
                 leave_balance.save()
 
 

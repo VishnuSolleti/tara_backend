@@ -2284,6 +2284,7 @@ def generate_next_month_attendance(request):
             casual_leaves=0,
             sick_leaves=0,
             earned_leaves=0,
+            loss_of_pay =0
         )
 
         created_records += 1
@@ -2359,6 +2360,7 @@ def generate_current_month_attendance(request):
             casual_leaves=0,
             sick_leaves=0,
             earned_leaves=0,
+            loss_of_pay=0
         )
         created_records += 1
 
