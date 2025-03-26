@@ -1673,15 +1673,24 @@ def employee_detail(request, pk):
 def new_employees_list(request):
     try:
         payroll_id = request.query_params.get('payroll_id')
-        current_date = now()
+        month = request.query_params.get('month')
+        year = request.query_params.get('year')
 
-        # Ensure filtering works regardless of DateField or DateTimeField
-        start_of_month = current_date.replace(day=1)
-        end_of_month = current_date.replace(day=31)  # Safe assumption for filtering
+        # Default to current date if month/year are not provided
+        current_date = now().date()
+        month = int(month) if month else current_date.month
+        year = int(year) if year else current_date.year
+
+        # Get the first day of the selected month
+        start_of_month = datetime(year, month, 1).date()
+
+        # Calculate the last day of the month dynamically
+        next_month = start_of_month.replace(day=28) + timedelta(days=4)
+        last_day_of_month = next_month - timedelta(days=next_month.day)
 
         filter_criteria = {
             "doj__gte": start_of_month,
-            "doj__lte": end_of_month
+            "doj__lte": last_day_of_month
         }
 
         if payroll_id:
@@ -1689,14 +1698,14 @@ def new_employees_list(request):
 
         employees = EmployeeManagement.objects.filter(**filter_criteria)
 
-        # If no employees found, return an error
+        # If no employees found, return an empty list with a message
         if not employees.exists():
             return Response(
-                {"error": "No employees found for the given criteria."},
-                status=status.HTTP_404_NOT_FOUND
+                {"message": "No employees found for the given criteria."},
+                status=status.HTTP_200_OK
             )
 
-        # Serialize data and handle serializer errors
+        # Serialize and return data
         serializer = CurrentMonthEmployeeDataSerializer(employees, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -1952,7 +1961,7 @@ def payroll_exit_settlement_details(request):
     )
 
     if not exits.exists():
-        return Response({"error": "No employee exits found for the given payroll ID in the current month."}, status=status.HTTP_404_NOT_FOUND)
+        return Response([], status=status.HTTP_200_OK)
 
     response_data = []
 
@@ -2107,7 +2116,7 @@ def payroll_advance_loans(request):
         )
 
         if not loans.exists():
-            return Response({"error": f"No active advance loans found for {month}/{year}."}, status=status.HTTP_404_NOT_FOUND)
+            return Response([], status=status.HTTP_200_OK)
 
         # Serialize the data
         serializer = AdvanceLoanSummarySerializer(loans, many=True)
