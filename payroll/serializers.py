@@ -609,6 +609,7 @@ class AdvanceLoanSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = AdvanceLoan
         fields = [
+            "id",
             "employee_name",
             "department",
             "designation",
