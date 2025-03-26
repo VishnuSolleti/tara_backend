@@ -220,7 +220,7 @@ default_leave_management = [
         "encashment_days": 2
     },
     {
-        "name_of_leave": "Casual Leave",
+        "name_of_leave": "Casual Leaves",
         "code": None,
         "leave_type": "Paid",
         "employee_leave_period": "Monthly",
@@ -234,7 +234,7 @@ default_leave_management = [
         "encashment_days": 2
     },
     {
-        "name_of_leave": "Sick Leave",
+        "name_of_leave": "Sick Leaves",
         "code": None,
         "leave_type": "Paid",
         "employee_leave_period": "Monthly",

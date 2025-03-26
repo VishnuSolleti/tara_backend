@@ -2167,6 +2167,49 @@ def employee_attendance_detail(request, pk):
                         status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['GET'])
+def employee_attendance_filtered(request):
+    """
+    Retrieves employee attendance records based on payroll_id, financial_year, and month.
+    """
+    payroll_id = request.query_params.get('payroll_id')
+    financial_year = request.query_params.get('financial_year')
+    month = request.query_params.get('month')
+
+    # Validate required parameters
+    if not payroll_id or not financial_year or not month:
+        return Response({"error": "payroll_id, financial_year, and month are required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Filter records
+    attendance_records = EmployeeAttendance.objects.filter(
+        employee__payroll_id=payroll_id, financial_year=financial_year, month=month
+    )
+
+    if not attendance_records.exists():
+        return Response({"message": "No records found for the given criteria."}, status=status.HTTP_404_NOT_FOUND)
+
+    data = []
+    for record in attendance_records:
+        # Calculate values
+        working_days = record.total_days_of_month - record.holidays - record.week_offs
+        present_days = working_days - record.loss_of_pay
+        payable_days = record.total_days_of_month - record.loss_of_pay
+
+        data.append({
+            "id": record.id,
+            "employee_name": record.employee.first_name + ' ' + record.employee.last_name,
+            "loss_of_pay": record.loss_of_pay,
+            "earned_leaves": record.earned_leaves,
+            "week_offs": record.week_offs,
+            "holidays": record.holidays,
+            "total_days_of_month": record.total_days_of_month,
+            "present_days": present_days,
+            "payable_days": payable_days
+        })
+
+    return Response(data, status=status.HTTP_200_OK)
+
+
 def calculate_holidays_and_week_offs(payroll_id, year, month):
     """
     Calculates total holidays and week-offs for a given month using HolidayManagement and PaySchedule.

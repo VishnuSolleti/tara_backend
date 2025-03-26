@@ -663,6 +663,11 @@ class EmployeeAttendance(models.Model):
     earned_leaves = models.FloatField(null=False)
     loss_of_pay = models.FloatField(null=False)
 
+    def save(self, *args, **kwargs):
+        """Automatically calculate present_days before saving."""
+        self.present_days = self.total_days_of_month - (self.holidays + self.week_offs + self.loss_of_pay)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return (f"{self.employee.name} - {self.month}/{self.financial_year}: Present {self.present_days},"
                 f" Casual Leaves {self.casual_leaves}, Sick Leaves {self.sick_leaves}, "
@@ -678,9 +683,9 @@ def update_leave_balance(sender, instance, **kwargs):
 
         # Define all leave types including Loss of Pay
         leave_types = {
-            'casual_leaves': 'Casual Leave',
-            'sick_leaves': 'Sick Leave',
-            'earned_leaves': 'Earned Leave',
+            'casual_leaves': 'Casual Leaves',
+            'sick_leaves': 'Sick Leaves',
+            'earned_leaves': 'Earned Leaves',
             'loss_of_pay': 'Loss of Pay'
         }
 
