@@ -2078,15 +2078,21 @@ def advance_loan_detail(request, pk):
 @api_view(['GET'])
 def payroll_advance_loans(request):
     """
-    API to retrieve advance loans for employees under a specific payroll for the current month.
+    API to retrieve advance loans for employees under a specific payroll for the given month/year.
+    If no month/year is provided, defaults to the current month.
     """
     try:
         payroll_id = request.query_params.get('payroll_id')
         if not payroll_id:
             return Response({"error": "Payroll ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Get current month and year
+        # Use current date if no month/year is provided
         current_date = now().date()
+        year = int(request.query_params.get('year', current_date.year))
+        month = int(request.query_params.get('month', current_date.month))
+
+        # Construct the first day of the selected month
+        selected_month = date(year, month, 1)
 
         # Get Employees under Payroll
         employees = EmployeeManagement.objects.filter(payroll_id=payroll_id)
@@ -2095,18 +2101,18 @@ def payroll_advance_loans(request):
 
         # Get Active Loans for Employees in This Payroll
         loans = AdvanceLoan.objects.filter(
-            employee__payroll_id=payroll_id,
-            start_month__lte=current_date,
-            end_month__gte=current_date
+            employee__payroll=payroll_id,
+            start_month__lte=selected_month,  # Loan must have started before or in the selected month
+            end_month__gte=selected_month     # Loan must end after or in the selected month
         )
 
         if not loans.exists():
-            return Response({"error": "No active advance loans found for the given payroll ID in the current month."},
-                            status=status.HTTP_404_NOT_FOUND)
+            return Response({"error": f"No active advance loans found for {month}/{year}."}, status=status.HTTP_404_NOT_FOUND)
 
         # Serialize the data
-        serializer = AdvanceLoanSummarySerializer(loans, many=True, context={"current_date": current_date})
+        serializer = AdvanceLoanSummarySerializer(loans, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
