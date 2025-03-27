@@ -141,6 +141,10 @@ urlpatterns = [
     path('employee_attendance_current_month_automate', views.generate_current_month_attendance,
          name='generate-current-month-attendance'),
 
-    path('employee_attendance_filtered', views.employee_attendance_filtered, name='employee_attendance_filtered')
+    path('employee_attendance_filtered', views.employee_attendance_filtered, name='employee_attendance_filtered'),
+
+    # Employee Monthly Salary calculation
+    path('calculate-employee-monthly-salary', views.calculate_employee_monthly_salary,
+         name='calculate-employee-monthly-salary'),
 
 ]

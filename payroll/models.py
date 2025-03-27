@@ -620,7 +620,7 @@ class EmployeeExit(models.Model):
 
 
 class AdvanceLoan(models.Model):
-    employee = models.OneToOneField(
+    employee = models.ForeignKey(
         'EmployeeManagement', on_delete=models.CASCADE, related_name='employee_advance_loan'
     )
     loan_type = models.CharField(max_length=120, null=False, blank=False)  # Renamed 'type' to 'loan_type' (reserved keyword)
