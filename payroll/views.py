@@ -2371,16 +2371,23 @@ def generate_current_month_attendance(request):
     current_year = today.year
     first_day_current_month = date(current_year, current_month, 1)
 
-    # Exclude employees who have exited before the current month
-    active_employees = EmployeeManagement.objects.filter(
-        payroll=payroll_id
-    ).exclude(
-        Q(employee_exit_details__doe__lt=first_day_current_month)
+    # Fetch all employees under the given payroll_id
+    all_employees = EmployeeManagement.objects.filter(payroll=payroll_id)
+
+    if not all_employees.exists():
+        return Response({"error": "No employees found for the given payroll ID."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Fetch exited employees
+    exited_employees = set(
+        EmployeeExit.objects.filter(doe__lt=first_day_current_month)
+        .values_list("employee_id", flat=True)
     )
 
-    if not active_employees.exists():
-        return Response({"error": "No active employees found for the given payroll ID."},
-                        status=status.HTTP_404_NOT_FOUND)
+    # Exclude exited employees manually
+    active_employees = [emp for emp in all_employees if emp.id not in exited_employees]
+
+    if not active_employees:
+        return Response({"error": "No active employees found for the given payroll ID."}, status=status.HTTP_404_NOT_FOUND)
 
     # Fetch holiday and week-off details
     holiday_data = calculate_holidays_and_week_offs(payroll_id, current_year, current_month)
@@ -2399,13 +2406,9 @@ def generate_current_month_attendance(request):
         financial_year = f"{current_year}-{current_year + 1}" if current_month >= 4 else f"{current_year - 1}-{current_year}"
 
         # Check if an attendance record already exists
-        existing_record = EmployeeAttendance.objects.filter(
-            employee=employee,
-            financial_year=financial_year,
-            month=current_month
-        ).exists()
-
-        if existing_record:
+        if EmployeeAttendance.objects.filter(
+            employee=employee, financial_year=financial_year, month=current_month
+        ).exists():
             skipped_records += 1
             continue  # Skip this employee
 
@@ -2430,6 +2433,7 @@ def generate_current_month_attendance(request):
         "created_records": created_records,
         "skipped_records": skipped_records
     }, status=status.HTTP_201_CREATED)
+
 
 
 """
