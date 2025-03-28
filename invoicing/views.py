@@ -2312,6 +2312,7 @@ def get_customer_invoice_receipts(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
+
 @swagger_auto_schema(
     method='put',
     operation_description="Update a customer invoice receipt.",

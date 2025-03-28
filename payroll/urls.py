@@ -147,4 +147,7 @@ urlpatterns = [
     path('calculate-employee-monthly-salary', views.calculate_employee_monthly_salary,
          name='calculate-employee-monthly-salary'),
 
+    path('employee-monthly-salary-template', views.employee_monthly_salary_template,
+         name='employee-monthly-salary-template'),
+
 ]

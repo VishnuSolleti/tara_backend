@@ -19,7 +19,10 @@ from .helpers import *
 import calendar
 from django.db.models import Q
 from django.db.models.functions import ExtractMonth
-
+from num2words import num2words
+from django.template.loader import render_to_string
+from django.http import HttpResponse
+import pdfkit
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -2530,6 +2533,193 @@ def calculate_employee_monthly_salary(request):
         })
 
     return Response(salaries, status=status.HTTP_200_OK)
+
+
+class DocumentGenerator:
+    def __init__(self, request, invoicing_profile, context):
+        self.request = request
+        self.invoicing_profile = invoicing_profile
+        self.context = context
+
+    def generate_document(self, template_name):
+        try:
+            # Render the HTML template with the context data
+            html_content = render_to_string(template_name, self.context)
+
+            # Generate the PDF from the HTML content using pdfkit
+            try:
+                pdf = pdfkit.from_string(html_content, False)  # False to get the PDF as a byte string
+                print("PDF generation successful.")
+            except Exception as pdf_error:
+                print(f"Error in generating PDF: {pdf_error}")
+                raise
+
+            # Return the generated PDF as an HTTP response
+            response = HttpResponse(pdf, content_type='application/pdf')
+            response['Content-Disposition'] = 'inline; filename="salary_template.pdf"'
+            print(response)
+            return response
+        except Exception as e:
+            print(f"Error generating document: {e}")
+            raise
+
+
+@api_view(['GET'])
+def employee_monthly_salary_template(request):
+    try:
+        today = date.today()
+        current_day = today.day
+        month = int(request.query_params.get("month", today.month))
+        year_ = int(request.query_params.get("year", today.year))
+        financial_year = request.query_params.get("financial_year", None)
+        employee_id = request.query_params.get("employee_id")
+
+        if not financial_year:
+            return Response({"error": "Financial year is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not employee_id:
+            return Response({"error": "Employee Id  is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if current_day < 26 and month == today.month:
+            return Response({"message": "Salary processing will be initiated between the 26th and 30th of the month."},
+                            status=status.HTTP_200_OK)
+
+        salary_record = EmployeeSalaryDetails.objects.filter(employee=employee_id).last()
+
+        if not salary_record:
+            return Response({"message": "No salary records found for this payroll ID"}, status=status.HTTP_200_OK)
+
+        try:
+            attendance = EmployeeAttendance.objects.get(employee=employee_id, financial_year=financial_year, month=month)
+        except EmployeeAttendance.DoesNotExist:
+            return Response({"message": "No attendance record found"}, status=status.HTTP_200_OK)
+
+        # Calculate working days and per-day salary
+        total_working_days = attendance.total_days_of_month - attendance.loss_of_pay
+        gross_salary = salary_record.gross_salary.get("monthly", 0)  # Parse JSON string
+        per_day_salary = gross_salary / attendance.total_days_of_month if attendance.total_days_of_month else 0
+        earned_salary = per_day_salary * total_working_days
+        lop_amount = per_day_salary * attendance.loss_of_pay
+
+        # Extract Earnings from JSON
+        earnings = salary_record.earnings if isinstance(salary_record.earnings, list) else json.loads(
+            salary_record.earnings)
+
+        # Allowance Keys to Extract
+        allowance_keys = [
+            "Basic", "HRA", "Conveyance Allowance", "Travelling Allowance",
+            "Medical Allowance", "Internet Allowance", "Special Allowance", "Miscellaneous Allowance"
+        ]
+
+        # Initialize Allowance Dictionary
+        allowance_values = {key.lower().replace(" ", "_"): 0 for key in allowance_keys}
+
+        # Extract Allowances
+        for item in earnings:
+            component_name = item["component_name"]
+            if component_name in allowance_keys:
+                key = component_name.lower().replace(" ", "_")
+                allowance_values[key] = item["monthly"]
+
+        # Calculate Per-Day and Earned Allowances
+        earned_allowances = {
+            f"earned_{key}": (allowance_values[key] / attendance.total_days_of_month * total_working_days)
+            if attendance.total_days_of_month else 0
+            for key in allowance_values
+        }
+
+        # Merge the earned allowances into allowance_values
+        allowance_values.update(earned_allowances)
+
+        # Extract Deductions from JSON
+        deductions = salary_record.deductions if isinstance(salary_record.deductions, list) \
+            else json.loads(salary_record.deductions)
+
+        # Deduction Keys
+        deduction_keys = ["EPF Employee Contribution", "Professional Tax", "Income Tax", "ESI Employee Contribution"]
+
+        # Initialize Deduction Dictionary
+        deduction_values = {key.lower().replace(" ", "_"): 0 for key in deduction_keys}
+
+        # Extract Deductions
+        for item in deductions:
+            component_name = item["component_name"]
+            if component_name in deduction_keys:
+                key = component_name.lower().replace(" ", "_")
+                deduction_values[key] = item["monthly"]
+
+        # Calculate Total Deduction (Sum of Required Deductions)
+        total_deduction = sum(deduction_values.values())
+        net_pay = earned_salary - total_deduction
+        total_in_words = num2words(net_pay)
+        total_in_words = total_in_words.capitalize()
+        total_in_words = total_in_words.replace("<br/>", ' ')
+        total_in_words = total_in_words.title() + ' ' + 'Rupees Only'
+
+        # Construct the Context Dictionary
+        context = {
+            "company_name": getattr(salary_record.employee.payroll.business, "nameOfBusiness", ""),
+            "address": f"{getattr(salary_record.employee.payroll, 'filling_address_line1', '')}, "
+                       f"{getattr(salary_record.employee.payroll, 'filling_address_state', '')}, "
+                       f"{getattr(salary_record.employee.payroll, 'filling_address_city', '')}, "
+                       f"{getattr(salary_record.employee.payroll, 'filling_address_pincode', '')}",
+            "month": month,
+            "year": year_,
+            "employee_name": f"{getattr(salary_record.employee, 'first_name', '')} {getattr(salary_record.employee, 'last_name', '')}",
+            "designation": getattr(salary_record.employee.designation, "designation_name", ""),
+            "employee_id": getattr(salary_record.employee, "associate_id", ""),
+            "doj": getattr(salary_record.employee, "doj", ""),
+            "pay_period": f"{month} {year_}",
+            "pay_date": "",
+            "bank_account_number": "",
+            "uan_number": "",
+
+            # Earnings and Allowances
+            "basic": allowance_values.get("basic", 0),
+            "hra_allowance": allowance_values.get("hra", 0),
+            "conveyance_allowance": allowance_values.get("conveyance_allowance", 0),
+            "travelling_allowance": allowance_values.get("travelling_allowance", 0),
+            "medical_allowance": allowance_values.get("medical_allowance", 0),
+            "internet_allowance": allowance_values.get("internet_allowance", 0),
+            "special_allowance": allowance_values.get("special_allowance", 0),
+            "miscellaneous_allowance": allowance_values.get("miscellaneous_allowance", 0),
+
+            # Gross and Net Salary
+            "gross_earnings": earned_salary,
+            "salary_adjustments": 0,  # Placeholder if any adjustments apply
+
+            # Individual Deductions
+            "epf_contribution": deduction_values.get("epf_contribution", 0),
+            "professional_tax": deduction_values.get("professional_tax", 0),
+            "income_tax": deduction_values.get("income_tax", 0),
+            "esi_employee_contribution": deduction_values.get("esi_employee_contribution", 0),
+            "total_deduction": total_deduction,
+
+            # Final Net Pay Calculation
+            "net_pay": earned_salary - total_deduction,
+            "paid_days": total_working_days,
+            "lop_days": attendance.loss_of_pay,
+            "amount_in_words": total_in_words,  # Placeholder for number-to-words conversion
+        }
+
+        # Assuming you have a DocumentGenerator class that generates the PDF
+        document_generator = DocumentGenerator(request, salary_record, context)
+
+        # Assuming `template_name` is the path to your HTML template
+        template_name = "salary_template.html"
+
+        # Generate the PDF document
+        pdf_response = document_generator.generate_document(template_name)
+
+        # Return the PDF response
+        return pdf_response
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
+
+
+
 
 
 
