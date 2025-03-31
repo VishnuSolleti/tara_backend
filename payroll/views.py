@@ -2517,6 +2517,7 @@ def calculate_employee_monthly_salary(request):
 
         salaries.append({
             "employee_id": employee.id,
+            "employee_name": attendance.employee.first_name + ' ' + attendance.employee.last_name,
             "month": attendance.month,
             "financial_year": financial_year,
             "paid_days": total_working_days,
