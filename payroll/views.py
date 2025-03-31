@@ -2564,6 +2564,13 @@ class DocumentGenerator:
             raise
 
 
+def format_with_commas(number):
+    try:
+        return "{:,.2f}".format(float(number)).replace(".00", "")
+    except (ValueError, TypeError):
+        return str(number)
+
+
 @api_view(['GET'])
 def employee_monthly_salary_template(request):
     try:
@@ -2573,6 +2580,9 @@ def employee_monthly_salary_template(request):
         year_ = int(request.query_params.get("year", today.year))
         financial_year = request.query_params.get("financial_year", None)
         employee_id = request.query_params.get("employee_id")
+
+        month_name = calendar.month_abbr[month]
+        print(month_name)
 
         if not financial_year:
             return Response({"error": "Financial year is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -2669,34 +2679,34 @@ def employee_monthly_salary_template(request):
             "designation": getattr(salary_record.employee.designation, "designation_name", ""),
             "employee_id": getattr(salary_record.employee, "associate_id", ""),
             "doj": getattr(salary_record.employee, "doj", ""),
-            "pay_period": f"{month} {year_}",
+            "pay_period": f"{month_name} {year_}",
             "pay_date": "",
             "bank_account_number": "",
             "uan_number": "",
 
             # Earnings and Allowances
-            "basic": allowance_values.get("basic", 0),
-            "hra_allowance": allowance_values.get("hra", 0),
-            "conveyance_allowance": allowance_values.get("conveyance_allowance", 0),
-            "travelling_allowance": allowance_values.get("travelling_allowance", 0),
-            "medical_allowance": allowance_values.get("medical_allowance", 0),
-            "internet_allowance": allowance_values.get("internet_allowance", 0),
-            "special_allowance": allowance_values.get("special_allowance", 0),
-            "miscellaneous_allowance": allowance_values.get("miscellaneous_allowance", 0),
+            "basic": format_with_commas(allowance_values.get("basic", 0)),
+            "hra_allowance": format_with_commas(allowance_values.get("hra", 0)),
+            "conveyance_allowance": format_with_commas(allowance_values.get("conveyance_allowance", 0)),
+            "travelling_allowance": format_with_commas(allowance_values.get("travelling_allowance", 0)),
+            "medical_allowance": format_with_commas(allowance_values.get("medical_allowance", 0)),
+            "internet_allowance": format_with_commas(allowance_values.get("internet_allowance", 0)),
+            "special_allowance": format_with_commas(allowance_values.get("special_allowance", 0)),
+            "miscellaneous_allowance": format_with_commas(allowance_values.get("miscellaneous_allowance", 0)),
 
             # Gross and Net Salary
-            "gross_earnings": earned_salary,
+            "gross_earnings": format_with_commas(earned_salary),
             "salary_adjustments": 0,  # Placeholder if any adjustments apply
 
             # Individual Deductions
-            "epf_contribution": deduction_values.get("epf_contribution", 0),
-            "professional_tax": deduction_values.get("professional_tax", 0),
-            "income_tax": deduction_values.get("income_tax", 0),
-            "esi_employee_contribution": deduction_values.get("esi_employee_contribution", 0),
-            "total_deduction": total_deduction,
+            "epf_contribution": format_with_commas(deduction_values.get("epf_employee_contribution", 0)),
+            "professional_tax": format_with_commas(deduction_values.get("professional_tax", 0)),
+            "income_tax": format_with_commas(deduction_values.get("income_tax", 0)),
+            "esi_employee_contribution": format_with_commas(deduction_values.get("esi_employee_contribution", 0)),
+            "total_deduction": format_with_commas(total_deduction),
 
             # Final Net Pay Calculation
-            "net_pay": earned_salary - total_deduction,
+            "net_pay": format_with_commas(earned_salary - total_deduction),
             "paid_days": total_working_days,
             "lop_days": attendance.loss_of_pay,
             "amount_in_words": total_in_words,  # Placeholder for number-to-words conversion

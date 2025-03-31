@@ -20,7 +20,7 @@
     <title>Employee Payslip</title>
   </head>
 
-  <body style="margin: 30px !important; line-height: inherit; width: 100%;
+  <body style="margin: 5px !important; line-height: inherit; width: 100%;
             height: 277mm;
             box-sizing: border-box;
             border-shadow:20px">
@@ -56,19 +56,15 @@
                 </td>
                 <td style="width: 50%; vertical-align: top">
                   <div style="font-size: 0.875rem; line-height: 1.25rem">
-                    <h1
-                      style="
-                        margin: 0;
-                        white-space: nowrap;
-                        color: #5c6ac4;
-                        text-align: right;
-                      "
+                    <p
+                      style="margin: 0; color: #525252;
+                        text-align: right"
                     >
-                      Payslip
-                    </h1>
-                    <p style="white-space: nowrap; text-align: right; color: #525252;">
-                      For the Month: {{pay_period}}
+                      Payslip For the Month
                     </p>
+                    <h2 style="margin: 0 0 5px 0;white-space: nowrap; text-align: right; color: #5c6ac4;">
+                      {{pay_period}}
+                    </h2>
                   </div>
                 </td>
               </tr>
