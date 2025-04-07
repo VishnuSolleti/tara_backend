@@ -2536,6 +2536,200 @@ def calculate_employee_monthly_salary(request):
     return Response(salaries, status=status.HTTP_200_OK)
 
 
+@api_view(['GET'])
+def detail_employee_monthly_salary(request):
+    today = date.today()
+    current_day = today.day
+    month = int(request.query_params.get("month", today.month))
+    financial_year = request.query_params.get("financial_year", None)
+    payroll_id = request.query_params.get("payroll_id")
+
+    if not financial_year:
+        return Response({"error": "Financial year is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not payroll_id:
+        return Response({"error": "Payroll ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if current_day < 26 and month == today.month:
+        return Response({"message": "Salary processing will be initiated between the 26th and 30th of the month."},
+                        status=status.HTTP_200_OK)
+
+    salary_records = EmployeeSalaryDetails.objects.filter(employee__payroll_id=payroll_id)
+    if not salary_records.exists():
+        return Response({"message": "No salary records found for this payroll ID"}, status=status.HTTP_200_OK)
+
+    salaries = []
+
+    for salary_record in salary_records:
+        employee = salary_record.employee
+
+        # Exclude exited employees
+        if EmployeeExit.objects.filter(employee=employee).exists():
+            continue
+
+        try:
+            attendance = EmployeeAttendance.objects.get(employee=employee, financial_year=financial_year, month=month)
+        except EmployeeAttendance.DoesNotExist:
+            continue
+
+        total_working_days = attendance.total_days_of_month - attendance.loss_of_pay
+        gross_salary = salary_record.gross_salary.get("monthly", 0)
+        per_day_salary = gross_salary / attendance.total_days_of_month
+        earned_salary = per_day_salary * total_working_days
+        lop_amount = per_day_salary * attendance.loss_of_pay
+        # EPF Calculation
+        epf_earnings = [
+            e for e in Earnings.objects.filter(payroll_id=payroll_id)
+            if e.includes_epf_contribution is True
+        ]
+        epf_eligible_total = 0
+        salary_earnings = salary_record.earnings
+        # Convert to a dictionary for easier lookup
+        component_amount_map = {
+            item["component_name"].lower().replace(" ", "_"): item.get("monthly", 0)
+            for item in salary_earnings
+        }
+
+        if epf_earnings:
+            for earning in epf_earnings:
+                component_name = earning.component_name.lower().replace(" ", "_")
+                component_amount = component_amount_map.get(component_name, 0)
+                prorated_component = (component_amount * total_working_days) / attendance.total_days_of_month
+                epf_eligible_total += prorated_component
+        epf_base = min(epf_eligible_total, 15000)
+        pf = round(epf_base * 0.12, 2)
+
+        # ESI Calculation
+        esi = round(earned_salary * 0.0075, 2) if gross_salary <= 21000 else 0
+
+        # PT Calculation
+        pt_amount = 0
+        pt_obj = PT.objects.filter(payroll=payroll_id, work_location=employee.work_location).first()
+        if pt_obj:
+            for slab in pt_obj.slab:
+                salary_range = slab.get("Monthly Salary (₹)")
+                pt_value = slab.get("Professional Tax (₹ per month)", "0").replace("₹", "").replace(",", "").strip()
+
+                try:
+                    if "to" in salary_range:
+                        parts = salary_range.split("to")
+                        lower = int(parts[0].strip().replace("Up to", "").replace(",", ""))
+                        upper = int(parts[1].strip().replace(",", ""))
+                        if lower < gross_salary <= upper:
+                            pt_amount = int(pt_value) if pt_value.isdigit() else 0
+                            break
+
+                    elif "and above" in salary_range:
+                        threshold = int(salary_range.split("and")[0].strip().replace(",", ""))
+                        if gross_salary > threshold:
+                            pt_amount = int(pt_value) if pt_value.isdigit() else 0
+                            break
+
+                    elif "Up to" in salary_range:
+                        upper = int(salary_range.replace("Up to", "").strip().replace(",", ""))
+                        if gross_salary <= upper:
+                            pt_amount = int(pt_value) if pt_value.isdigit() else 0
+                            break
+
+                except (ValueError, IndexError):
+                    continue  # Skip this slab if parsing fails
+
+        # Benefits
+        benefits_total = sum(b.get("monthly", 0) for b in salary_record.benefits or [])
+
+        # Taxes
+        taxes = sum(d.get("monthly", 0) for d in salary_record.deductions if "Tax" in d.get("component_name", ""))
+
+        # Advance Loan EMI
+        advance_loan = getattr(employee, "employee_advance_loan", None)
+        emi_deduction = 0
+        if advance_loan:
+            active_loan = advance_loan.filter(
+                start_month__lte=date(today.year, month, 1),
+                end_month__gte=date(today.year, month, 1)
+            ).first()
+            if active_loan:
+                emi_deduction = active_loan.emi_amount
+
+        exclude_earnings = {"basic", "hra", "special_allowance", "bonus"}
+        exclude_deductions = {"pf", "esi", "pt", "tds", "loan_emi"}
+
+        def prorate(value):
+            return (value * total_working_days) / attendance.total_days_of_month if value else 0
+
+        other_earnings = 0
+        if salary_record.earnings:
+            for earning in salary_record.earnings:
+                name = earning.get("component_name", "").lower().replace(" ", "_")
+                if name not in exclude_earnings:
+                    other_earnings += prorate(earning.get("monthly", 0))
+
+        other_deductions = 0
+        employee_deductions = 0
+        if salary_record.deductions:
+            for deduction in salary_record.deductions:
+                name = deduction.get("component_name", "").lower().replace(" ", "_")
+                value = deduction.get("monthly", 0)
+                if "tax" not in name:
+                    employee_deductions += value
+                if all(ex not in name for ex in exclude_deductions):
+                    other_deductions += prorate(value)
+
+        total_deductions = taxes + emi_deduction + employee_deductions + other_deductions + pt_amount
+        net_salary = earned_salary - total_deductions
+
+        def get_component_amount(earnings_data, component_name):
+            for item in earnings_data:
+                if item["component_name"].lower() == component_name.lower().replace("_", " "):
+                    return item.get("monthly", 0)
+            return 0
+
+        # Prorated fixed components
+        prorated_basic = prorate(get_component_amount(salary_record.earnings, "basic"))
+        prorated_hra = prorate(get_component_amount(salary_record.earnings, "hra"))
+        prorated_bonus = prorate(get_component_amount(salary_record.earnings, "bonus"))
+        prorated_special_allowance = prorate(get_component_amount(salary_record.earnings,
+                                                                  "special allowance"))
+
+        salaries.append({
+            "employee_id": employee.id,
+            "employee_name": f"{employee.first_name} {employee.last_name}",
+            "department": employee.department.dept_name,
+            "designation": employee.designation.designation_name,
+            "total_days_of_month": attendance.total_days_of_month,
+            "loss_of_pay": attendance.loss_of_pay,
+            "paid_days": total_working_days,
+            "month": attendance.month,
+            "financial_year": financial_year,
+            "ctc": salary_record.annual_ctc,
+            "gross_salary": gross_salary,
+            "earned_salary": round(earned_salary, 2),
+            "basic_salary": round(prorated_basic, 2),
+            "hra": round(prorated_hra, 2),
+            "special_allowance": round(prorated_special_allowance, 2),
+            "bonus": round(prorated_bonus, 2),
+            "other_earnings": round(other_earnings, 2),
+            "benefits_total": round(prorated_basic + prorated_hra + prorated_bonus + prorated_special_allowance + other_earnings, 2),
+            "pf": pf,
+            "esi": esi,
+            "pt": pt_amount,
+            "tds": 0,
+            "loan_emi": round(emi_deduction, 2),
+            "other_deductions": round(other_deductions, 2),
+            "total_deductions": round(total_deductions, 2),
+            "deductions": {
+                "Employee Deductions": round(employee_deductions, 2),
+                "Taxes": round(taxes, 2),
+                "Loan EMI": round(emi_deduction, 2),
+                "Total": round(total_deductions, 2)
+            },
+            "net_salary": round(net_salary, 2),
+            "status": employee.employee_status
+        })
+
+    return Response(salaries, status=status.HTTP_200_OK)
+
+
 class DocumentGenerator:
     def __init__(self, request, invoicing_profile, context):
         self.request = request
