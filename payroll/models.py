@@ -594,13 +594,14 @@ class EmployeeExit(models.Model):
         'EmployeeManagement', on_delete=models.CASCADE, related_name='employee_exit_details'
     )
     doe = models.DateField()
+    exit_month = models.IntegerField(editable=False, null=True)  # auto-filled
+    exit_year = models.IntegerField(editable=False, null=True)   # auto-filled
     exit_reason = models.CharField(max_length=256, null=True, blank=True, default=None)
     regular_pay_schedule = models.BooleanField()
     specify_date = models.DateField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True, default='')
 
     def clean(self):
-        """Validation before saving the model"""
         if self.regular_pay_schedule and self.specify_date is not None:
             raise ValidationError(
                 "If 'regular_pay_schedule' is True, 'specify_date' must be None."
@@ -611,8 +612,13 @@ class EmployeeExit(models.Model):
             )
 
     def save(self, *args, **kwargs):
-        """Call clean() before saving"""
         self.clean()
+
+        # Auto-assign month and year from `doe`
+        if self.doe:
+            self.exit_month = self.doe.month
+            self.exit_year = self.doe.year
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -715,6 +721,41 @@ def update_leave_balance(sender, instance, **kwargs):
                 # Update leave used count
                 leave_balance.leave_used += leave_diff
                 leave_balance.save()
+
+
+class EmployeeSalaryHistory(models.Model):
+    employee = models.ForeignKey(
+        'EmployeeManagement', on_delete=models.CASCADE, related_name='employee_salary_history'
+    )
+    payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='payroll_employee_dashboard')
+    month = models.IntegerField(null=False)  # Month of the change
+    financial_year = models.CharField(max_length=10, null=False, blank=False)  # Format: "2024-2025"
+    total_days_of_month = models.IntegerField(null=False)  # Total days in the month
+    lop = models.FloatField(null=False)  # Loss of Pay
+    paid_days = models.FloatField(null=False)  # Paid days
+    ctc = models.IntegerField(null=False)  # Total CTC
+    gross_salary = models.IntegerField(null=False)  # Gross Salary
+    earned_salary = models.IntegerField(null=False)  # Earned Salary
+    basic_salary = models.IntegerField(null=False)  # Basic Salary
+    hra = models.IntegerField(null=False)  # House Rent Allowance
+    special_allowance = models.IntegerField(null=False)  # Special Allowance
+    bonus = models.IntegerField(null=False)  # Bonus
+    other_earnings = models.IntegerField(null=False)  # Other Earnings
+    benefits_total = models.IntegerField(null=False)  # Total Benefits
+    epf = models.FloatField(null=False)  # EPF Contribution
+    esi = models.FloatField(null=False)  # ESI Contribution
+    pt = models.FloatField(null=False)  # Professional Tax
+    tds = models.FloatField(null=False)  # Tax Deducted at Source
+    loan_emi = models.FloatField(null=False)  # Loan EMI
+    other_deductions = models.FloatField(null=False)  # Other Deductions
+    total_deductions = models.FloatField(null=False)  # Total Deductions
+    net_salary = models.IntegerField(null=False)  # Net Salary
+    is_active = models.BooleanField(default=True)  # Whether the record is active
+    change_date = models.DateField(auto_now_add=True)  # Date of the change
+    notes = models.TextField(null=True, blank=True)  # Optional notes about the change
+
+    def __str__(self):
+        return f"{self.employee.associate_id} - {self.change_date}"
 
 
 

@@ -154,4 +154,8 @@ urlpatterns = [
     path('employee-monthly-salary-template', views.employee_monthly_salary_template,
          name='employee-monthly-salary-template'),
 
+    path('payroll-summary-view', views.payroll_summary_view, name='payroll-summary-view'),
+
+    path('payroll_financial-year-summary', views.get_financial_year_summary, name='financial_year_summary'),
+
 ]
