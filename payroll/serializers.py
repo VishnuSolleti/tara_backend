@@ -600,9 +600,25 @@ class AdvanceLoanSerializer(serializers.ModelSerializer):
 
 
 class BonusIncentiveSerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+
     class Meta:
         model = BonusIncentive
         fields = '__all__'
+
+    def get_employee_name(self, obj):
+        """Returns the formatted employee name"""
+        return f"{obj.employee.first_name} {obj.employee.middle_name} {obj.employee.last_name}".strip()
+
+    def get_department(self, obj):
+        """Fetch employee's department"""
+        return obj.employee.department.dept_name
+
+    def get_designation(self, obj):
+        """Fetch employee's designation"""
+        return obj.employee.designation.designation_name
 
 
 class AdvanceLoanDetailSerializer(serializers.ModelSerializer):
