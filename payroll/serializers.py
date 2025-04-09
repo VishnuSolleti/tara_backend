@@ -599,6 +599,18 @@ class AdvanceLoanSerializer(serializers.ModelSerializer):
         return data
 
 
+class BonusIncentiveSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BonusIncentive
+        fields = '__all__'
+
+    def validate(self, data):
+        """Ensure no_of_months is valid"""
+        if data.get('no_of_months') <= 0:
+            raise serializers.ValidationError({"error": "Number of months must be greater than zero."})
+        return data
+
+
 class AdvanceLoanDetailSerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
@@ -619,6 +631,7 @@ class AdvanceLoanDetailSerializer(serializers.ModelSerializer):
     def get_designation(self, obj):
         """Fetch employee's designation"""
         return obj.employee.designation.designation_name
+
 
 class AdvanceLoanSummarySerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()

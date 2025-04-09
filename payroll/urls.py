@@ -158,4 +158,11 @@ urlpatterns = [
 
     path('payroll_financial-year-summary', views.get_financial_year_summary, name='financial_year_summary'),
 
+    path('bonus-incentives', views.bonus_incentive_list, name='bonus-incentive-list'),
+
+    path('bonus-incentives/<int:pk>', views.bonus_incentive_detail, name='bonus-incentive-detail'),
+
+    path('bonus-incentives/by-payroll-month', views.bonus_by_payroll_month_year, name='bonus-by-payroll'),
+
+
 ]

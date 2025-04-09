@@ -654,6 +654,33 @@ class AdvanceLoan(models.Model):
         return f"{self.employee.first_name} - {self.loan_type} Loan ({self.amount})"
 
 
+class BonusIncentive(models.Model):
+    employee = models.ForeignKey(
+        'EmployeeManagement', on_delete=models.CASCADE, related_name='employee_bonus_incentive'
+    )
+    bonus_type = models.CharField(max_length=120, null=False, blank=False)
+    amount = models.IntegerField()
+    month = models.IntegerField(null=False)
+    year = models.IntegerField(null=False, editable=False)
+    financial_year = models.CharField(max_length=10, null=False, blank=False)
+
+    def save(self, *args, **kwargs):
+        try:
+            start_year, end_year = map(int, self.financial_year.split('-'))
+            # Determine year based on financial year and month
+            if self.month >= 4:
+                self.year = start_year
+            else:
+                self.year = end_year
+        except (ValueError, IndexError):
+            raise ValueError("Invalid financial_year format. It should be like '2024-2025'")
+
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.employee.first_name} - {self.bonus_type} Bonus ({self.amount})"
+
+
 class EmployeeAttendance(models.Model):
     """Employee Attendance Tracking Model."""
     employee = models.ForeignKey(EmployeeManagement, on_delete=models.CASCADE, related_name='employee_attendance')

@@ -23,6 +23,8 @@ from num2words import num2words
 from django.template.loader import render_to_string
 from django.http import HttpResponse
 import pdfkit
+from django.http import JsonResponse
+
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -35,7 +37,6 @@ def upload_to_s3(pdf_data, bucket_name, object_key):
     except Exception as e:
         return Response({'error_message': str(e), 'status_cd': 1},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 # def generate_presigned_url(s3_key, expiration=3600):
@@ -2825,7 +2826,7 @@ def payroll_summary_view(request):
         "total_exits": total_exits,
     }, status=status.HTTP_200_OK)
 
-from django.http import JsonResponse
+
 @api_view(['GET'])
 def get_financial_year_summary(request):
     payroll_id = request.GET.get('payroll_id')
@@ -3085,7 +3086,104 @@ def employee_monthly_salary_template(request):
         return Response({'error': str(e)}, status=500)
 
 
+@api_view(['GET', 'POST'])
+def bonus_incentive_list(request):
+    """
+    List all bonus incentives or filter by employee ID.
+    Create a new bonus incentive.
+    """
+    if request.method == 'GET':
+        employee_id = request.query_params.get('employee_id')
 
+        if employee_id:
+            bonuses = BonusIncentive.objects.filter(employee=employee_id)
+        else:
+            bonuses = BonusIncentive.objects.all()
+
+        serializer = BonusIncentiveSerializer(bonuses, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = BonusIncentiveSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def bonus_incentive_detail(request, pk):
+    """
+    Retrieve, update, or delete a bonus incentive by ID.
+    """
+    bonus = get_object_or_404(BonusIncentive, pk=pk)
+
+    if request.method == 'GET':
+        serializer = BonusIncentiveSerializer(bonus)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = BonusIncentiveSerializer(bonus, data=request.data, partial=True)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        bonus.delete()
+        return Response({"message": "Bonus incentive record deleted successfully."},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def bonus_by_payroll_month_year(request):
+    """
+    Returns all BonusIncentives for a given payroll_id, month, and year.
+    """
+    try:
+        payroll_id = request.query_params.get('payroll_id')
+        month = request.query_params.get('month')
+        year = request.query_params.get('year')
+
+        if not payroll_id or not month or not year:
+            return Response(
+                {"error": "Both payroll_id, month and year are required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Convert to integers to avoid type mismatch issues
+        try:
+            payroll_id = int(payroll_id)
+            month = int(month)
+            year = int(year)
+        except ValueError:
+            return Response({"error": "payroll_id, month and year must be integers."},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Query the DB
+        bonus_qs = BonusIncentive.objects.filter(
+            employee__payroll=payroll_id,
+            month=month,
+            year=year
+        )
+
+        if not bonus_qs.exists():
+            return Response(
+                {"message": "No bonus incentive data found for the given criteria."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = BonusIncentiveSerializer(bonus_qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
