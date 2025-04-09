@@ -444,6 +444,43 @@ class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+    current_ctc = serializers.DecimalField(source='annual_ctc', max_digits=12, decimal_places=2)
+    revised_ctc = serializers.DecimalField(source='annual_ctc', max_digits=12, decimal_places=2)
+    last_revision_on = serializers.DateField(source='valid_from')
+    employee_id = serializers.IntegerField(source='employee.id')
+    employee_salary_details_id = serializers.IntegerField(source='id')
+    associate_id = serializers.CharField(source='employee.associate_id')  # Added based on your model
+
+    class Meta:
+        model = EmployeeSalaryDetails
+        fields = [
+            'employee_salary_details_id',
+            'employee_id',
+            'associate_id',  # Include associate_id in response
+            'employee_name',
+            'department',
+            'designation',
+            'current_ctc',
+            'revised_ctc',
+            'last_revision_on'
+        ]
+
+    def get_employee_name(self, obj):
+        # Handle potential None values for middle name
+        middle_name = f" {obj.employee.middle_name}" if obj.employee.middle_name else ""
+        return f"{obj.employee.first_name}{middle_name} {obj.employee.last_name}"
+
+    def get_department(self, obj):
+        return obj.employee.department.dept_name if obj.employee.department else None
+
+    def get_designation(self, obj):
+        return obj.employee.designation.designation_name if obj.employee.designation else None
+
+
 class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeePersonalDetails

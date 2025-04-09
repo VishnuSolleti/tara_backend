@@ -24,7 +24,7 @@ from django.template.loader import render_to_string
 from django.http import HttpResponse
 import pdfkit
 from django.http import JsonResponse
-
+from django.db.models import OuterRef, Subquery, Q
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -3186,13 +3186,148 @@ def bonus_by_payroll_month_year(request):
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+# @api_view(['GET'])
+# def active_employee_salaries(request):
+#     try:
+#         payroll_id = request.query_params.get('payroll_id')
+#         year = request.query_params.get('year')
+#         month = request.query_params.get('month')
+#
+#         if not all([payroll_id, year, month]):
+#             return Response(
+#                 {"error": "Missing required query parameters: payroll_id, year, and month."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+#
+#         try:
+#             year = int(year)
+#             month = int(month)
+#             cutoff_date = date(year, month, 1)
+#         except ValueError:
+#             return Response(
+#                 {"error": "Year and month must be valid integers."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+#
+#         # Step 1: Retrieve all salary details for the given payroll_id
+#         salary_details = EmployeeSalaryDetails.objects.filter(
+#             employee__payroll_id=payroll_id
+#         ).select_related('employee')
+#
+#         # Step 2: Manually filter out salary details of employees who exited before the given date
+#         active_salary_details = []
+#         for salary_detail in salary_details:
+#             exit_record = EmployeeExit.objects.filter(employee=salary_detail.employee).first()
+#             if exit_record:
+#                 if exit_record.exit_year < year or (exit_record.exit_year == year and exit_record.exit_month < month):
+#                     continue  # Skip this salary detail as the employee exited before the given date
+#             active_salary_details.append(salary_detail)
+#
+#         # Step 3: Further filter salary details based on valid_from date
+#         final_salary_details = [
+#             detail for detail in active_salary_details if detail.valid_from <= cutoff_date
+#         ]
+#
+#         serializer = EmployeeSalaryDetailsSerializer(active_salary_details, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+#
+#     except Exception as e:
+#         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+# @api_view(['GET'])
+# def active_employee_salaries(request):
+#     try:
+#         payroll_id = request.query_params.get('payroll_id')
+#         year = request.query_params.get('year')
+#         month = request.query_params.get('month')
+#
+#         # Validate required parameters
+#         if not all([payroll_id, year, month]):
+#             return Response(
+#                 {"error": "Missing required query parameters: payroll_id, year, and month."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+#
+#         # Validate and parse year/month
+#         try:
+#             year = int(year)
+#             month = int(month)
+#         except ValueError:
+#             return Response(
+#                 {"error": "Year and month must be valid integers."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+#
+#         # Get base queryset with all related data in one query
+#         salary_details = EmployeeSalaryDetails.objects.filter(
+#             employee__payroll_id=payroll_id
+#         ).select_related('employee')
+#
+#         # Filter active employees using the correct related_name
+#         active_salary_details = salary_details.filter(
+#             Q(employee__employee_exit_details=None) |  # No exit record
+#             Q(employee__employee_exit_details__exit_year__gt=year) |  # Exited after our year
+#             Q(employee__employee_exit_details__exit_year=year,
+#               employee__employee_exit_details__exit_month__gte=month)  # Exited same year but month >= our month
+#         )
+#
+#         serializer = EmployeeSalaryDetailsSerializer(active_salary_details, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+#
+#     except Exception as e:
+#         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+@api_view(['GET'])
+def active_employee_salaries(request):
+    try:
+        payroll_id = request.query_params.get('payroll_id')
+        year = request.query_params.get('year')
+        month = request.query_params.get('month')
 
+        # Validate required parameters
+        if not all([payroll_id, year, month]):
+            return Response(
+                {"error": "Missing required query parameters: payroll_id, year, and month."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        # Validate and parse year/month
+        try:
+            year = int(year)
+            month = int(month)
+        except ValueError:
+            return Response(
+                {"error": "Year and month must be valid integers."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
+        # Get all salary details for the payroll_id with employee and exit details
+        salary_details = EmployeeSalaryDetails.objects.filter(
+            employee__payroll_id=payroll_id
+        ).select_related(
+            'employee',
+            'employee__employee_exit_details'
+        )
 
+        # Filter active employees (same logic as before)
+        active_salaries = salary_details.filter(
+            Q(employee__employee_exit_details=None) |
+            Q(employee__employee_exit_details__exit_year__gt=year) |
+            Q(employee__employee_exit_details__exit_year=year,
+              employee__employee_exit_details__exit_month__gte=month)
+        )
 
+        # Group by employee and get the latest record (by highest ID assuming it's auto-increment)
+        from django.db.models import Max
+        latest_ids = list(active_salaries.values('employee')
+                          .annotate(latest_id=Max('id'))
+                          .values_list('latest_id', flat=True))
+        result = active_salaries.filter(id__in=latest_ids)
 
+        serializer = SimplifiedEmployeeSalarySerializer(result, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
