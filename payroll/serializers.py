@@ -604,12 +604,6 @@ class BonusIncentiveSerializer(serializers.ModelSerializer):
         model = BonusIncentive
         fields = '__all__'
 
-    def validate(self, data):
-        """Ensure no_of_months is valid"""
-        if data.get('no_of_months') <= 0:
-            raise serializers.ValidationError({"error": "Number of months must be greater than zero."})
-        return data
-
 
 class AdvanceLoanDetailSerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
