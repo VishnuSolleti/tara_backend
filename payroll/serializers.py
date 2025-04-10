@@ -449,7 +449,7 @@ class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
     department = serializers.SerializerMethodField()
     designation = serializers.SerializerMethodField()
     previous_ctc = serializers.SerializerMethodField()
-    revised_ctc = serializers.DecimalField(source='annual_ctc', max_digits=12, decimal_places=2)
+    current_ctc = serializers.DecimalField(source='annual_ctc', max_digits=12, decimal_places=2)
     employee_id = serializers.IntegerField(source='employee.id')
     associate_id = serializers.CharField(source='employee.associate_id')  # Added based on your model
 
@@ -463,7 +463,7 @@ class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
             'department',
             'designation',
             'previous_ctc',
-            'revised_ctc',
+            'current_ctc',
             'created_on'
         ]
 
