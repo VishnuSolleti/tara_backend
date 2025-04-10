@@ -3304,7 +3304,8 @@ def active_employee_salaries(request):
 
         # Get all salary details for the payroll_id with employee and exit details
         salary_details = EmployeeSalaryDetails.objects.filter(
-            employee__payroll_id=payroll_id
+            employee__payroll_id=payroll_id,
+            created_year=year, created_month=month
         ).select_related(
             'employee',
             'employee__employee_exit_details'

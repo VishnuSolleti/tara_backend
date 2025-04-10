@@ -498,6 +498,8 @@ class EmployeeSalaryDetails(models.Model):
     valid_from = models.DateField(auto_now_add=True)  # Salary start date
     valid_to = models.DateField(null=True, blank=True)  # Salary end date (null = current salary)
     created_on = models.DateField(auto_now_add=True)
+    created_month = models.IntegerField(editable=False)
+    created_year = models.IntegerField(editable=False)
 
     def clean(self):
         """Ensure no open salary record exists before adding a new one."""
@@ -539,6 +541,12 @@ class EmployeeSalaryDetails(models.Model):
             active_salary.save()
 
         self.clean()  # Validate the model before saving
+
+        # Auto-set created_month and created_year based on created_on (if new object)
+        if not self.pk:
+            today = self.created_on or date.today()
+            self.created_month = today.month
+            self.created_year = today.year
         super().save(*args, **kwargs)
 
     def __str__(self):
