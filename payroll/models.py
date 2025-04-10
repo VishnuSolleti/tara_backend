@@ -497,6 +497,7 @@ class EmployeeSalaryDetails(models.Model):
 
     valid_from = models.DateField(auto_now_add=True)  # Salary start date
     valid_to = models.DateField(null=True, blank=True)  # Salary end date (null = current salary)
+    created_on = models.DateField(auto_now_add=True)
 
     def clean(self):
         """Ensure no open salary record exists before adding a new one."""

@@ -448,25 +448,23 @@ class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
     designation = serializers.SerializerMethodField()
-    current_ctc = serializers.DecimalField(source='annual_ctc', max_digits=12, decimal_places=2)
+    previous_ctc = serializers.SerializerMethodField()
     revised_ctc = serializers.DecimalField(source='annual_ctc', max_digits=12, decimal_places=2)
-    last_revision_on = serializers.DateField(source='valid_from')
     employee_id = serializers.IntegerField(source='employee.id')
-    employee_salary_details_id = serializers.IntegerField(source='id')
     associate_id = serializers.CharField(source='employee.associate_id')  # Added based on your model
 
     class Meta:
         model = EmployeeSalaryDetails
         fields = [
-            'employee_salary_details_id',
+            'id',
             'employee_id',
             'associate_id',  # Include associate_id in response
             'employee_name',
             'department',
             'designation',
-            'current_ctc',
+            'previous_ctc',
             'revised_ctc',
-            'last_revision_on'
+            'created_on'
         ]
 
     def get_employee_name(self, obj):
@@ -479,6 +477,15 @@ class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
 
     def get_designation(self, obj):
         return obj.employee.designation.designation_name if obj.employee.designation else None
+
+    def get_previous_ctc(self, obj):
+        previous_salary = (
+            EmployeeSalaryDetails.objects
+            .filter(employee=obj.employee, id__lt=obj.id)
+            .order_by('-id')
+            .first()
+        )
+        return previous_salary.annual_ctc if previous_salary else None
 
 
 class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):
