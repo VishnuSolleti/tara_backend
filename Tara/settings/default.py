@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'payroll',
     'storages',
+    'usermanagement',
 ]
 
 MIDDLEWARE = [
@@ -114,7 +115,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # }
 
 # In Tara/settings/default.py
-AUTH_USER_MODEL = 'user_management.User'
+AUTH_USER_MODEL = 'usermanagement.Users'
 
 
 # Password validation

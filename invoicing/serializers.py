@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import *
 from django.core.files.storage import FileSystemStorage
-from user_management.serializers import *
+from usermanagement.serializers import *
 
 
 class CustomerProfileSerializers(serializers.Serializer):

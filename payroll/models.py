@@ -1,7 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from djongo.models import ArrayField, EmbeddedField, JSONField
-from user_management.models import *
+from usermanagement.models import *
 from datetime import date
 from collections import OrderedDict
 from django.db.models.signals import pre_save, post_save
