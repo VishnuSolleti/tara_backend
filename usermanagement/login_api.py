@@ -23,6 +23,7 @@ def login_user(request):
     - Refresh token
     - User details
     - Active context information
+    - All contexts for the user
     - User role in the active context
     - Module subscriptions for the active context
 
@@ -81,6 +82,32 @@ def login_user(request):
         user_role = None
         role_data = None
         module_subscriptions = []
+        all_contexts = []
+
+        # Get all contexts for the user
+        user_context_roles = UserContextRole.objects.filter(
+            user=user,
+            status='active'
+        ).select_related('context', 'role')
+
+        for ucr in user_context_roles:
+            context = ucr.context
+            context_info = {
+                "id": context.id,
+                "name": context.name,
+                "context_type": context.context_type,
+                "status": context.status,
+                "profile_status": context.profile_status,
+                "created_at": context.created_at,
+                "is_active": context.id == user.active_context.id if user.active_context else False,
+                "role": {
+                    "id": ucr.role.id,
+                    "name": ucr.role.name,
+                    "role_type": ucr.role.role_type,
+                    "description": ucr.role.description
+                }
+            }
+            all_contexts.append(context_info)
 
         if user.active_context:
             active_context = user.active_context
@@ -166,6 +193,7 @@ def login_user(request):
             "refresh_token": refresh_token,
             "user": user_data,
             "active_context": context_data,
+            "all_contexts": all_contexts,
             "user_role": role_data,
             "module_subscriptions": module_subscriptions
         }, status=status.HTTP_200_OK)
