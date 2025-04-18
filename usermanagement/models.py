@@ -246,6 +246,8 @@ class Users(AbstractBaseUser):
         choices=YES_NO_CHOICES,
         default='no'
     )
+    first_name = models.CharField(max_length=40, null=True, blank=True, default=None)
+    last_name = models.CharField(max_length=40, null=True, blank=True, default=None)
 
     objects = CustomAccountManager()
 
