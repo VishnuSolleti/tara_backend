@@ -120,7 +120,6 @@ def login_user(request):
                         "id": permission.id,
                         "module_id": permission.module.id,
                         "module_name": permission.module.name,
-                        "actions": permission.actions
                     })
 
                 role_data["permissions"] = permissions_data
