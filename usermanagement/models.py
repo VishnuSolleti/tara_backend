@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 from Tara.settings.default import *
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.db import transaction
@@ -102,6 +102,13 @@ class Context(models.Model):
         on_delete=models.CASCADE,
         related_name='owned_contexts'
     )
+    business = models.ForeignKey(
+        'Business',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='contexts'
+    )
     status = models.CharField(
         max_length=20,
         choices=[
@@ -112,7 +119,12 @@ class Context(models.Model):
         default='active'
     )
     profile_status = models.CharField(
-        max_length=20,
+        max_length=40,
+        choices=[
+            ('incomplete', 'Incomplete'),
+            ('pending_business_details', 'Pending Business Details'),
+            ('complete', 'Complete')
+        ],
         default='incomplete'
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -122,7 +134,24 @@ class Context(models.Model):
     def __str__(self):
         return f"{self.name} - {self.context_type}"
 
+    def clean(self):
+        if self.context_type == 'business':
+            if not self.business and self.profile_status != 'pending_business_details':
+                raise ValidationError({
+                    'business': 'Business context must be associated with a Business record or '
+                                'be in pending_business_details status.'
+                })
+        elif self.context_type == 'personal' and self.business:
+            raise ValidationError({
+                'business': 'Personal context cannot be associated with a Business record.'
+            })
+
     def save(self, *args, **kwargs):
+        # Set initial profile status for business context
+        if self.context_type == 'business' and self.pk is None:
+            self.profile_status = 'pending_business_details'
+
+        self.clean()
         is_new = self.pk is None
         super().save(*args, **kwargs)
 
@@ -182,6 +211,30 @@ class Context(models.Model):
                         "is_default_role": True
                     }
                 )
+
+    def get_business_details(self):
+        """Get business details if context is business type"""
+        if self.context_type == 'business':
+            if self.business:
+                return {
+                    'name': self.business.nameOfBusiness,
+                    'registration_number': self.business.registrationNumber,
+                    'entity_type': self.business.entityType,
+                    'pan': self.business.pan,
+                    'business_nature': self.business.business_nature,
+                    'trade_name': self.business.trade_name,
+                    'mobile_number': self.business.mobile_number,
+                    'email': self.business.email,
+                    'dob_or_incorp_date': self.business.dob_or_incorp_date,
+                    'head_office': self.business.headOffice,
+                    'profile_status': self.profile_status
+                }
+            else:
+                return {
+                    'profile_status': self.profile_status,
+                    'message': 'Business details pending'
+                }
+        return None
 
 
 class Users(AbstractBaseUser):
@@ -876,11 +929,39 @@ class Business(BaseModel):
     email = models.EmailField(null=True, blank=True, default=None)
     dob_or_incorp_date = models.DateField(null=True, blank=True, default=None)
 
-    class Meta:
-        unique_together = [('nameOfBusiness', 'pan')]
-
     def __str__(self):
         return str(self.nameOfBusiness)
+
+
+# Signals to maintain Context-Business relationship
+@receiver(post_save, sender=Context)
+def create_or_update_business(sender, instance, created, **kwargs):
+    """Create or update Business record when Context is created/updated"""
+    if instance.context_type == 'business':
+        if created:
+            # Create new Business record
+            business = Business.objects.create(
+                nameOfBusiness=instance.name,
+                client=instance.owner_user
+            )
+            instance.business = business
+            instance.save()
+        elif instance.business and instance.name != instance.business.nameOfBusiness:
+            # Update Business name if Context name changes
+            instance.business.nameOfBusiness = instance.name
+            instance.business.save()
+
+@receiver(pre_save, sender=Business)
+def sync_business_name_with_context(sender, instance, **kwargs):
+    """Sync Business name changes back to Context"""
+    if instance.pk:  # Only for existing Business records
+        try:
+            context = instance.contexts.first()
+            if context and context.name != instance.nameOfBusiness:
+                context.name = instance.nameOfBusiness
+                context.save(update_fields=['name'])
+        except Exception:
+            pass  # Handle any errors silently to prevent business name update from failing
 
 
 class GSTDetails(BaseModel):
