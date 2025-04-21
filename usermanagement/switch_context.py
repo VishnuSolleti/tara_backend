@@ -27,17 +27,17 @@ def generate_user_profile_response(user):
         status='active'
     ).select_related('role').first()
 
-    permissions = UserFeaturePermission.objects.filter(
-        user_context_role=user_context_role,
-        is_active='yes'
-    )
-
-    permission_data = [{
-        "id": p.id,
-        "module_id": p.module.id,
-        "module_name": p.module.name,
-        "actions": p.actions
-    } for p in permissions]
+    # permissions = UserFeaturePermission.objects.filter(
+    #     user_context_role=user_context_role,
+    #     is_active='yes'
+    # )
+    #
+    # permission_data = [{
+    #     "id": p.id,
+    #     "module_id": p.module.id,
+    #     "module_name": p.module.name,
+    #     "actions": p.actions
+    # } for p in permissions]
 
     module_subs = ModuleSubscription.objects.filter(context=context)
 
@@ -77,8 +77,7 @@ def generate_user_profile_response(user):
             "id": user_context_role.role.id,
             "name": user_context_role.role.name,
             "role_type": user_context_role.role.role_type,
-            "description": user_context_role.role.description,
-            "permissions": permission_data
+            "description": user_context_role.role.description
         },
         "module_subscriptions": module_data
     }

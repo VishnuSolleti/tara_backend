@@ -44,6 +44,9 @@ urlpatterns = [
     # Standard Registration Process endpoints
     path('register/standard', standard_registration.initial_registration, name='initial_registration'),
 
+    # get user permissions based on context role and module id
+    path('permissions/user/', business_registration_api.get_user_permissions, name='get-user-permissions'),
+
     # Context Selection for Standard Registration
     path('select-context', standard_registration.select_context, name='select_context'),
 

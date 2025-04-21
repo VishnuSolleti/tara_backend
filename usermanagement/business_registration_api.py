@@ -11,6 +11,7 @@ import boto3
 from botocore.exceptions import ClientError
 import logging
 from Tara.settings.default import *
+import json
 
 from .models import (
     Users, Context, Role, UserContextRole, Module,
@@ -395,4 +396,98 @@ def add_another_context(request):
         )
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_permissions(request):
+    """
+    Retrieve permissions for a user based on user context role and module_id.
 
+    Expected query parameters:
+    - user_context_role_id: ID of the user context role
+    - module_id: ID of the module
+
+    Returns:
+    {
+        "user_context_role_id": 9,
+        "module_id": 1,
+        "actions": ["EmployeeManagement.create", "EmployeeManagement.read", ...],
+        "is_active": "yes",
+        "created_at": "2025-04-21T07:13:39.524Z",
+        "updated_at": "2025-04-21T07:13:39.524Z"
+    }
+    """
+    # Extract query parameters
+    user_context_role_id = request.query_params.get('user_context_role_id')
+    module_id = request.query_params.get('module_id')
+
+    # Validate required parameters
+    if not all([user_context_role_id, module_id]):
+        return Response(
+            {"error": "Missing required parameters. Please provide user_context_role_id and module_id."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        # Get user context role
+        try:
+            user_context_role = UserContextRole.objects.get(id=user_context_role_id)
+        except UserContextRole.DoesNotExist:
+            return Response(
+                {"error": "User context role not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get module
+        try:
+            module = Module.objects.get(id=module_id)
+        except Module.DoesNotExist:
+            return Response(
+                {"error": "Module not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get user feature permission
+        try:
+            permission = UserFeaturePermission.objects.get(
+                user_context_role=user_context_role,
+                module=module,
+                is_active='yes'
+            )
+
+            # Parse actions from JSON string if needed
+            actions = permission.actions
+            if isinstance(actions, str):
+                try:
+                    actions = json.loads(actions)
+                except json.JSONDecodeError:
+                    actions = [actions]
+
+            # Format response
+            response_data = {
+                "user_context_role_id": user_context_role_id,
+                "module_id": module_id,
+                "actions": actions,
+                "is_active": permission.is_active,
+                "created_at": permission.created_at.isoformat() if permission.created_at else None,
+                "updated_at": permission.updated_at.isoformat() if permission.updated_at else None
+            }
+
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except UserFeaturePermission.DoesNotExist:
+            # If no permission exists, return empty actions list
+            return Response({
+                "user_context_role_id": user_context_role_id,
+                "module_id": module_id,
+                "actions": [],
+                "is_active": "no",
+                "created_at": None,
+                "updated_at": None
+            }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Error retrieving user permissions: {str(e)}")
+        return Response(
+            {"error": f"An error occurred while retrieving user permissions: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

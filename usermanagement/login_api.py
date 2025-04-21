@@ -141,15 +141,15 @@ def login_user(request):
                     is_active="yes"
                 )
 
-                permissions_data = []
-                for permission in feature_permissions:
-                    permissions_data.append({
-                        "id": permission.id,
-                        "module_id": permission.module.id,
-                        "module_name": permission.module.name,
-                    })
-
-                role_data["permissions"] = permissions_data
+                # permissions_data = []
+                # for permission in feature_permissions:
+                #     permissions_data.append({
+                #         "id": permission.id,
+                #         "module_id": permission.module.id,
+                #         "module_name": permission.module.name,
+                #     })
+                #
+                # role_data["permissions"] = permissions_data
 
             except UserContextRole.DoesNotExist:
                 pass
