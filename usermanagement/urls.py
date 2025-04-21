@@ -9,6 +9,8 @@ from . import suite_upgradation
 from . import standard_registration
 from . import switch_context
 from . import other_factors
+from . import context_business_subscription
+from . import personal_context_registration
 
 urlpatterns = [
     # Registration endpoints
@@ -24,6 +26,16 @@ urlpatterns = [
          name='register_business_with_module'),
 
     path('register/add-another-context/', business_registration_api.add_another_context, name='add_another_context'),
+
+    # Context registration for business
+    path('business/create/', context_business_subscription.create_business_context, name='create-business-context'),
+    path('business/subscription/add/', context_business_subscription.add_subscription_to_business,
+         name='add-subscription-to-business'),
+
+    # Personal context registration
+    path('api/context/personal/create/', personal_context_registration.create_personal_context,
+         name='create-personal-context'),
+
 
     # Authentication endpoints
     path('auth/login', login_api.login_user, name='login_user'),
@@ -166,7 +178,7 @@ urlpatterns = [
 
     path('services/', other_factors.ServicesMasterDataListAPIView.as_view()),  # For GET (list) and POST
 
-    path('services/<int:pk>/', other_factors.ServicesMasterDataDetailAPIView.as_view()), # For GET (detail), PUT, DELETE
+    path('services/<int:pk>/', other_factors.ServicesMasterDataDetailAPIView.as_view()),  # For GET PUT, DELETE
 
     # Endpoint for specific visa application actions (GET, PUT, DELETE)
     path('visa-applicants/<int:pk>/', other_factors.VisaApplicationDetailAPIView.as_view(),
@@ -188,5 +200,6 @@ urlpatterns = [
 
     path("consultation", other_factors.create_consultation, name="create-consultation"),
     path("consultations", other_factors.list_consultations, name="list-consultations-by-date"),
-]
 
+
+]

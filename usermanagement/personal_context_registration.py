@@ -7,7 +7,7 @@ from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 import logging
 
-from models import (
+from .models import (
     Users, Context, Role, UserContextRole, Module,
     ModuleFeature, UserFeaturePermission, SubscriptionPlan, ModuleSubscription, Business, UserKYC
 )

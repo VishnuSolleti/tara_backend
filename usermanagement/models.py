@@ -689,6 +689,7 @@ class ModuleSubscription(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    added_by = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='added_subscriptions')
 
     def __str__(self):
         return f"{self.context.name} - {self.module.name} ({self.plan.name})"

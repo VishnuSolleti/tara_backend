@@ -430,7 +430,7 @@ class ActivateUserView(APIView):
             return Response({"message": "Invalid activation link"}, status=status.HTTP_400_BAD_REQUEST)
 
         if default_token_generator.check_token(user, token):
-            user.is_active = True
+            user.is_active = "yes"
             user.save()
             logger.info(f"User account with UID {uid} successfully activated.")
             return Response({"message": "Account activated successfully"}, status=status.HTTP_200_OK)

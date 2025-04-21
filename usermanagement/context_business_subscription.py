@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
@@ -7,7 +7,7 @@ from django.utils import timezone
 from dateutil.relativedelta import relativedelta
 import logging
 
-from models import (
+from .models import (
     Users, Context, Role, UserContextRole, Module,
     ModuleFeature, UserFeaturePermission, SubscriptionPlan, ModuleSubscription, Business
 )
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
+@permission_classes([IsAuthenticated])
 def create_business_context(request):
     """
     Create a new business context without a subscription plan.
@@ -46,6 +46,7 @@ def create_business_context(request):
     # Extract data from request
     user_id = request.data.get('user_id')
     business_name = request.data.get('business_name')
+
     # Extract additional business data
     registration_number = request.data.get('registration_number')
     entity_type = request.data.get('entity_type')
@@ -88,7 +89,18 @@ def create_business_context(request):
                 context_type='business',
                 owner_user=user,
                 status='active',
-                profile_status='complete'
+                profile_status='complete',
+                metadata={
+                    'registration_number': registration_number,
+                    'entity_type': entity_type,
+                    'head_office': head_office,
+                    'pan': pan,
+                    'business_nature': business_nature,
+                    'trade_name': trade_name,
+                    'mobile_number': mobile_number,
+                    'email': email,
+                    'dob_or_incorp_date': dob_or_incorp_date
+                }
             )
 
             # Create owner role for the business
@@ -106,25 +118,26 @@ def create_business_context(request):
                 added_by=user
             )
 
-            # Create business record with additional data
-            business = Business.objects.create(
-                client=user,
-                nameOfBusiness=business_name,
-                registrationNumber=registration_number,
-                entityType=entity_type,
-                headOffice=head_office,
-                pan=pan,
-                business_nature=business_nature,
-                trade_name=trade_name,
-                mobile_number=mobile_number,
-                email=email,
-                dob_or_incorp_date=dob_or_incorp_date
-            )
+            # Get the business created by the signal
+            business = context.business
+
+            # Update business with additional data
+            if business:
+                business.registrationNumber = registration_number
+                business.entityType = entity_type
+                business.headOffice = head_office
+                business.pan = pan
+                business.business_nature = business_nature
+                business.trade_name = trade_name
+                business.mobile_number = mobile_number
+                business.email = email
+                business.dob_or_incorp_date = dob_or_incorp_date
+                business.save()
 
             return Response({
                 "message": "Business context created successfully",
                 "context_id": context.id,
-                "business_id": business.id,
+                "business_id": business.id if business else None,
                 "business_name": business_name
             }, status=status.HTTP_201_CREATED)
 
@@ -146,18 +159,22 @@ def add_subscription_to_business(request):
     {
         "context_id": 1,
         "module_id": 1,
-        "subscription_plan_id": 1
+        "subscription_plan_id": 1,
+        "added_by": 1  # User ID of the person adding the subscription
     }
     """
     # Extract data from request
     context_id = request.data.get('context_id')
     module_id = request.data.get('module_id')
     subscription_plan_id = request.data.get('subscription_plan_id')
+    added_by_id = request.data.get('added_by')
 
     # Validate required fields
-    if not all([context_id, module_id, subscription_plan_id]):
+    if not all([context_id, module_id, subscription_plan_id, added_by_id]):
         return Response(
-            {"error": "Missing required fields. Please provide context_id, module_id, and subscription_plan_id."},
+            {
+                "error": "Missing required fields. Please provide context_id, "
+                         "module_id, subscription_plan_id, and added_by."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -190,6 +207,15 @@ def add_subscription_to_business(request):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
+            # Get user who is adding the subscription
+            try:
+                added_by = Users.objects.get(id=added_by_id)
+            except Users.DoesNotExist:
+                return Response(
+                    {"error": "User who is adding the subscription not found."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
             # Create module subscription
             module_subscription = ModuleSubscription.objects.create(
                 context=context,
@@ -198,7 +224,8 @@ def add_subscription_to_business(request):
                 status='active',
                 start_date=timezone.now(),
                 end_date=timezone.now() + relativedelta(days=subscription_plan.billing_cycle_days),
-                auto_renew=False
+                auto_renew=False,
+                added_by=added_by  # Add the user who added the subscription
             )
 
             # Get all features for the module
@@ -220,14 +247,20 @@ def add_subscription_to_business(request):
                     module=module,
                     actions=all_actions,
                     is_active='yes',
-                    created_by=context.owner_user
+                    created_by=added_by  # Use the same user who added the subscription
                 )
 
             return Response({
                 "message": "Subscription added successfully",
                 "module_subscription_id": module_subscription.id,
                 "start_date": module_subscription.start_date,
-                "end_date": module_subscription.end_date
+                "end_date": module_subscription.end_date,
+                "added_by": {
+                    "id": added_by.id,
+                    "email": added_by.email,
+                    "first_name": added_by.first_name,
+                    "last_name": added_by.last_name
+                }
             }, status=status.HTTP_201_CREATED)
 
     except Exception as e:
