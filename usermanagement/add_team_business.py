@@ -42,13 +42,13 @@ def add_team_member_to_business(request):
         "permissions": [  # Optional: If not provided, default permissions for the role will be used
             {
                 "module_id": 1,
-                "feature_code": "employee",
-                "actions": ["read", "create", "update"]
-            },
-            {
-                "module_id": 1,
-                "feature_code": "attendance",
-                "actions": ["read", "create"]
+                "service_actions": [
+                    "employee.read",
+                    "employee.create",
+                    "employee.update",
+                    "attendance.read",
+                    "attendance.create"
+                ]
             }
         ]
     }
@@ -93,7 +93,7 @@ def add_team_member_to_business(request):
         with transaction.atomic():
             # 1. Check if user already exists
             try:
-                user = User.objects.get(email=email)
+                user = Users.objects.get(email=email)
                 # If user exists, check if they already have a role in this context
                 existing_role = UserContextRole.objects.filter(
                     user=user,
@@ -121,9 +121,9 @@ def add_team_member_to_business(request):
                     )
 
                 is_new_user = False
-            except User.DoesNotExist:
+            except Users.DoesNotExist:
                 # Create new user if they don't exist
-                user = User.objects.create(
+                user = Users.objects.create(
                     email=email,
                     first_name=first_name,
                     last_name=last_name,
@@ -134,7 +134,7 @@ def add_team_member_to_business(request):
                     is_active='no'
                 )
                 # Set a random password that the user can change later
-                user.set_password(User.objects.make_random_password())
+                user.set_password(Users.objects.make_random_password())
                 user.save()
                 is_new_user = True
 
@@ -169,21 +169,22 @@ def add_team_member_to_business(request):
                 # Use the provided permissions
                 for permission_data in permissions:
                     module_id = permission_data.get('module_id')
-                    feature_code = permission_data.get('feature_code')
-                    actions = permission_data.get('actions', [])
+                    service_actions = permission_data.get('service_actions', [])
 
-                    if not all([module_id, feature_code, actions]):
+                    if not module_id or not service_actions:
                         continue
 
-                    # Create the feature permission
-                    UserFeaturePermission.objects.create(
-                        user_context_role=user_context_role,
-                        module_id=module_id,
-                        feature_code=feature_code,
-                        actions=actions,
-                        is_active=True,
-                        created_by=authenticated_user
-                    )
+                    try:
+                        module = Module.objects.get(id=module_id)
+                        UserFeaturePermission.objects.create(
+                            user_context_role=user_context_role,
+                            module=module,
+                            actions=service_actions,  # Direct use of service.action combinations
+                            is_active='yes',
+                            created_by=authenticated_user
+                        )
+                    except Module.DoesNotExist:
+                        continue
             else:
                 # Get all modules subscribed to this context
                 subscribed_modules = ModuleSubscription.objects.filter(
@@ -193,65 +194,98 @@ def add_team_member_to_business(request):
 
                 # For each module, get all features and create permissions based on role type
                 for module_id in subscribed_modules:
-                    module = Module.objects.get(id=module_id)
-                    module_features = ModuleFeature.objects.filter(module=module)
+                    try:
+                        module = Module.objects.get(id=module_id)
+                        module_features = ModuleFeature.objects.filter(module=module)
 
-                    # Determine default actions based on role type
-                    default_actions = []
-                    if role.role_type == 'admin':
-                        default_actions = ['create', 'read', 'update', 'delete', 'approve']
-                    elif role.role_type == 'manager':
-                        default_actions = ['create', 'read', 'update']
-                    else:  # employee or other roles
-                        default_actions = ['read']
+                        # Determine default actions based on role type
+                        default_actions = []
+                        if role.role_type == 'admin':
+                            default_actions = ['create', 'read', 'update', 'delete', 'approve']
+                        elif role.role_type == 'manager':
+                            default_actions = ['create', 'read', 'update']
+                        else:  # employee or other roles
+                            default_actions = ['read']
 
-                    # Create a permission for each feature
-                    for feature in module_features:
-                        UserFeaturePermission.objects.create(
-                            user_context_role=user_context_role,
-                            module=module,
-                            feature_code=feature.service.lower(),
-                            actions=default_actions,
-                            is_active=True,
-                            created_by=authenticated_user
-                        )
+                        # Create a permission for each feature
+                        for feature in module_features:
+                            # Format actions as service.action combinations
+                            formatted_actions = [f"{feature.service.lower()}.{action}" for action in default_actions]
+
+                            UserFeaturePermission.objects.create(
+                                user_context_role=user_context_role,
+                                module=module,
+                                actions=formatted_actions,
+                                is_active='yes',
+                                created_by=authenticated_user
+                            )
+                    except Module.DoesNotExist:
+                        continue
 
             # 5. Send invitation email
             try:
                 # Generate invitation token
-                invitation_token = str(uuid.uuid4())
-                user_context_role.invitation_token = invitation_token
-                user_context_role.save()
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(str(user.pk).encode())
+                invitation_link = f"{FRONTEND_URL}/accept-invitation?uid={uid}&token={token}"
+
+                # Initialize SES client
+                ses_client = boto3.client(
+                    'ses',
+                    region_name=AWS_REGION,
+                    aws_access_key_id=AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+                )
 
                 # Prepare email content
                 business_name = context.name
                 owner_name = f"{authenticated_user.first_name} {authenticated_user.last_name}"
                 role_name = role.name
-                invitation_link = f"{settings.FRONTEND_URL}/accept-invitation/{invitation_token}"
 
-                # Send invitation email
-                send_mail(
-                    f'Invitation to join {business_name}',
-                    f'''
-                    Hello {first_name},
+                subject = f"Invitation to join {business_name}"
+                body_html = f"""
+                <html>
+                <body>
+                    <h1>Join {business_name}</h1>
+                    <p>Hello {first_name},</p>
+                    <p>{owner_name} has invited you to join {business_name} as a {role_name}.</p>
+                    <p>Please click the link below to accept the invitation and set up your account:</p>
+                    <a href="{invitation_link}">Accept Invitation</a>
+                    <p>If you did not expect this invitation, please ignore this email.</p>
+                    <p>Best regards,<br>The {business_name} Team</p>
+                </body>
+                </html>
+                """
 
-                    {owner_name} has invited you to join {business_name} as a {role_name}.
+                # Send the email using SES
+                response = ses_client.send_email(
+                    Source=EMAIL_HOST_USER,
+                    Destination={'ToAddresses': [email]},
+                    Message={
+                        'Subject': {'Data': subject},
+                        'Body': {
+                            'Html': {'Data': body_html},
+                            'Text': {'Data': f'''
+                                Hello {first_name},
 
-                    Please click the following link to accept the invitation and set up your account:
-                    {invitation_link}
+                                {owner_name} has invited you to join {business_name} as a {role_name}.
 
-                    If you did not expect this invitation, please ignore this email.
+                                Please click the following link to accept the invitation and set up your account:
+                                {invitation_link}
 
-                    Best regards,
-                    The {settings.SITE_NAME} Team
-                    ''',
-                    settings.DEFAULT_FROM_EMAIL,
-                    [email],
-                    fail_silently=False,
+                                If you did not expect this invitation, please ignore this email.
+
+                                Best regards,
+                                The {business_name} Team
+                            '''}
+                        },
+                    }
                 )
+                logger.info(f"Invitation email sent to: {email}")
+
             except Exception as e:
                 # Log the error but don't fail the request
-                print(f"Failed to send invitation email: {str(e)}")
+                logger.error(f"Failed to send invitation email: {str(e)}")
 
             # Return success response
             return Response(
