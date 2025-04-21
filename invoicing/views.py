@@ -31,6 +31,8 @@ from rest_framework.permissions import AllowAny
 from django.db.models import Case, When, F, Sum, Prefetch, FloatField
 from django.utils.timezone import now
 from django.shortcuts import get_object_or_404
+from usermanagement.utils import *
+from usermanagement.decorators import *
 
 
 # Create loggers for general and error logs
@@ -105,6 +107,7 @@ def get_invoicing_profile(request):
 
 
 @api_view(['GET'])
+@require_permissions(1, required_actions=['read'])
 def invoicing_profile_exists(request):
     """
     Check if all related objects exist for an invoicing profile.
@@ -1465,6 +1468,7 @@ def split_address(address):
     ]
 )
 @api_view(["GET"])
+@require_permissions(2, required_actions=['Invoice.print'])
 def createDocument(request, id):
     try:
         # Fetch the invoice object

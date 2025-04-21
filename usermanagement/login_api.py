@@ -26,6 +26,7 @@ def login_user(request):
     - All contexts for the user
     - User role in the active context
     - Module subscriptions for the active context
+    - User context role ID
 
     Expected request data:
     {
@@ -83,6 +84,8 @@ def login_user(request):
         role_data = None
         module_subscriptions = []
         all_contexts = []
+        active_user_context_role = None
+        user_context_role_id = None
 
         # Get all contexts for the user
         user_context_roles = UserContextRole.objects.filter(
@@ -127,6 +130,8 @@ def login_user(request):
                     context=active_context,
                     status='active'
                 )
+                active_user_context_role = user_context_role
+                user_context_role_id = user_context_role.id
                 user_role = user_context_role.role
                 role_data = {
                     "id": user_role.id,
@@ -140,16 +145,6 @@ def login_user(request):
                     user_context_role=user_context_role,
                     is_active="yes"
                 )
-
-                # permissions_data = []
-                # for permission in feature_permissions:
-                #     permissions_data.append({
-                #         "id": permission.id,
-                #         "module_id": permission.module.id,
-                #         "module_name": permission.module.name,
-                #     })
-                #
-                # role_data["permissions"] = permissions_data
 
             except UserContextRole.DoesNotExist:
                 pass
@@ -183,8 +178,15 @@ def login_user(request):
             "initial_selection": user.initial_selection,
             "registration_completed": user.registration_completed,
             "created_at": user.created_at,
-            "last_login": user.last_login
+            "last_login": user.last_login,
+            "user_context_role": user_context_role_id  # Add user_context_role to user data
         }
+
+        # Add user_context_role to the token payload
+        if active_user_context_role:
+            refresh['user_context_role'] = active_user_context_role.id
+            access_token = str(refresh.access_token)
+            refresh_token = str(refresh)
 
         # Return success response with all required data
         return Response({
@@ -195,7 +197,8 @@ def login_user(request):
             "active_context": context_data,
             "all_contexts": all_contexts,
             "user_role": role_data,
-            "module_subscriptions": module_subscriptions
+            "module_subscriptions": module_subscriptions,
+            "user_context_role": user_context_role_id  # Add user_context_role to response
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
