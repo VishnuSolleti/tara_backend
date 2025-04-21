@@ -15,7 +15,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from distutils.util import strtobool
-
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
 # Module Management APIs
 
 
@@ -47,6 +48,7 @@ def create_module(request):
 
 
 @api_view(['GET'])
+@permission_classes([AllowAny])
 def list_modules(request):
     """
     API endpoint for listing all modules
@@ -56,25 +58,25 @@ def list_modules(request):
     """
     try:
         context_type = request.query_params.get('context_type')
-        is_active_param = request.query_params.get('status')
+        is_active_param = request.query_params.get('is_active')
 
-        # Build query
-        query = {}
+        filters = {}
         if context_type:
-            query['context_type'] = context_type
-        # if is_active_param is not None:
-        #     if is_active_param.lower() == 'true':
-        #         query['is_active_flag'] = True
-        #     elif is_active_param.lower() == 'false':
-        #         query['is_active_flag'] = False
-        #     else:
-        #         return Response({
-        #             'success': False,
-        #             'error': 'Invalid value for is_active. Use "true" or "false".'
-        #         }, status=status.HTTP_400_BAD_REQUEST)
+            filters['context_type'] = context_type
 
-        # Get modules
-        modules = Module.objects.filter(is_active=True)
+        if is_active_param is not None:
+            if is_active_param.lower() == 'true':
+                filters['is_active'] = 'yes'
+            elif is_active_param.lower() == 'false':
+                filters['is_active'] = 'no'
+            else:
+                return Response({
+                    'success': False,
+                    'error': 'Invalid value for is_active. Use "true" or "false".'
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch modules with or without filters
+        modules = Module.objects.filter(**filters)
         serializer = ModuleSerializer(modules, many=True)
 
         return Response({
