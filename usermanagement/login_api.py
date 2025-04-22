@@ -26,7 +26,7 @@ def login_user(request):
     - All contexts for the user
     - User role in the active context
     - Module subscriptions for the active context
-    - User context role ID
+
 
     Expected request data:
     {
