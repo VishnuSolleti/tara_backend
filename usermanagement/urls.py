@@ -216,4 +216,7 @@ urlpatterns = [
     path('context/users', add_team_business.list_context_users, name='list-context-users'),
 
 
+    path('business/context', add_team_business.get_business_context_data, name='get-business-context-data'),
+
+
 ]

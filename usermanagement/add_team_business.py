@@ -812,3 +812,116 @@ def list_context_users(request):
             {"error": f"Failed to list context users: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_business_context_data(request):
+    """
+    Get comprehensive business data for a specific context ID.
+
+    Query Parameters:
+    - context_id: ID of the business context
+
+    Expected response:
+    {
+        "business": {
+            "id": 1,
+            "nameOfBusiness": "Business Name",
+            "registrationNumber": "REG123456",
+            "entityType": "privateLimitedCompany",
+            "headOffice": {
+                "address": "Business Address",
+                "city": "City",
+                "state": "State",
+                "country": "Country",
+                "postal_code": "123456"
+            },
+            "pan": "ABCDE1234F",
+            "business_nature": "Technology",
+            "trade_name": "Trade Name",
+            "mobile_number": "1234567890",
+            "email": "business@example.com",
+            "dob_or_incorp_date": "2020-01-01",
+            "client": {
+                "user_id": 1,
+                "email": "owner@example.com",
+                "name": "Owner Name",
+                "mobile_number": "1234567890"
+            }
+        },
+        "context": {
+            "id": 1,
+            "name": "Business Name",
+            "context_type": "business",
+            "status": "active",
+            "created_at": "2024-04-22T10:00:00Z"
+        }
+    }
+    """
+    try:
+        context_id = request.query_params.get('context_id')
+        if not context_id:
+            return Response(
+                {"error": "context_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get the context with related data
+        try:
+            context = Context.objects.select_related(
+                'owner_user',
+                'business'
+            ).get(id=context_id)
+        except Context.DoesNotExist:
+            return Response(
+                {"error": f"Context with ID {context_id} does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not context.business:
+            return Response(
+                {"error": "No business information found for this context"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        business = context.business
+
+        # Prepare response data
+        response_data = {
+            "business": {
+                "id": business.id,
+                "nameOfBusiness": business.nameOfBusiness,
+                "registrationNumber": business.registrationNumber,
+                "entityType": business.entityType,
+                "headOffice": business.headOffice or {},
+                "pan": business.pan,
+                "business_nature": business.business_nature,
+                "trade_name": business.trade_name,
+                "mobile_number": business.mobile_number,
+                "email": business.email,
+                "dob_or_incorp_date": business.dob_or_incorp_date,
+                "client": {
+                    "user_id": business.client.id,
+                    "email": business.client.email,
+                    "name": f"{business.client.first_name or ''} {business.client.last_name or ''}".strip() or "Unknown",
+                    "mobile_number": business.client.mobile_number
+                }
+            },
+            "context": {
+                "id": context.id,
+                "name": context.name,
+                "context_type": context.context_type,
+                "status": context.status,
+                "created_at": context.created_at
+            }
+        }
+
+        return Response(response_data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        logger.error(f"Failed to get business context data: {str(e)}")
+        return Response(
+            {"error": f"Failed to get business context data: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
