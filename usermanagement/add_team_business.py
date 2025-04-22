@@ -652,7 +652,8 @@ def get_user_contexts(request):
 @permission_classes([IsAuthenticated])
 def list_context_users(request):
     """
-    List all users for a specific context, including their roles and permissions.
+    List all users for a specific context, including their role and permissions.
+    Each user can have only one role in a context.
 
     Query Parameters:
     - context_id: ID of the context to list users for
@@ -667,19 +668,17 @@ def list_context_users(request):
                 "last_name": "Doe",
                 "mobile_number": "1234567890",
                 "status": "active",
-                "roles": [
-                    {
-                        "role_id": 1,
-                        "role_name": "Admin",
-                        "role_type": "admin",
-                        "added_at": "2024-04-22T10:00:00Z",
-                        "added_by": {
-                            "user_id": 2,
-                            "email": "admin@example.com",
-                            "name": "Admin User"
-                        }
+                "role": {
+                    "role_id": 1,
+                    "role_name": "Admin",
+                    "role_type": "admin",
+                    "added_at": "2024-04-22T10:00:00Z",
+                    "added_by": {
+                        "user_id": 2,
+                        "email": "admin@example.com",
+                        "name": "Admin User"
                     }
-                ],
+                },
                 "permissions": [
                     {
                         "module_id": 1,
@@ -716,12 +715,8 @@ def list_context_users(request):
         # Get all active user context roles for this context
         user_context_roles = UserContextRole.objects.filter(
             context=context,
-            status='active')
-        # ).select_related(
-        #     'user',
-        #     'role',
-        #     'added_by'
-        # ).order_by('user__email')
+            status='active'
+        )
 
         # Group by user
         users_dict = {}
@@ -761,35 +756,31 @@ def list_context_users(request):
                     "last_name": user.last_name,
                     "mobile_number": user.mobile_number,
                     "status": user.status,
-                    "roles": [],
-                    "permissions": []
+                    "role": {
+                        "role_id": role.id,
+                        "role_name": role.name,
+                        "role_type": role.role_type,
+                        "added_at": ucr.created_at,
+                        "added_by": added_by
+                    },
+                    "permissions": permissions
                 }
+            else:
+                # If user already exists, merge permissions
+                for permission in permissions:
+                    # Check if module already exists in permissions
+                    module_exists = False
+                    for existing_permission in users_dict[user.id]["permissions"]:
+                        if existing_permission["module_id"] == permission["module_id"]:
+                            # Merge service actions
+                            existing_actions = set(existing_permission["service_actions"])
+                            new_actions = set(permission["service_actions"])
+                            existing_permission["service_actions"] = list(existing_actions.union(new_actions))
+                            module_exists = True
+                            break
 
-            # Add role information
-            role_info = {
-                "role_id": role.id,
-                "role_name": role.name,
-                "role_type": role.role_type,
-                "added_at": ucr.created_at,
-                "added_by": added_by
-            }
-            users_dict[user.id]["roles"].append(role_info)
-
-            # Merge permissions
-            for permission in permissions:
-                # Check if module already exists in permissions
-                module_exists = False
-                for existing_permission in users_dict[user.id]["permissions"]:
-                    if existing_permission["module_id"] == permission["module_id"]:
-                        # Merge service actions
-                        existing_actions = set(existing_permission["service_actions"])
-                        new_actions = set(permission["service_actions"])
-                        existing_permission["service_actions"] = list(existing_actions.union(new_actions))
-                        module_exists = True
-                        break
-
-                if not module_exists:
-                    users_dict[user.id]["permissions"].append(permission)
+                    if not module_exists:
+                        users_dict[user.id]["permissions"].append(permission)
 
         # Convert dictionary to list and sort by email
         users_data = list(users_dict.values())
