@@ -5,8 +5,8 @@ from rest_framework import status
 from django.db import transaction
 from django.utils import timezone
 from dateutil.relativedelta import relativedelta
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode
+from django.contrib.auth.tokens import default_token_generator, PasswordResetTokenGenerator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 import boto3
 from botocore.exceptions import ClientError
 import logging
@@ -21,6 +21,18 @@ from rest_framework.permissions import IsAuthenticated
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+
+class InvitationTokenGenerator(PasswordResetTokenGenerator):
+    def _make_hash_value(self, user, timestamp):
+        """
+        Generate a hash value that doesn't depend on user's password or last login.
+        Only depends on user ID and timestamp.
+        """
+        return f"{user.pk}{timestamp}"
+
+
+invitation_token_generator = InvitationTokenGenerator()
 
 
 @api_view(['POST'])
@@ -67,8 +79,8 @@ def add_team_member_to_business(request):
     if not all([context_id, email, first_name, last_name, mobile_number]):
         return Response(
             {
-                "error": "Missing required fields. "
-                         "Please provide context_id, email, first_name, last_name, and mobile_number."},
+                "error": "Missing required fields. Please provide context_id, email, "
+                         "first_name, last_name, and mobile_number."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -82,6 +94,7 @@ def add_team_member_to_business(request):
     try:
         # Get the context first to check subscriptions
         context = Context.objects.get(id=context_id)
+
 
         # Check if the context is a business context
         if context.context_type != 'business':
@@ -130,32 +143,10 @@ def add_team_member_to_business(request):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Validate that all service actions belong to this module
-            valid_actions = set()
-            module_features = ModuleFeature.objects.filter(module=module)
-            for feature in module_features:
-                valid_actions.add(f"{feature.service}.create")
-                valid_actions.add(f"{feature.service}.read")
-                valid_actions.add(f"{feature.service}.update")
-                valid_actions.add(f"{feature.service}.delete")
-                if feature.service in ['AdvanceLoan', 'BonusIncentive', 'Reimbursement', 'Leave', 'Invoice',
-                                       'CustomerInvoiceReceipt']:
-                    valid_actions.add(f"{feature.service}.approve")
-                if feature.service == 'Invoice':
-                    valid_actions.update([
-                        'Invoice.send',
-                        'Invoice.print',
-                        'Invoice.export',
-                        'Invoice.cancel',
-                        'Invoice.void',
-                        'Invoice.reconcile',
-                        'Invoice.generate_report'
-                    ])
-
-            invalid_actions = set(service_actions) - valid_actions
-            if invalid_actions:
+            # Validate that service actions are provided
+            if not service_actions:
                 return Response(
-                    {"error": f"Invalid service actions for module {module.name}: {', '.join(invalid_actions)}"},
+                    {"error": f"Service actions are required for module {module.name}."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -248,7 +239,8 @@ def add_team_member_to_business(request):
             # 5. Send invitation email
             try:
                 # Generate invitation token
-                token = default_token_generator.make_token(user)
+                # token = default_token_generator.make_token(user)
+                token = invitation_token_generator.make_token(user)
                 uid = urlsafe_base64_encode(str(user.pk).encode())
                 invitation_link = f"{FRONTEND_URL}/accept-invitation?uid={uid}&token={token}"
 
@@ -410,6 +402,8 @@ def accept_team_invitation(request):
     uid = request.data.get('uid')
     token = request.data.get('token')
 
+    logger.info(f"Received invitation acceptance request - uid: {uid}, token: {token}")
+
     if not all([uid, token]):
         return Response(
             {"error": "Missing required fields"},
@@ -418,25 +412,62 @@ def accept_team_invitation(request):
 
     try:
         # Decode user ID
-        user_id = urlsafe_base64_decode(uid).decode()
-        user = Users.objects.get(pk=user_id)
-
-        # Verify token
-        if not default_token_generator.check_token(user, token):
+        try:
+            # If uid is already a string, use it directly
+            if isinstance(uid, str):
+                user_id = urlsafe_base64_decode(uid).decode()
+            else:
+                # If uid is bytes, decode it directly
+                user_id = urlsafe_base64_decode(uid).decode()
+            logger.info(f"Successfully decoded user ID: {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to decode user ID: {str(e)}")
             return Response(
-                {"error": "Invalid or expired invitation link"},
+                {"error": "Invalid user ID format"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get user and verify token
+        try:
+            user = Users.objects.get(pk=user_id)
+            logger.info(f"Found user: {user.email} (ID: {user.id})")
+
+            # Generate a new token for comparison
+            expected_token = invitation_token_generator.make_token(user)
+            logger.info(f"Expected token: {expected_token}, Received token: {token}")
+
+            if not invitation_token_generator.check_token(user, token):
+                logger.error(f"Token validation failed for user {user_id}")
+                return Response(
+                    {"error": "Invalid or expired invitation link"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            logger.info("Token validation successful")
+        except Users.DoesNotExist:
+            logger.error(f"User not found with ID: {user_id}")
+            return Response(
+                {"error": "Invalid user ID"},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         # Get the pending user context role
-        user_context_role = UserContextRole.objects.get(
-            user=user,
-            status='pending'
-        )
+        try:
+            user_context_role = UserContextRole.objects.get(
+                user=user,
+                status='pending'
+            )
+            logger.info(f"Found pending invitation for context: {user_context_role.context.name}")
+        except UserContextRole.DoesNotExist:
+            logger.error(f"No pending invitation found for user {user_id}")
+            return Response(
+                {"error": "No pending invitation found"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         # Activate the user context role
         user_context_role.status = 'active'
         user_context_role.save()
+        logger.info("User context role activated successfully")
 
         # For new users, update their status
         if user.status == 'pending' and user.registration_flow == 'invited':
@@ -444,6 +475,7 @@ def accept_team_invitation(request):
             user.registration_completed = True
             user.is_active = 'yes'
             user.save()
+            logger.info("New user status updated successfully")
 
         return Response(
             {
@@ -458,11 +490,6 @@ def accept_team_invitation(request):
             status=status.HTTP_200_OK
         )
 
-    except (TypeError, ValueError, OverflowError, Users.DoesNotExist, UserContextRole.DoesNotExist):
-        return Response(
-            {"error": "Invalid invitation link"},
-            status=status.HTTP_400_BAD_REQUEST
-        )
     except Exception as e:
         logger.error(f"Failed to accept invitation: {str(e)}")
         return Response(
@@ -589,8 +616,8 @@ def get_user_contexts(request):
             ]
 
             context_data = {
-                "context_id": context.id,
-                "context_name": context.name,
+                "id": context.id,
+                "name": context.name,
                 "context_type": context.context_type,
                 "status": context.status,
                 "role": {
