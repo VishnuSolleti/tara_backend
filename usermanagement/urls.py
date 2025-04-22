@@ -11,6 +11,7 @@ from . import switch_context
 from . import other_factors
 from . import context_business_subscription
 from . import personal_context_registration
+from . import add_team_business
 
 urlpatterns = [
     # Registration endpoints
@@ -203,6 +204,13 @@ urlpatterns = [
 
     path("consultation", other_factors.create_consultation, name="create-consultation"),
     path("consultations", other_factors.list_consultations, name="list-consultations-by-date"),
+
+    # Add Team members and invitation acceptance
+    path('team/invitation/accept/', add_team_business.accept_team_invitation, name='accept-team-invitation'),
+    path('team/member/add/', add_team_business.add_team_member_to_business, name='add-team-member'),
+
+    # Context Business Data
+    path('user/contexts', add_team_business.get_user_contexts, name='get-user-contexts'),
 
 
 ]

@@ -407,8 +407,7 @@ class UserFeaturePermissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserFeaturePermission
-        fields = ['id', 'user_context_role', 'user_context_role_name', 'module', 'module_name',
-                  'feature_code', 'actions']
+        fields = ['id', 'user_context_role', 'user_context_role_name', 'module', 'module_name', 'actions']
         read_only_fields = ['id']
 
     def validate(self, data):

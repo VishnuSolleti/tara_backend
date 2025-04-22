@@ -14,6 +14,7 @@ from .serializers import ModuleFeatureSerializer, UserFeaturePermissionSerialize
 @permission_classes([IsAuthenticated])
 def list_module_features(request):
     """List all module features"""
+    print(request.user.active_context)
     features = ModuleFeature.objects.all()
     serializer = ModuleFeatureSerializer(features, many=True)
     return Response(serializer.data)

@@ -11,7 +11,7 @@ import boto3
 from botocore.exceptions import ClientError
 import logging
 from Tara.settings.default import *
-
+from django.utils.http import urlsafe_base64_decode
 from .models import (
     Users, Context, Role, UserContextRole, Module,
     ModuleFeature, UserFeaturePermission, SubscriptionPlan, ModuleSubscription
@@ -39,15 +39,15 @@ def add_team_member_to_business(request):
         "last_name": "Doe",
         "mobile_number": "1234567890",
         "role_id": 3,  # Optional: If not provided, the default employee role will be used
-        "permissions": [  # Optional: If not provided, default permissions for the role will be used
+        "permissions": [  # Required: Must specify permissions for the team member
             {
                 "module_id": 1,
                 "service_actions": [
-                    "employee.read",
-                    "employee.create",
-                    "employee.update",
-                    "attendance.read",
-                    "attendance.create"
+                    "EmployeeManagement.create",
+                    "EmployeeManagement.read",
+                    "EmployeeManagement.update",
+                    "Attendance.read",
+                    "Attendance.create"
                 ]
             }
         ]
@@ -67,20 +67,21 @@ def add_team_member_to_business(request):
     if not all([context_id, email, first_name, last_name, mobile_number]):
         return Response(
             {
-                "error": "Missing required fields. Please provide context_id, email, first_name, last_name, and mobile_number."},
+                "error": "Missing required fields. "
+                         "Please provide context_id, email, first_name, last_name, and mobile_number."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Validate permissions
+    if not permissions:
+        return Response(
+            {"error": "Permissions are required. Please specify the permissions for the team member."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     try:
-        # Get the context
+        # Get the context first to check subscriptions
         context = Context.objects.get(id=context_id)
-
-        # Check if the authenticated user is the owner of the context
-        if context.owner_user != authenticated_user and not authenticated_user.is_staff and not authenticated_user.is_superuser:
-            return Response(
-                {"error": "You don't have permission to add team members to this business context."},
-                status=status.HTTP_403_FORBIDDEN
-            )
 
         # Check if the context is a business context
         if context.context_type != 'business':
@@ -88,6 +89,75 @@ def add_team_member_to_business(request):
                 {"error": "Team members can only be added to business contexts."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Get all active subscriptions for this context
+        active_subscriptions = ModuleSubscription.objects.filter(
+            context=context,
+            status__in=['active', 'trial']
+        ).values_list('module_id', flat=True)
+
+        if not active_subscriptions:
+            return Response(
+                {"error": "This context has no active module subscriptions."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate permission format and module existence
+        for permission_data in permissions:
+            module_id = permission_data.get('module_id')
+            service_actions = permission_data.get('service_actions', [])
+
+            if not module_id or not service_actions:
+                return Response(
+                    {"error": "Invalid permission format. Each permission must include module_id and service_actions."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check if module exists
+            try:
+                module = Module.objects.get(id=module_id)
+            except Module.DoesNotExist:
+                return Response(
+                    {"error": f"Module with ID {module_id} does not exist."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Check if context is subscribed to this module
+            if module_id not in active_subscriptions:
+                return Response(
+                    {
+                        "error": f"Context is not subscribed to module {module.name}. Please subscribe to the module first."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Validate that all service actions belong to this module
+            valid_actions = set()
+            module_features = ModuleFeature.objects.filter(module=module)
+            for feature in module_features:
+                valid_actions.add(f"{feature.service}.create")
+                valid_actions.add(f"{feature.service}.read")
+                valid_actions.add(f"{feature.service}.update")
+                valid_actions.add(f"{feature.service}.delete")
+                if feature.service in ['AdvanceLoan', 'BonusIncentive', 'Reimbursement', 'Leave', 'Invoice',
+                                       'CustomerInvoiceReceipt']:
+                    valid_actions.add(f"{feature.service}.approve")
+                if feature.service == 'Invoice':
+                    valid_actions.update([
+                        'Invoice.send',
+                        'Invoice.print',
+                        'Invoice.export',
+                        'Invoice.cancel',
+                        'Invoice.void',
+                        'Invoice.reconcile',
+                        'Invoice.generate_report'
+                    ])
+
+            invalid_actions = set(service_actions) - valid_actions
+            if invalid_actions:
+                return Response(
+                    {"error": f"Invalid service actions for module {module.name}: {', '.join(invalid_actions)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         # Use transaction to ensure all operations succeed or fail together
         with transaction.atomic():
@@ -133,9 +203,6 @@ def add_team_member_to_business(request):
                     registration_completed=False,
                     is_active='no'
                 )
-                # Set a random password that the user can change later
-                user.set_password(Users.objects.make_random_password())
-                user.save()
                 is_new_user = True
 
             # 2. Get the role
@@ -165,62 +232,18 @@ def add_team_member_to_business(request):
             )
 
             # 4. Set up feature permissions
-            if permissions:
-                # Use the provided permissions
-                for permission_data in permissions:
-                    module_id = permission_data.get('module_id')
-                    service_actions = permission_data.get('service_actions', [])
+            for permission_data in permissions:
+                module_id = permission_data.get('module_id')
+                service_actions = permission_data.get('service_actions', [])
+                module = Module.objects.get(id=module_id)
 
-                    if not module_id or not service_actions:
-                        continue
-
-                    try:
-                        module = Module.objects.get(id=module_id)
-                        UserFeaturePermission.objects.create(
-                            user_context_role=user_context_role,
-                            module=module,
-                            actions=service_actions,  # Direct use of service.action combinations
-                            is_active='yes',
-                            created_by=authenticated_user
-                        )
-                    except Module.DoesNotExist:
-                        continue
-            else:
-                # Get all modules subscribed to this context
-                subscribed_modules = ModuleSubscription.objects.filter(
-                    context=context,
-                    status__in=['active', 'trial']
-                ).values_list('module_id', flat=True)
-
-                # For each module, get all features and create permissions based on role type
-                for module_id in subscribed_modules:
-                    try:
-                        module = Module.objects.get(id=module_id)
-                        module_features = ModuleFeature.objects.filter(module=module)
-
-                        # Determine default actions based on role type
-                        default_actions = []
-                        if role.role_type == 'admin':
-                            default_actions = ['create', 'read', 'update', 'delete', 'approve']
-                        elif role.role_type == 'manager':
-                            default_actions = ['create', 'read', 'update']
-                        else:  # employee or other roles
-                            default_actions = ['read']
-
-                        # Create a permission for each feature
-                        for feature in module_features:
-                            # Format actions as service.action combinations
-                            formatted_actions = [f"{feature.service.lower()}.{action}" for action in default_actions]
-
-                            UserFeaturePermission.objects.create(
-                                user_context_role=user_context_role,
-                                module=module,
-                                actions=formatted_actions,
-                                is_active='yes',
-                                created_by=authenticated_user
-                            )
-                    except Module.DoesNotExist:
-                        continue
+                UserFeaturePermission.objects.create(
+                    user_context_role=user_context_role,
+                    module=module,
+                    actions=service_actions,
+                    is_active='yes',
+                    created_by=authenticated_user
+                )
 
             # 5. Send invitation email
             try:
@@ -243,19 +266,81 @@ def add_team_member_to_business(request):
                 role_name = role.name
 
                 subject = f"Invitation to join {business_name}"
-                body_html = f"""
-                <html>
-                <body>
-                    <h1>Join {business_name}</h1>
-                    <p>Hello {first_name},</p>
-                    <p>{owner_name} has invited you to join {business_name} as a {role_name}.</p>
-                    <p>Please click the link below to accept the invitation and set up your account:</p>
-                    <a href="{invitation_link}">Accept Invitation</a>
-                    <p>If you did not expect this invitation, please ignore this email.</p>
-                    <p>Best regards,<br>The {business_name} Team</p>
-                </body>
-                </html>
-                """
+
+                if is_new_user:
+                    # Generate temporary password for new user
+                    temp_password = Users.objects.make_random_password()
+                    user.set_password(temp_password)
+                    user.save()
+
+                    body_html = f"""
+                    <html>
+                    <body>
+                        <h1>Join {business_name}</h1>
+                        <p>Hello {first_name},</p>
+                        <p>{owner_name} has invited you to join {business_name} as a {role_name}.</p>
+                        <p>Your temporary login credentials are:</p>
+                        <p>Email: {email}</p>
+                        <p>Password: {temp_password}</p>
+                        <p>Please click the link below to accept the invitation:</p>
+                        <a href="{invitation_link}">Accept Invitation</a>
+                        <p>After accepting, please change your password for security.</p>
+                        <p>If you did not expect this invitation, please ignore this email.</p>
+                        <p>Best regards,<br>The {business_name} Team</p>
+                    </body>
+                    </html>
+                    """
+
+                    text_content = f'''
+                        Hello {first_name},
+
+                        {owner_name} has invited you to join {business_name} as a {role_name}.
+
+                        Your temporary login credentials are:
+                        Email: {email}
+                        Password: {temp_password}
+
+                        Please click the following link to accept the invitation:
+                        {invitation_link}
+
+                        After accepting, please change your password for security.
+
+                        If you did not expect this invitation, please ignore this email.
+
+                        Best regards,
+                        The {business_name} Team
+                    '''
+                else:
+                    body_html = f"""
+                    <html>
+                    <body>
+                        <h1>Join {business_name}</h1>
+                        <p>Hello {first_name},</p>
+                        <p>{owner_name} has invited you to join {business_name} as a {role_name}.</p>
+                        <p>Please click the link below to accept the invitation:</p>
+                        <a href="{invitation_link}">Accept Invitation</a>
+                        <p>You can use your existing account credentials to access the platform.</p>
+                        <p>If you did not expect this invitation, please ignore this email.</p>
+                        <p>Best regards,<br>The {business_name} Team</p>
+                    </body>
+                    </html>
+                    """
+
+                    text_content = f'''
+                        Hello {first_name},
+
+                        {owner_name} has invited you to join {business_name} as a {role_name}.
+
+                        Please click the following link to accept the invitation:
+                        {invitation_link}
+
+                        You can use your existing account credentials to access the platform.
+
+                        If you did not expect this invitation, please ignore this email.
+
+                        Best regards,
+                        The {business_name} Team
+                    '''
 
                 # Send the email using SES
                 response = ses_client.send_email(
@@ -265,19 +350,7 @@ def add_team_member_to_business(request):
                         'Subject': {'Data': subject},
                         'Body': {
                             'Html': {'Data': body_html},
-                            'Text': {'Data': f'''
-                                Hello {first_name},
-
-                                {owner_name} has invited you to join {business_name} as a {role_name}.
-
-                                Please click the following link to accept the invitation and set up your account:
-                                {invitation_link}
-
-                                If you did not expect this invitation, please ignore this email.
-
-                                Best regards,
-                                The {business_name} Team
-                            '''}
+                            'Text': {'Data': text_content}
                         },
                     }
                 )
@@ -325,53 +398,53 @@ def add_team_member_to_business(request):
 def accept_team_invitation(request):
     """
     Accept a team invitation and activate the user context role.
+    For new users, their account is already set up with temporary credentials.
+    For existing users, just activate their role.
 
     Expected request data:
     {
-        "invitation_token": "uuid-token-here",
-        "password": "new-password"  # Required for new users
+        "uid": "base64_encoded_user_id",
+        "token": "invitation_token"
     }
     """
-    invitation_token = request.data.get('invitation_token')
-    password = request.data.get('password')
+    uid = request.data.get('uid')
+    token = request.data.get('token')
 
-    if not invitation_token:
+    if not all([uid, token]):
         return Response(
-            {"error": "Invitation token is required."},
+            {"error": "Missing required fields"},
             status=status.HTTP_400_BAD_REQUEST
         )
 
     try:
-        # Get the user context role with the invitation token
+        # Decode user ID
+        user_id = urlsafe_base64_decode(uid).decode()
+        user = Users.objects.get(pk=user_id)
+
+        # Verify token
+        if not default_token_generator.check_token(user, token):
+            return Response(
+                {"error": "Invalid or expired invitation link"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get the pending user context role
         user_context_role = UserContextRole.objects.get(
-            invitation_token=invitation_token,
+            user=user,
             status='pending'
         )
 
-        user = user_context_role.user
+        # Activate the user context role
+        user_context_role.status = 'active'
+        user_context_role.save()
 
-        # Check if this is a new user
+        # For new users, update their status
         if user.status == 'pending' and user.registration_flow == 'invited':
-            # This is a new user, they need to set a password
-            if not password:
-                return Response(
-                    {"error": "Password is required for new users."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Update user status
             user.status = 'active'
             user.registration_completed = True
             user.is_active = 'yes'
-            user.set_password(password)
             user.save()
 
-        # Activate the user context role
-        user_context_role.status = 'active'
-        user_context_role.invitation_token = None
-        user_context_role.save()
-
-        # Return success response
         return Response(
             {
                 "message": "Team invitation accepted successfully.",
@@ -379,18 +452,170 @@ def accept_team_invitation(request):
                 "email": user.email,
                 "context_id": user_context_role.context.id,
                 "role_id": user_context_role.role.id,
-                "role_name": user_context_role.role.name
+                "role_name": user_context_role.role.name,
+                "is_new_user": user.registration_flow == 'invited'
             },
             status=status.HTTP_200_OK
         )
 
-    except UserContextRole.DoesNotExist:
+    except (TypeError, ValueError, OverflowError, Users.DoesNotExist, UserContextRole.DoesNotExist):
         return Response(
-            {"error": "Invalid or expired invitation token."},
-            status=status.HTTP_404_NOT_FOUND
+            {"error": "Invalid invitation link"},
+            status=status.HTTP_400_BAD_REQUEST
         )
     except Exception as e:
+        logger.error(f"Failed to accept invitation: {str(e)}")
         return Response(
             {"error": f"Failed to accept invitation: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_contexts(request):
+    """
+    Get all contexts and their roles for a user.
+    If user_id is provided, get contexts for that user (requires admin/staff permissions).
+    If no user_id is provided, get contexts for the authenticated user.
+
+    Query Parameters:
+    - user_id (optional): ID of the user to get contexts for
+
+    Expected response:
+    {
+        "contexts": [
+            {
+                "context_id": 1,
+                "context_name": "Business Name",
+                "context_type": "business",
+                "status": "active",
+                "role": {
+                    "role_id": 1,
+                    "role_name": "Admin",
+                    "role_type": "admin"
+                },
+                "permissions": [
+                    {
+                        "module_id": 1,
+                        "module_name": "Payroll",
+                        "service_actions": [
+                            "EmployeeManagement.create",
+                            "EmployeeManagement.read",
+                            "EmployeeManagement.update",
+                            "EmployeeManagement.delete"
+                        ]
+                    }
+                ],
+                "subscribed_modules": [
+                    {
+                        "module_id": 1,
+                        "module_name": "Payroll",
+                        "subscription_status": "active",
+                        "plan_name": "Basic Plan",
+                        "start_date": "2024-01-01T00:00:00Z",
+                        "end_date": "2024-12-31T23:59:59Z",
+                        "auto_renew": "yes",
+                        "via_suite": "no"
+                    }
+                ]
+            }
+        ]
+    }
+    """
+    try:
+        # Get user_id from query parameters
+        user_id = request.query_params.get('user_id')
+        authenticated_user = request.user
+
+        # If user_id is provided, check permissions and get that user
+        if user_id:
+            try:
+                target_user = Users.objects.get(id=user_id)
+            except Users.DoesNotExist:
+                return Response(
+                    {"error": f"User with ID {user_id} does not exist."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            target_user = authenticated_user
+
+        # Get all active user context roles for the target user
+        user_context_roles = UserContextRole.objects.filter(
+            user=target_user,
+            status='active'
+        ).select_related(
+            'context',
+            'role'
+        )
+
+        contexts_data = []
+        for ucr in user_context_roles:
+            context = ucr.context
+            role = ucr.role
+
+            # Get all permissions for this context role
+            permissions = []
+            feature_permissions = UserFeaturePermission.objects.filter(
+                user_context_role=ucr,
+                is_active='yes'
+            ).select_related('module')
+
+            for permission in feature_permissions:
+                permissions.append({
+                    "module_id": permission.module.id,
+                    "module_name": permission.module.name,
+                    "service_actions": permission.actions
+                })
+
+            # Get all module subscriptions for this context
+            subscriptions = ModuleSubscription.objects.filter(
+                context=context,
+                status__in=['active', 'trial']
+            ).select_related('module', 'plan')
+
+            subscribed_modules = [
+                {
+                    "module_id": sub.module.id,
+                    "module_name": sub.module.name,
+                    "subscription_status": sub.status,
+                    "plan_name": sub.plan.name,
+                    "start_date": sub.start_date,
+                    "end_date": sub.end_date,
+                    "auto_renew": sub.auto_renew,
+                    "via_suite": sub.via_suite
+                }
+                for sub in subscriptions
+            ]
+
+            context_data = {
+                "context_id": context.id,
+                "context_name": context.name,
+                "context_type": context.context_type,
+                "status": context.status,
+                "role": {
+                    "role_id": role.id,
+                    "role_name": role.name,
+                    "role_type": role.role_type
+                },
+                "permissions": permissions,
+                "subscribed_modules": subscribed_modules
+            }
+            contexts_data.append(context_data)
+
+        return Response(
+            {
+                "user_id": target_user.id,
+                "user_email": target_user.email,
+                "user_name": f"{target_user.first_name} {target_user.last_name}",
+                "contexts": contexts_data
+            },
+            status=status.HTTP_200_OK
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to get user contexts: {str(e)}")
+        return Response(
+            {"error": f"Failed to get user contexts: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )

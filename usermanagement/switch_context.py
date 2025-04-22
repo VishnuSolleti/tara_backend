@@ -126,14 +126,14 @@ def switch_user_context(request):
         user.active_context = context
         user.save()
 
-        # Generate new token
-        tokens = get_tokens_for_user(user)
+        # # Generate new token
+        # tokens = get_tokens_for_user(user)
 
         # Generate login-like response
         profile_data = generate_user_profile_response(user)
         profile_data["message"] = "Context switched successfully"
-        profile_data["access_token"] = tokens["access"]
-        profile_data["refresh_token"] = tokens["refresh"]
+        # profile_data["access_token"] = tokens["access"]
+        # profile_data["refresh_token"] = tokens["refresh"]
 
         return Response(profile_data, status=status.HTTP_200_OK)
 
