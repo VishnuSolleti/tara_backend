@@ -646,3 +646,169 @@ def get_user_contexts(request):
             {"error": f"Failed to get user contexts: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_context_users(request):
+    """
+    List all users for a specific context, including their roles and permissions.
+
+    Query Parameters:
+    - context_id: ID of the context to list users for
+
+    Expected response:
+    {
+        "users": [
+            {
+                "user_id": 1,
+                "email": "user@example.com",
+                "first_name": "John",
+                "last_name": "Doe",
+                "mobile_number": "1234567890",
+                "status": "active",
+                "roles": [
+                    {
+                        "role_id": 1,
+                        "role_name": "Admin",
+                        "role_type": "admin",
+                        "added_at": "2024-04-22T10:00:00Z",
+                        "added_by": {
+                            "user_id": 2,
+                            "email": "admin@example.com",
+                            "name": "Admin User"
+                        }
+                    }
+                ],
+                "permissions": [
+                    {
+                        "module_id": 1,
+                        "module_name": "Payroll",
+                        "service_actions": [
+                            "EmployeeManagement.create",
+                            "EmployeeManagement.read",
+                            "EmployeeManagement.update",
+                            "EmployeeManagement.delete"
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    """
+    try:
+        context_id = request.query_params.get('context_id')
+        if not context_id:
+            return Response(
+                {"error": "context_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get the context
+        try:
+            context = Context.objects.get(id=context_id)
+        except Context.DoesNotExist:
+            return Response(
+                {"error": f"Context with ID {context_id} does not exist"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get all active user context roles for this context
+        user_context_roles = UserContextRole.objects.filter(
+            context=context,
+            status='active')
+        # ).select_related(
+        #     'user',
+        #     'role',
+        #     'added_by'
+        # ).order_by('user__email')
+
+        # Group by user
+        users_dict = {}
+        for ucr in user_context_roles:
+            user = ucr.user
+            role = ucr.role
+
+            # Get all permissions for this user context role
+            permissions = []
+            feature_permissions = UserFeaturePermission.objects.filter(
+                user_context_role=ucr,
+                is_active='yes'
+            ).select_related('module')
+
+            for permission in feature_permissions:
+                permissions.append({
+                    "module_id": permission.module.id,
+                    "module_name": permission.module.name,
+                    "service_actions": permission.actions
+                })
+
+            # Get added by user info
+            added_by = None
+            if ucr.added_by:
+                added_by = {
+                    "user_id": ucr.added_by.id,
+                    "email": ucr.added_by.email,
+                    "name": f"{ucr.added_by.first_name or ''} {ucr.added_by.last_name or ''}".strip() or "Unknown"
+                }
+
+            # Create or update user entry
+            if user.id not in users_dict:
+                users_dict[user.id] = {
+                    "user_id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "last_name": user.last_name,
+                    "mobile_number": user.mobile_number,
+                    "status": user.status,
+                    "roles": [],
+                    "permissions": []
+                }
+
+            # Add role information
+            role_info = {
+                "role_id": role.id,
+                "role_name": role.name,
+                "role_type": role.role_type,
+                "added_at": ucr.created_at,
+                "added_by": added_by
+            }
+            users_dict[user.id]["roles"].append(role_info)
+
+            # Merge permissions
+            for permission in permissions:
+                # Check if module already exists in permissions
+                module_exists = False
+                for existing_permission in users_dict[user.id]["permissions"]:
+                    if existing_permission["module_id"] == permission["module_id"]:
+                        # Merge service actions
+                        existing_actions = set(existing_permission["service_actions"])
+                        new_actions = set(permission["service_actions"])
+                        existing_permission["service_actions"] = list(existing_actions.union(new_actions))
+                        module_exists = True
+                        break
+
+                if not module_exists:
+                    users_dict[user.id]["permissions"].append(permission)
+
+        # Convert dictionary to list and sort by email
+        users_data = list(users_dict.values())
+        users_data.sort(key=lambda x: x["email"])
+
+        return Response(
+            {
+                "context_id": context.id,
+                "context_name": context.name,
+                "context_type": context.context_type,
+                "total_users": len(users_data),
+                "users": users_data
+            },
+            status=status.HTTP_200_OK
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to list context users: {str(e)}")
+        return Response(
+            {"error": f"Failed to list context users: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

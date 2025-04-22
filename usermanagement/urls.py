@@ -212,5 +212,8 @@ urlpatterns = [
     # Context Business Data
     path('user/contexts', add_team_business.get_user_contexts, name='get-user-contexts'),
 
+    # List all users in a context
+    path('context/users', add_team_business.list_context_users, name='list-context-users'),
+
 
 ]
