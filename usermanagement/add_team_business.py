@@ -35,35 +35,63 @@ class InvitationTokenGenerator(PasswordResetTokenGenerator):
 invitation_token_generator = InvitationTokenGenerator()
 
 
+def get_default_permissions_by_role(role_type, module_features):
+    """
+    Get default permissions based on role type and available module features.
+
+    Args:
+        role_type (str): The type of role (owner, admin, manager, employee)
+        module_features (list): List of available module features
+
+    Returns:
+        dict: Dictionary with module_id as key and list of service actions as value
+    """
+    default_permissions = {}
+
+    # Group features by module
+    module_features_map = {}
+    for feature in module_features:
+        module_id = feature['module']
+        if module_id not in module_features_map:
+            module_features_map[module_id] = []
+        module_features_map[module_id].append(feature)
+
+    # Define permission sets based on role type
+    if role_type in ['owner', 'admin']:
+        # Full access - all actions
+        for module_id, features in module_features_map.items():
+            service_actions = []
+            for feature in features:
+                service_actions.append(f"{feature['service']}.{feature['action']}")
+            default_permissions[module_id] = service_actions
+
+    elif role_type == 'manager':
+        # Manager access - create, read, update, approve (no delete)
+        for module_id, features in module_features_map.items():
+            service_actions = []
+            for feature in features:
+                if feature['action'] != 'delete':
+                    service_actions.append(f"{feature['service']}.{feature['action']}")
+            default_permissions[module_id] = service_actions
+
+    else:  # employee
+        # Employee access - create, read, update (no delete or approve)
+        for module_id, features in module_features_map.items():
+            service_actions = []
+            for feature in features:
+                if feature['action'] not in ['delete', 'approve']:
+                    service_actions.append(f"{feature['service']}.{feature['action']}")
+            default_permissions[module_id] = service_actions
+
+    return default_permissions
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def add_team_member_to_business(request):
     """
     Add a team member to a business context with a specific role and permissions.
-    If the team member doesn't exist, create a new user and send an invitation email.
-    The user context role will be in a pending state until the team member accepts the invitation.
-
-    Expected request data:
-    {
-        "context_id": 1,
-        "email": "teammember@example.com",
-        "first_name": "John",
-        "last_name": "Doe",
-        "mobile_number": "1234567890",
-        "role_id": 3,  # Optional: If not provided, the default employee role will be used
-        "permissions": [  # Required: Must specify permissions for the team member
-            {
-                "module_id": 1,
-                "service_actions": [
-                    "EmployeeManagement.create",
-                    "EmployeeManagement.read",
-                    "EmployeeManagement.update",
-                    "Attendance.read",
-                    "Attendance.create"
-                ]
-            }
-        ]
-    }
+    If permissions are not provided, default permissions will be set based on the role type.
     """
     # Extract data from request
     context_id = request.data.get('context_id')
@@ -84,17 +112,9 @@ def add_team_member_to_business(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Validate permissions
-    if not permissions:
-        return Response(
-            {"error": "Permissions are required. Please specify the permissions for the team member."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
     try:
         # Get the context first to check subscriptions
         context = Context.objects.get(id=context_id)
-
 
         # Check if the context is a business context
         if context.context_type != 'business':
@@ -114,6 +134,45 @@ def add_team_member_to_business(request):
                 {"error": "This context has no active module subscriptions."},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # Get the role
+        if role_id:
+            try:
+                role = Role.objects.get(id=role_id, context=context)
+            except Role.DoesNotExist:
+                return Response(
+                    {"error": f"Role with ID {role_id} does not exist in this context."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        else:
+            # Get the default employee role
+            role = Role.objects.get(
+                context=context,
+                role_type='employee',
+                is_default_role=True
+            )
+
+        # If no permissions provided, get default permissions based on role type
+        if not permissions:
+            # Get all module features for subscribed modules
+            module_features = ModuleFeature.objects.filter(
+                module_id__in=active_subscriptions
+            ).values('id', 'module', 'service', 'action', 'label')
+
+            # Convert to list for easier processing
+            module_features_list = list(module_features)
+
+            # Get default permissions based on role type
+            permissions = [
+                {
+                    "module_id": module_id,
+                    "service_actions": service_actions
+                }
+                for module_id, service_actions in get_default_permissions_by_role(
+                    role.role_type,
+                    module_features_list
+                ).items()
+            ]
 
         # Validate permission format and module existence
         for permission_data in permissions:
@@ -140,13 +199,6 @@ def add_team_member_to_business(request):
                 return Response(
                     {
                         "error": f"Context is not subscribed to module {module.name}. Please subscribe to the module first."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Validate that service actions are provided
-            if not service_actions:
-                return Response(
-                    {"error": f"Service actions are required for module {module.name}."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
@@ -196,24 +248,7 @@ def add_team_member_to_business(request):
                 )
                 is_new_user = True
 
-            # 2. Get the role
-            if role_id:
-                try:
-                    role = Role.objects.get(id=role_id, context=context)
-                except Role.DoesNotExist:
-                    return Response(
-                        {"error": f"Role with ID {role_id} does not exist in this context."},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
-            else:
-                # Get the default employee role
-                role = Role.objects.get(
-                    context=context,
-                    role_type='employee',
-                    is_default_role=True
-                )
-
-            # 3. Create user context role with pending status
+            # 2. Create user context role with pending status
             user_context_role = UserContextRole.objects.create(
                 user=user,
                 context=context,
@@ -222,7 +257,7 @@ def add_team_member_to_business(request):
                 added_by=authenticated_user
             )
 
-            # 4. Set up feature permissions
+            # 3. Set up feature permissions
             for permission_data in permissions:
                 module_id = permission_data.get('module_id')
                 service_actions = permission_data.get('service_actions', [])
@@ -236,10 +271,9 @@ def add_team_member_to_business(request):
                     created_by=authenticated_user
                 )
 
-            # 5. Send invitation email
+            # 4. Send invitation email
             try:
                 # Generate invitation token
-                # token = default_token_generator.make_token(user)
                 token = invitation_token_generator.make_token(user)
                 uid = urlsafe_base64_encode(str(user.pk).encode())
                 invitation_link = f"{FRONTEND_URL}/accept-invitation?uid={uid}&token={token}"
@@ -363,7 +397,8 @@ def add_team_member_to_business(request):
                     "role_name": role.name,
                     "user_context_role_id": user_context_role.id,
                     "status": "pending",
-                    "is_new_user": is_new_user
+                    "is_new_user": is_new_user,
+                    "permissions": permissions  # Include the permissions in response
                 },
                 status=status.HTTP_201_CREATED
             )
