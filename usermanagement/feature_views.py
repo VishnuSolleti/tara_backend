@@ -154,3 +154,61 @@ def get_user_feature_permissions_by_feature(request, feature_code):
     permissions = UserFeaturePermission.objects.filter(feature_code=feature_code)
     serializer = UserFeaturePermissionSerializer(permissions, many=True)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_context_module_features(request, context_id):
+    """
+    Get all module features for a given context.
+
+    Args:
+        context_id: ID of the context to get features for
+
+    Returns:
+        List of modules with their features
+    """
+    try:
+        # Verify context exists and user has access
+        context = Context.objects.get(id=context_id)
+
+        # Get all active module subscriptions for this context
+        subscribed_modules = ModuleSubscription.objects.filter(
+            context=context,
+            status__in=['active', 'trial']
+        ).select_related('module')
+
+        result = []
+        for subscription in subscribed_modules:
+            module = subscription.module
+            # Get all features for this module
+            features = ModuleFeature.objects.filter(module=module).values(
+                'service',
+                'action',
+                'label'
+            )
+
+            module_data = {
+                'module_id': module.id,
+                'module_name': module.name,
+                'module_description': module.description,
+                'subscription_status': subscription.status,
+                'features': list(features)
+            }
+            result.append(module_data)
+
+        return Response({
+            'status': 'success',
+            'data': result
+        })
+
+    except Context.DoesNotExist:
+        return Response({
+            'status': 'error',
+            'message': 'Context not found'
+        }, status=404)
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)

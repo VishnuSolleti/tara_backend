@@ -126,12 +126,17 @@ urlpatterns = [
     path('module-features/bulk-create', feature_views.bulk_create_module_features,
          name='bulk_create_module_features'),
 
+    path('context/<int:context_id>/module-features', feature_views.get_context_module_features,
+         name='get-context-module-features'),
+
 
     # Reverted Api views As per the data
 
 
     path('users/stats/', other_factors.DynamicUserStatsAPIView.as_view(), name='user-stats'),
     path('users/by-type/', other_factors.UsersByDynamicTypeAPIView.as_view(), name='users-by-type'),
+
+    path('user/search', personal_context_registration.search_user_by_email, name='search-user-by-email'),
 
     path('change-password/', other_factors.ChangePasswordView.as_view(), name='change-password'),
     path('visa-users/', other_factors.visa_users_creation, name='visa_users_creation'),
