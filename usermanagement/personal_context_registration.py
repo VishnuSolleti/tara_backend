@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
@@ -162,3 +162,58 @@ def create_personal_context(request):
             {"error": f"An error occurred while creating the personal context: {str(e)}"},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def search_user_by_email(request):
+    """
+    Search for a user by email and return their basic data.
+
+    Query Parameters:
+        email: The email address to search for
+
+    Returns:
+        Basic user data if found, error message if not found
+    """
+    email = request.query_params.get('email')
+
+    if not email:
+        return Response({
+            'status': 'error',
+            'message': 'Email parameter is required'
+        }, status=400)
+
+    try:
+        # Search for the user by email
+        user = Users.objects.filter(email=email).first()
+
+        if not user:
+            return Response({
+                'status': 'error',
+                'message': f'User with email {email} not found'
+            }, status=404)
+
+        # Prepare basic user data response
+        user_data = {
+            'user_id': user.id,
+            'email': user.email,
+            'mobile_number': user.mobile_number,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'status': user.status,
+            'created_at': user.created_at,
+            'is_active': user.is_active
+        }
+
+        return Response({
+            'status': 'success',
+            'data': user_data
+        })
+
+    except Exception as e:
+        return Response({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
+
