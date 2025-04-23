@@ -63,6 +63,11 @@ INSTALLED_APPS = [
     'payroll',
     'storages',
     'usermanagement',
+    'company_incorporation',
+    'gst',
+    'labour_license',
+    'msme_registration',
+    'trade_license'
 ]
 
 MIDDLEWARE = [
