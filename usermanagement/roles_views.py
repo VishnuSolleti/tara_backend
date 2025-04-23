@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Role, Context
-from .serializers import RoleSerializer, RoleDetailSerializer
+from .serializers import RoleSerializer, RoleDetailSerializer, ContextWithRolesSerializer
 
 
 @api_view(['POST'])
@@ -285,4 +285,52 @@ def create_context_roles(request):
             'status': 'error',
             'message': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_context_roles(request):
+    """
+    List all roles under a specific context ID
+    """
+    try:
+        context_id = request.query_params.get('context_id')
+        if not context_id:
+            return Response({
+                'status': 'error',
+                'message': 'context_id query param is required.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            context_id = int(context_id)
+        except ValueError:
+            return Response({
+                'status': 'error',
+                'message': 'context_id must be an integer.'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        context = Context.objects.get(id=context_id)
+        serializer = ContextWithRolesSerializer(context)
+        return Response({
+            'status': 'success',
+            'context': serializer.data
+        })
+
+    except Context.DoesNotExist:
+        return Response({
+            'status': 'error',
+            'message': 'Context not found'
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    except Exception as e:
+        import traceback
+        logger.exception("Unexpected error in list_context_roles")
+        return Response({
+            'status': 'error',
+            'message': 'Something went wrong.',
+            'details': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+
 

@@ -59,16 +59,6 @@ class PaymentDetail(models.Model):
 
 class InvoicingProfile(BaseModel):
     business = models.OneToOneField(Business, on_delete=models.CASCADE)
-    business_name = models.CharField(max_length=20, null=False, blank=False)
-    business_registration_number = models.CharField(max_length=20, null=True, blank=True)
-    business_type = models.CharField(max_length=60, null=True, blank=True)
-    state = models.CharField(max_length=80, null=True, blank=True)
-    email = models.EmailField(null=True, blank=True)
-    pinCode = models.IntegerField(null=True)
-    mobile_number = models.CharField(max_length=20, null=True, blank=True)
-    address_line1 = models.CharField(max_length=120, null=True, blank=True)
-    address_line2 = models.CharField(max_length=120, null=True, blank=True)
-    pan = models.CharField(max_length=60, null=True, blank=True)
     bank_name = models.CharField(max_length=50)
     account_number = models.BigIntegerField(validators=[validate_account_number])
     ifsc_code = models.CharField(max_length=50)

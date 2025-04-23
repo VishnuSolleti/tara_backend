@@ -224,4 +224,7 @@ urlpatterns = [
     path('business/context', add_team_business.get_business_context_data, name='get-business-context-data'),
 
 
+    path('context-roles/list', roles_views.list_context_roles, name='list-context-roles'),
+
+
 ]

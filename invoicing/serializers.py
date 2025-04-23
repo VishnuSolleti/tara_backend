@@ -211,27 +211,75 @@ class SignatureStorage(FileSystemStorage):
 
 
 class InvoicingProfileSerializer(serializers.ModelSerializer):
-    signature = models.ImageField(storage=SignatureStorage(), upload_to='signature/', blank=True, null=True)
+    # Allow these to be passed in for patching Business if needed
+    business = serializers.PrimaryKeyRelatedField(
+        queryset=Business.objects.all(),
+        write_only=True
+    )
+    nameOfBusiness = serializers.CharField(write_only=True, required=False)
+    registrationNumber = serializers.CharField(write_only=True, required=False)
+    entityType = serializers.CharField(write_only=True, required=False)
+    email = serializers.EmailField(write_only=True, required=False)
+    mobile_number = serializers.CharField(write_only=True, required=False)
+    pan = serializers.CharField(write_only=True, required=False)
 
-    def create(self, validated_data):
-        """
-        Create and return a new `InvoicingProfile` instance, given the validated data.
-        """
-        instance = self.Meta.model(**validated_data)
-        instance.save()
-        return instance
-
-    def update(self, instance, validated_data):
-        """
-        Update and return an existing `InvoicingProfile` instance, given the validated data.
-        """
-        [setattr(instance, k, v) for k, v in validated_data.items()]
-        instance.save()
-        return instance
+    address_line1 = serializers.CharField(write_only=True, required=False)
+    address_line2 = serializers.CharField(write_only=True, required=False)
+    state = serializers.CharField(write_only=True, required=False)
+    pinCode = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = InvoicingProfile
-        fields = '__all__'
+        fields = [
+            'business',
+            'bank_name', 'account_number', 'ifsc_code', 'swift_code',
+            'gst_registered', 'gstin', 'signature',
+            # Business patch fields (used only during POST/PUT)
+            'nameOfBusiness', 'registrationNumber', 'entityType',
+            'email', 'mobile_number', 'pan',
+            'address_line1', 'address_line2', 'state', 'pinCode'
+        ]
+
+    def business_patch(self, business, validated_data):
+        # Update simple fields if value is provided and different
+        for field in ['nameOfBusiness', 'registrationNumber', 'entityType', 'email', 'mobile_number', 'pan']:
+            value = validated_data.pop(field, None)
+            if value is not None and value != getattr(business, field):
+                setattr(business, field, value)
+
+        # Update address fields inside headOffice JSON
+        head_office = business.headOffice or {}
+        updated = False  # Track if any value changed
+
+        for field in ['address_line1', 'address_line2', 'state', 'pinCode']:
+            value = validated_data.pop(field, None)
+            if value is not None and head_office.get(field) != value:
+                head_office[field] = value
+                updated = True
+
+        if updated:
+            business.headOffice = head_office
+
+        business.save()
+
+    def create(self, validated_data):
+        business = validated_data.pop('business', None)
+
+        if not business:
+            raise serializers.ValidationError({"business": "This field is required."})
+
+        # Optional ownership check
+        request = self.context.get('request')
+        if business.client != request.user:
+            raise serializers.ValidationError("You do not own this business.")
+
+        self.business_patch(business, validated_data)
+        return InvoicingProfile.objects.create(business=business, **validated_data)
+
+    def update(self, instance, validated_data):
+        self.business_patch(instance.business, validated_data)
+        return super().update(instance, validated_data)
+
 
 
 class CustomerProfileGetSerializers(serializers.ModelSerializer):
