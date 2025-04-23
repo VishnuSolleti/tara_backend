@@ -1,5 +1,5 @@
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import serializers
@@ -33,46 +33,12 @@ from django.utils.timezone import now
 from django.shortcuts import get_object_or_404
 from usermanagement.utils import *
 from usermanagement.decorators import *
-
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve the invoicing profile for the logged-in user.",
-    tags=["Invoicing Profiles"],
-    responses={
-        200: openapi.Response(
-            description="Invoicing profile details.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "business": 1,
-                    "pan_number": "ABCDE1234F",
-                    "bank_name": "XYZ Bank",
-                    "account_number": 1234567890123456,
-                    "ifsc_code": "XYZ0001234",
-                    "swift_code": "XYZ1234XX",
-                    "invoice_format": {},
-                    "signature": "signatures/abc.png"
-                }
-            }
-        ),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Invoicing profile not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_invoicing_profile(request):
@@ -152,72 +118,19 @@ def invoicing_profile_exists(request):
         )
 
 
-@swagger_auto_schema(
-    method='post',
-    operation_description="Create a new invoicing profile for the logged-in user.",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            "pan_number": openapi.Schema(type=openapi.TYPE_STRING, example="ABCDE1234F"),
-            "bank_name": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ Bank"),
-            "account_number": openapi.Schema(type=openapi.TYPE_INTEGER, example=1234567890123456),
-            "ifsc_code": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ0001234"),
-            "swift_code": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ1234XX"),
-            "invoice_format": openapi.Schema(type=openapi.TYPE_OBJECT, example={}),
-            "signature": openapi.Schema(
-                type=openapi.TYPE_STRING,
-                format=openapi.FORMAT_BINARY,
-                description="Upload your signature here as an image file."
-            )
-        }
-    ),
-    tags=["Invoicing Profiles"],
-    responses={
-        201: openapi.Response(
-            description="Invoicing profile created successfully.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "business": 1,
-                    "pan_number": "ABCDE1234F",
-                    "bank_name": "XYZ Bank",
-                    "account_number": 1234567890123456,
-                    "ifsc_code": "XYZ0001234",
-                    "swift_code": "XYZ1234XX",
-                    "invoice_format": {},
-                    "signature": "signatures/abc.png"
-                }
-            }
-        ),
-        400: openapi.Response("Bad request."),
-        403: openapi.Response("Unauthorized access."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        ),
-    ]
-)
 @api_view(['POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 @permission_classes([IsAuthenticated])
 def create_invoicing_profile(request):
     """
     Create a new invoicing profile for the logged-in user.
+    Patches business fields if missing.
     """
-    user = request.user
-    data = request.data.copy()
-    # data['business'] = user.id  # Assign the current user as the business owner
-
-    serializer = InvoicingProfileSerializer(data=data)
+    serializer = InvoicingProfileSerializer(data=request.data, context={'request': request})
 
     if serializer.is_valid():
         try:
-            serializer.save()
+            serializer.save()  # Business is assigned and patched in serializer
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.error(f"Unexpected error in create_invoicing_profile: {e}")
@@ -228,85 +141,27 @@ def create_invoicing_profile(request):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@swagger_auto_schema(
-    method='put',
-    operation_description="Update the existing invoicing profile for the logged-in user.",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            "pan_number": openapi.Schema(type=openapi.TYPE_STRING, example="ABCDE1234F"),
-            "bank_name": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ Bank"),
-            "account_number": openapi.Schema(type=openapi.TYPE_INTEGER, example=1234567890123456),
-            "ifsc_code": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ0001234"),
-            "swift_code": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ1234XX"),
-            "invoice_format": openapi.Schema(type=openapi.TYPE_OBJECT, example={}),
-            "signature": openapi.Schema(type=openapi.TYPE_FILE, format=openapi.FORMAT_BINARY)  # Added file upload field
-        },
-        required=[]  # Change this to an empty list since all fields are optional
-    ),
-    tags=["Invoicing Profiles"],
-    responses={
-        200: openapi.Response(
-            description="Invoicing profile updated successfully.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "business": 1,
-                    "pan_number": "ABCDE1234F",
-                    "bank_name": "XYZ Bank",
-                    "account_number": 1234567890123456,
-                    "ifsc_code": "XYZ0001234",
-                    "swift_code": "XYZ1234XX",
-                    "invoice_format": {},
-                    "signature": "signatures/abc.png"
-                }
-            }
-        ),
-        400: openapi.Response("Bad request."),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Invoicing profile not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        ),
-    ]
-)
+
 @api_view(['PUT'])
+@parser_classes([MultiPartParser, FormParser])
 @permission_classes([IsAuthenticated])
 def update_invoicing_profile(request, pk):
     """
     Update the existing invoicing profile for the logged-in user.
+    Patches business fields if missing.
     """
     try:
-        invoicing_profile = InvoicingProfile.objects.get(id=pk)
+        invoicing_profile = InvoicingProfile.objects.get(id=pk, business__client=request.user)
     except InvoicingProfile.DoesNotExist:
         return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Ensure data is a dictionary
-    data = request.data.dict() if isinstance(request.data, QueryDict) else dict(request.data)
-
-    # Handle file uploads
-    if 'signature' in request.FILES:
-        data['signature'] = request.FILES['signature']
-
-    # Check if data is not empty
-    if not data:
-        return Response({"message": "No data provided."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Partial update
-    serializer = InvoicingProfileSerializer(invoicing_profile, data=data, partial=True)
+    serializer = InvoicingProfileSerializer(
+        invoicing_profile, data=request.data, partial=True, context={'request': request}
+    )
 
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @swagger_auto_schema(

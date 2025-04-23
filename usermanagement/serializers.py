@@ -410,16 +410,6 @@ class UserFeaturePermissionSerializer(serializers.ModelSerializer):
         fields = ['id', 'user_context_role', 'user_context_role_name', 'module', 'module_name', 'actions']
         read_only_fields = ['id']
 
-    def validate(self, data):
-        # Validate that all actions are valid
-        allowed_actions = ['create', 'read', 'update', 'delete', 'approve']
-        invalid_actions = [action for action in data['actions'] if action not in allowed_actions]
-        if invalid_actions:
-            raise serializers.ValidationError({
-                'actions': f'Actions must be one or more of: {", ".join(allowed_actions)}. Invalid actions: {", ".join(invalid_actions)}'
-            })
-        return data
-
 
 class UserActivationSerializer(serializers.Serializer):
     token = serializers.CharField()
@@ -782,3 +772,33 @@ class ConsultationSerializer(serializers.ModelSerializer):
             )
 
         return data
+
+
+class ContextRoleSerializer(serializers.ModelSerializer):
+    """Serializer for listing roles with user count in a context"""
+    user_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Role
+        fields = ['id', 'name', 'role_type', 'description', 'is_system_role', 'is_default_role', 'user_count']
+
+    def get_user_count(self, obj):
+        """Get the count of users with this role in the context"""
+        context = self.context.get('context')
+        if not context:
+            return 0
+
+        return UserContextRole.objects.filter(
+            context=context,
+            role=obj,
+            status='active'
+        ).count()
+
+
+class ContextWithRolesSerializer(serializers.ModelSerializer):
+    """Serializer for context with its roles"""
+    roles = ContextRoleSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Context
+        fields = ['id', 'name', 'context_type', 'roles']
