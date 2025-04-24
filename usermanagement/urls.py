@@ -226,5 +226,8 @@ urlpatterns = [
 
     path('context-roles/list', roles_views.list_context_roles, name='list-context-roles'),
 
+    path('context/<int:context_id>/subscriptions/', personal_context_registration.get_context_subscriptions,
+         name='get_context_subscriptions'),
+
 
 ]
