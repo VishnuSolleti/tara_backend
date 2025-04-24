@@ -103,6 +103,7 @@ def login_user(request):
                 "profile_status": context.profile_status,
                 "created_at": context.created_at,
                 "is_active": context.id == user.active_context.id if user.active_context else False,
+                "business_id": context.business_id,
                 "role": {
                     "id": ucr.role.id,
                     "name": ucr.role.name,
@@ -120,7 +121,8 @@ def login_user(request):
                 "context_type": active_context.context_type,
                 "status": active_context.status,
                 "profile_status": active_context.profile_status,
-                "created_at": active_context.created_at
+                "created_at": active_context.created_at,
+                "business_id": active_context.business_id,
             }
 
             # Get user's role in the active context
