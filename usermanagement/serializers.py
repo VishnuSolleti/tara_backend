@@ -513,7 +513,6 @@ class UserBusinessSerializer(serializers.ModelSerializer):
         return BusinessWithGSTSerializer(businesses, many=True).data
 
 
-
 class UsersKYCSerializer(serializers.ModelSerializer):
     address = AddressSerializer(default={}, required=False)  # Nested serializer for address
 
