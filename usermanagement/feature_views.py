@@ -150,9 +150,9 @@ def bulk_update_user_context_role_permissions(request, user_context_role_id):
                 module_id = permission_data.get('module')
                 actions = permission_data.get('actions', [])
 
-                if not module_id or not actions:
+                if not module_id:
                     return Response(
-                        {"error": "module and actions are required for each permission"},
+                        {"error": "Module id is required to update permissions"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
 
