@@ -110,6 +110,9 @@ urlpatterns = [
          name='bulk_create_user_feature_permissions'),
     path('user-feature-permissions/<int:pk>', feature_views.manage_user_feature_permission,
          name='manage_user_feature_permission'),
+    path('user-feature-permissions/user-context-role/<int:user_context_role_id>/bulk-update/',
+         feature_views.bulk_update_user_context_role_permissions,
+         name='bulk_update_user_context_role_permissions'),
 
     # Filtered UserFeaturePermission URLs
     path('user-feature-permissions/by-role/<int:user_context_role_id>',
