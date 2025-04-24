@@ -73,7 +73,6 @@ def get_invoicing_profile(request):
 
 
 @api_view(['GET'])
-@require_permissions(1, required_actions=['read'])
 def invoicing_profile_exists(request):
     """
     Check if all related objects exist for an invoicing profile.
