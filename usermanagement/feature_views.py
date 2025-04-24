@@ -105,6 +105,80 @@ def bulk_create_user_feature_permissions(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def bulk_update_user_context_role_permissions(request, user_context_role_id):
+    """
+    Bulk update permissions for a user context role across multiple modules.
+
+    Expected payload:
+    [
+        {
+            "module": 1,
+            "actions": [
+                "EmployeeManagement.create",
+                "EmployeeManagement.read",
+                ...
+            ]
+        },
+        {
+            "module": 2,
+            "actions": [
+                "Invoice.create",
+                "Invoice.read",
+                ...
+            ]
+        }
+    ]
+    """
+    try:
+        # Verify the user_context_role exists
+        user_context_role = get_object_or_404(UserContextRole, pk=user_context_role_id)
+
+        if not request.data:
+            return Response(
+                {"error": "Request body is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Convert single object to list if needed
+        permissions_data = request.data if isinstance(request.data, list) else [request.data]
+
+        with transaction.atomic():
+            results = []
+            for permission_data in permissions_data:
+                module_id = permission_data.get('module')
+                actions = permission_data.get('actions', [])
+
+                if not module_id or not actions:
+                    return Response(
+                        {"error": "module and actions are required for each permission"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+                # Get or create the permission
+                permission, created = UserFeaturePermission.objects.get_or_create(
+                    user_context_role=user_context_role,
+                    module_id=module_id,
+                    defaults={'actions': actions}
+                )
+
+                if not created:
+                    permission.actions = actions
+                    permission.save()
+
+                serializer = UserFeaturePermissionSerializer(permission)
+                results.append(serializer.data)
+
+            return Response(results)
+
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def manage_user_feature_permission(request, pk):
