@@ -749,8 +749,7 @@ def list_context_users(request):
 
         # Get all active user context roles for this context
         user_context_roles = UserContextRole.objects.filter(
-            context=context,
-            status='active'
+            context=context
         )
 
         # Group by user
