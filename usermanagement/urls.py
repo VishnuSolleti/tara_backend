@@ -12,6 +12,7 @@ from . import other_factors
 from . import context_business_subscription
 from . import personal_context_registration
 from . import add_team_business
+from . import module_subscription_upgrade
 
 urlpatterns = [
     # Registration endpoints
@@ -228,6 +229,11 @@ urlpatterns = [
 
     path('context/<int:context_id>/subscriptions/', personal_context_registration.get_context_subscriptions,
          name='get_context_subscriptions'),
+
+
+    # Module Subscription Upgrade
+    path('module-context-subscription/upgrade/', module_subscription_upgrade.upgrade_module_subscription,
+         name='upgrade_subscription'),
 
 
 ]
