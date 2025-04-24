@@ -244,7 +244,8 @@ def add_team_member_to_business(request):
                     status='pending',
                     registration_flow='invited',
                     registration_completed=False,
-                    is_active='no'
+                    is_active='no',
+                    created_by=authenticated_user,
                 )
                 is_new_user = True
 
@@ -704,6 +705,7 @@ def list_context_users(request):
                 "mobile_number": "1234567890",
                 "status": "active",
                 "role": {
+                    "user_context_role_id": 1,
                     "role_id": 1,
                     "role_name": "Admin",
                     "role_type": "admin",
@@ -791,6 +793,7 @@ def list_context_users(request):
                     "mobile_number": user.mobile_number,
                     "status": user.status,
                     "role": {
+                        "user_context_role_id": ucr.id,  # Added user_context_role_id
                         "role_id": role.id,
                         "role_name": role.name,
                         "role_type": role.role_type,

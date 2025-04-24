@@ -217,3 +217,99 @@ def search_user_by_email(request):
             'message': str(e)
         }, status=500)
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_context_subscriptions(request, context_id):
+    """
+    Get all recent subscriptions for a specific context with detailed information.
+
+    Args:
+        context_id (int): The ID of the context to get subscriptions for
+
+    Returns:
+        Response: List of subscriptions with their details including subscription plan, pricing, and usage information
+    """
+    try:
+        # Get the context
+        context = Context.objects.get(id=context_id)
+
+        # Get all active subscriptions for this context
+        subscriptions = ModuleSubscription.objects.filter(
+            context=context,
+            status__in=['active', 'trial']
+        ).select_related(
+            'module',
+            'plan'
+        ).order_by('-created_at')
+
+        # Format the response
+        subscription_data = []
+        for subscription in subscriptions:
+            # Get module features for this subscription
+            module_features = ModuleFeature.objects.filter(
+                module=subscription.module
+            ).values('id', 'service', 'action', 'label')
+
+            # Get subscription plan details if available
+            plan_data = None
+            if subscription.plan:
+                plan = subscription.plan
+                plan_data = {
+                    'plan_id': plan.id,
+                    'plan_name': plan.name,
+                    'plan_type': plan.plan_type,
+                    'description': plan.description,
+                    'base_price': str(plan.base_price),  # Convert Decimal to string
+                    'billing_cycle_days': plan.billing_cycle_days,
+                    'features_enabled': plan.features_enabled,
+                    'is_active': plan.is_active,
+                    'created_at': plan.created_at,
+                    'updated_at': plan.updated_at
+                }
+
+            subscription_data.append({
+                'subscription_id': subscription.id,
+                'module_id': subscription.module.id,
+                'module_name': subscription.module.name,
+                'module_description': subscription.module.description,
+                'status': subscription.status,
+                'start_date': subscription.start_date,
+                'end_date': subscription.end_date,
+                'created_at': subscription.created_at,
+                'last_updated': subscription.updated_at,
+                'auto_renew': subscription.auto_renew,
+                'payment_status': subscription.payment_status if hasattr(subscription, 'payment_status') else None,
+                'trial_period': subscription.status == 'trial',
+                'trial_end_date': subscription.end_date if subscription.status == 'trial' else None,
+                'subscription_plan': plan_data,
+                'features': list(module_features),
+                'subscription_history': [
+                    {
+                        'status': history.status,
+                        'changed_at': history.changed_at,
+                        'changed_by': history.changed_by.username if history.changed_by else None,
+                        'reason': history.reason
+                    }
+                    for history in subscription.subscription_history.all()
+                ] if hasattr(subscription, 'subscription_history') else []
+            })
+
+        return Response({
+            'context_id': context.id,
+            'context_name': context.name,
+            'context_type': context.context_type,
+            'total_active_subscriptions': len(subscription_data),
+            'subscriptions': subscription_data
+        }, status=status.HTTP_200_OK)
+
+    except Context.DoesNotExist:
+        return Response(
+            {"error": f"Context with ID {context_id} does not exist."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {"error": f"Failed to get subscriptions: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
