@@ -521,12 +521,6 @@ class InvoiceFormatData(serializers.ModelSerializer):
         exclude = ['invoicing_profile']
 
 
-class BusinessSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Business
-        fields = '__all__'
-
-
 class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
     business = BusinessSerializer(read_only=True)
     customer_profiles = CustomerProfileGetSerializers(many=True)

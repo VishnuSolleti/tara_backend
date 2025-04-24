@@ -513,7 +513,6 @@ class UserBusinessSerializer(serializers.ModelSerializer):
         return BusinessWithGSTSerializer(businesses, many=True).data
 
 
-
 class UsersKYCSerializer(serializers.ModelSerializer):
     address = AddressSerializer(default={}, required=False)  # Nested serializer for address
 
@@ -658,7 +657,6 @@ class ServiceDetailsSerializer(serializers.ModelSerializer):
             # Get only the date part from the datetime field
             return obj.last_updated.date()
         return None
-
 
 
 class VisaApplicationsSerializer(serializers.ModelSerializer):
