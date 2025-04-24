@@ -659,7 +659,6 @@ class ServiceDetailsSerializer(serializers.ModelSerializer):
         return None
 
 
-
 class VisaApplicationsSerializer(serializers.ModelSerializer):
     # services = ServiceDetailsSerializer(many=True)
 
