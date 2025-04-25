@@ -1415,7 +1415,6 @@ def createDocument(request, id):
                             }
                             for item in getattr(invoice, 'item_details', [])
             ],
-            'total': "{:,}".format(round(float(getattr(invoice, 'total_amount', 0)))),
             'subtotal': "{:,}".format(round(float(getattr(invoice, 'subtotal_amount', 0)))),
             'shipping': f"{round(float(getattr(invoice, 'shipping_amount', 0)), 2):.2f}",
             'cgst_amt': f"{round(float(getattr(invoice, 'total_cgst_amount', 0)), 2):.2f}",
