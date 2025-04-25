@@ -1327,7 +1327,7 @@ def createDocument(request, id):
     try:
         # Fetch the invoice object
         invoice = Invoice.objects.get(id=id)
-
+        print(getattr(invoice.invoicing_profile.business.headOffice.get('address_line1'), 'address_line1', ''))
         signature_base64 = ''
         # if invoice.invoicing_profile.signature:
         #     with open(invoice.invoicing_profile.signature.path, "rb") as image_file:
@@ -1349,28 +1349,27 @@ def createDocument(request, id):
         invoice_date_str = invoice_date.strftime('%d-%m-%Y')
         due_date_str = invoice.due_date.strftime('%d-%m-%Y')
 
-        if len(invoice.invoicing_profile.email) > 26:
-            business_name = split_address(invoice.invoicing_profile.email)
+        if len(invoice.invoicing_profile.business.email) > 26:
+            business_name = split_address(invoice.invoicing_profile.business.email)
             adjust_layout = True
         else:
             business_name = invoice.invoicing_profile.business.email
             adjust_layout = False
 
-
         context = {
-            'company_name': getattr(invoice.invoicing_profile.business, 'nameOfBusiness', ''),
-            'business_type': getattr(invoice.invoicing_profile.business, 'entityType', '') or
+            'company_name': getattr(invoice.invoicing_profile.business.nameOfBusiness, 'nameOfBusiness', ''),
+            'business_type': getattr(invoice.invoicing_profile.business.entityType, 'entityType', '') or
                               getattr(invoice.invoicing_profile, 'business_type', ''),
-            'address': getattr(invoice.invoicing_profile, 'address_line1', ''),
-            'state': getattr(invoice.invoicing_profile, 'state', ''),
+            'address': getattr(invoice.invoicing_profile.business.headOffice.get('address_line1'), 'address_line1', ''),
+            'state': getattr(invoice.invoicing_profile.business.headOffice.get('state'), 'state', ''),
             'country': "India",
-            'pincode': getattr(invoice.invoicing_profile, 'pinCode', ''),
+            'pincode': getattr(invoice.invoicing_profile.business.headOffice.get('pinCode'), 'pinCode', ''),
             'registration_number': getattr(invoice.invoicing_profile, 'business_registration_number', ''),
             'gst_registered': getattr(invoice.invoicing_profile, 'gst_registered', ''),
             'gstin': getattr(invoice.invoicing_profile, 'gstin', ''),
-            'email': getattr(invoice.invoicing_profile, 'email', ''),
-            'mobile': getattr(invoice.invoicing_profile, 'mobile', ''),
-            'pan': getattr(invoice.invoicing_profile, 'pan_number', ''),
+            'email': getattr(invoice.invoicing_profile.business.email, 'email', ''),
+            'mobile': getattr(invoice.invoicing_profile.business.mobile_number, 'mobile', ''),
+            'pan': getattr(invoice.invoicing_profile.business.pan, 'pan_number', ''),
             'bank_name': getattr(invoice.invoicing_profile, 'bank_name', ''),
             'account_number': getattr(invoice.invoicing_profile, 'account_number', ''),
             'ifsc_code': getattr(invoice.invoicing_profile, 'ifsc_code', ''),
