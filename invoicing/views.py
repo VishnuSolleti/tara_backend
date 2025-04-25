@@ -1327,7 +1327,6 @@ def createDocument(request, id):
     try:
         # Fetch the invoice object
         invoice = Invoice.objects.get(id=id)
-        print(getattr(invoice.invoicing_profile.business.headOffice.get('address_line1'), 'address_line1', ''))
         signature_base64 = ''
         # if invoice.invoicing_profile.signature:
         #     with open(invoice.invoicing_profile.signature.path, "rb") as image_file:
