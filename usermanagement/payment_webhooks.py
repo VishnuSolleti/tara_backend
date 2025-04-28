@@ -30,19 +30,21 @@ def razorpay_webhook(request):
         webhook_secret = "TaraFirst@2025"  # You must set this in Razorpay settings + Django settings
 
         received_signature = request.headers.get('X-Razorpay-Signature')
-
+        print(received_signature)
         generated_signature = hmac.new(
             webhook_secret.encode(),
             webhook_body,
             hashlib.sha256
         ).hexdigest()
-
+        print(generated_signature)
         if received_signature != generated_signature:
             return Response({'error': 'Invalid Signature'}, status=400)
 
+        print("signature Verified")
+
         # Step 3: Handle webhook events
         event = webhook_data.get('event')
-
+        print(event)
         if event == 'payment.captured':
             payment_entity = webhook_data['payload']['payment']['entity']
 
@@ -56,6 +58,9 @@ def razorpay_webhook(request):
 
                 payment_intent.status = 'paid'
                 payment_intent.razorpay_payment_id = razorpay_payment_id
+                # Very Important:
+                if isinstance(payment_intent.amount, str):
+                    payment_intent.amount = Decimal(payment_intent.amount)
                 payment_intent.save()
 
                 # Optionally: Here you can trigger ModuleSubscription creation (if you want via webhook auto)
