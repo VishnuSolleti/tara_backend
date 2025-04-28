@@ -40,9 +40,11 @@ def razorpay_webhook(request):
         if received_signature != generated_signature:
             return Response({'error': 'Invalid Signature'}, status=400)
 
+        print("signature Verified")
+
         # Step 3: Handle webhook events
         event = webhook_data.get('event')
-
+        print(event)
         if event == 'payment.captured':
             payment_entity = webhook_data['payload']['payment']['entity']
 
