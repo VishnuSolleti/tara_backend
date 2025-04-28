@@ -58,9 +58,11 @@ def razorpay_webhook(request):
 
                 payment_intent.status = 'paid'
                 payment_intent.razorpay_payment_id = razorpay_payment_id
+                print(payment_intent)
                 # Very Important:
                 if isinstance(payment_intent.amount, str):
                     payment_intent.amount = Decimal(payment_intent.amount)
+                    print("Converted amount to Decimal:", payment_intent.amount)
                 payment_intent.save()
 
                 # Optionally: Here you can trigger ModuleSubscription creation (if you want via webhook auto)
