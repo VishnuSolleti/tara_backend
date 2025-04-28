@@ -803,6 +803,90 @@ class SubscriptionCycle(models.Model):
         self.save()
 
 
+@receiver(post_save, sender=PaymentInfo)
+def handle_payment_success(sender, instance, created, **kwargs):
+    """
+    Handle payment success by creating/updating module subscription and subscription cycle
+    """
+    # Only proceed if payment is successful and has a plan
+    if instance.status == 'paid' and instance.plan:
+        try:
+            with transaction.atomic():
+                # Get or create module subscription
+                subscription, created = ModuleSubscription.objects.get_or_create(
+                    context=instance.context,
+                    plan=instance.plan,
+                    defaults={
+                        'status': 'active',
+                        'start_date': timezone.now(),
+                        'end_date': timezone.now() + timedelta(days=instance.plan.billing_cycle_days),
+                        'auto_renew': 'no',  # Default to no auto-renewal
+                        'added_by': instance.added_by
+                    }
+                )
+
+                # If subscription exists, handle upgrade/renewal
+                if not created:
+                    # End current active cycles
+                    active_cycles = SubscriptionCycle.objects.filter(
+                        subscription=subscription,
+                        end_date__gt=timezone.now()
+                    )
+                    for cycle in active_cycles:
+                        cycle.end_date = timezone.now()
+                        cycle.save()
+
+                    # Update subscription with new plan details
+                    subscription.plan = instance.plan
+                    subscription.status = 'active'
+                    subscription.start_date = timezone.now()
+                    subscription.end_date = timezone.now() + timedelta(days=instance.plan.billing_cycle_days)
+                    subscription.save()
+
+                # Create new subscription cycle
+                new_cycle = SubscriptionCycle.objects.create(
+                    subscription=subscription,
+                    start_date=subscription.start_date,
+                    end_date=subscription.end_date,
+                    amount=instance.amount,
+                    is_paid='yes',
+                    payment_id=instance.razorpay_payment_id,
+                    feature_usage={}  # Initialize empty feature usage
+                )
+
+                # Initialize usage cycles for the new plan's features
+                if instance.plan.features_enabled:
+                    for feature_key, config in instance.plan.features_enabled.items():
+                        if isinstance(config, dict) and (config.get("limit") is not None or config.get("track") is True):
+                            ModuleUsageCycle.objects.create(
+                                cycle=new_cycle,
+                                feature_key=feature_key,
+                                usage_count=0
+                            )
+
+                # Handle add-ons if specified in payment notes
+                if instance.notes and 'add_ons' in instance.notes:
+                    for add_on in instance.notes['add_ons']:
+                        try:
+                            price_str = str(add_on.get('price_per_unit', '0.00'))
+                            price_per_unit = Decimal(price_str) if price_str else Decimal('0.00')
+                        except (InvalidOperation, TypeError, ValueError):
+                            price_per_unit = Decimal('0.00')
+
+                        ModuleAddOn.objects.create(
+                            subscription=subscription,
+                            type=add_on['type'],
+                            quantity=add_on['quantity'],
+                            price_per_unit=price_per_unit,
+                            billing_cycle=add_on['billing_cycle']
+                        )
+
+        except Exception as e:
+            # Log the error but don't raise it to prevent signal failure
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to create/update subscription after payment: {str(e)}")
+
 @receiver(post_save, sender=ModuleSubscription)
 def create_initial_subscription_cycle(sender, instance, created, **kwargs):
     """
@@ -821,14 +905,24 @@ def create_initial_subscription_cycle(sender, instance, created, **kwargs):
                         initial_feature_usage[feature] = 0
 
             # Create the initial subscription cycle
-            SubscriptionCycle.objects.create(
+            cycle = SubscriptionCycle.objects.create(
                 subscription=instance,
                 start_date=instance.start_date,
                 end_date=instance.end_date,
-                amount = Decimal("0.00") if instance.status == 'trial' else Decimal(str(instance.plan.base_price)),
+                amount=Decimal("0.00") if instance.status == 'trial' else Decimal(str(instance.plan.base_price)),
                 is_paid='yes' if instance.status == 'trial' else 'no',
                 feature_usage=initial_feature_usage
             )
+
+            # Initialize usage cycles for the new plan's features
+            if instance.plan.features_enabled:
+                for feature_key, config in instance.plan.features_enabled.items():
+                    if isinstance(config, dict) and (config.get("limit") is not None or config.get("track") is True):
+                        ModuleUsageCycle.objects.create(
+                            cycle=cycle,
+                            feature_key=feature_key,
+                            usage_count=0
+                        )
 
     except Exception as e:
         print(f"Error creating initial subscription cycle: {str(e)}")
