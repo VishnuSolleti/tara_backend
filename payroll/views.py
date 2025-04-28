@@ -1671,7 +1671,8 @@ def employee_detail(request, pk):
 
     elif request.method == 'DELETE':
         employee.delete()
-        return Response({"message": "Employee data Removed Successfully."},
+        return Response({"message": "Employee data Removed Successfully.",
+                         "status":"Success"},
                         status=status.HTTP_204_NO_CONTENT)
 
 
