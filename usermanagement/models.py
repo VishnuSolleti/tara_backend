@@ -15,7 +15,7 @@ from cryptography.fernet import Fernet
 from djongo.models import ArrayField, EmbeddedField, JSONField
 from .helpers import *
 from django.core.validators import RegexValidator
-
+from decimal import Decimal, InvalidOperation
 
 
 YES_NO_CHOICES = [
