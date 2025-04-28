@@ -50,27 +50,44 @@ def razorpay_webhook(request):
 
             razorpay_payment_id = payment_entity['id']
             razorpay_order_id = payment_entity['order_id']
+            payment_method = payment_entity.get('method')
+            card_id = payment_entity.get('card_id')
+            bank = payment_entity.get('bank')
+            captured = payment_entity.get('captured', False)
+            vpa = payment_entity.get('vpa')
+            email = payment_entity.get('email')
+            contact = payment_entity.get('contact')
 
-
-            # Find PaymentIntent and update
             try:
                 payment_intent = PaymentInfo.objects.get(razorpay_order_id=razorpay_order_id)
 
                 payment_intent.status = 'paid'
                 payment_intent.razorpay_payment_id = razorpay_payment_id
-                print(payment_intent)
 
+                # ⭐ New fields you need to populate:
+                payment_intent.payment_method = payment_method
+                payment_intent.payment_captured = captured
+
+                if bank:
+                    payment_intent.bank = bank
+
+                if card_id:
+                    payment_intent.card_last4 = card_id[-4:]  # last 4 digits if card_id is available
+
+                if email:
+                    payment_intent.customer_email = email
+
+                if contact:
+                    payment_intent.customer_contact = contact
+
+                # ⭐ Fix amount if needed (as before)
                 if payment_intent.amount and not isinstance(payment_intent.amount, Decimal):
-                    try:
-                        payment_intent.amount = Decimal(str(payment_intent.amount))
-                    except Exception as e:
-                        print(f"Amount correction failed: {e}")
+                    payment_intent.amount = Decimal(str(payment_intent.amount))
 
                 payment_intent.save()
 
-                # Optionally: Here you can trigger ModuleSubscription creation (if you want via webhook auto)
-
-                return Response({'status': 'Payment Captured & Updated'})
+                print(f"PaymentInfo {payment_intent.razorpay_order_id} - fully updated and paid")
+                return Response({'status': 'Payment Captured & PaymentInfo Updated'})
 
             except PaymentInfo.DoesNotExist:
                 return Response({'error': 'PaymentIntent not found'}, status=404)
@@ -86,6 +103,10 @@ def razorpay_webhook(request):
 
                 payment_intent.status = 'failed'
                 payment_intent.failure_reason = failure_reason
+                # ⭐ Fix amount if needed (as before)
+                if payment_intent.amount and not isinstance(payment_intent.amount, Decimal):
+                    payment_intent.amount = Decimal(str(payment_intent.amount))
+
                 payment_intent.save()
 
                 return Response({'status': 'Payment Failed & Updated'})
