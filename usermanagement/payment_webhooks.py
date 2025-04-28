@@ -1,24 +1,16 @@
-# webhook.py (or inside views.py if you want)
-import razorpay
+# views.py
+
 import hmac
 import hashlib
 import json
+
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-from .models import PaymentInfo, ModuleSubscription, SubscriptionCycle
-from django.utils import timezone
-from datetime import timedelta
-from Tara.settings.default import RAZORPAY_CLIENT_ID, RAZORPAY_CLIENT_SECRET
-import logging
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework import status
 
-# Initialize Razorpay client
-client = razorpay.Client(auth=(RAZORPAY_CLIENT_ID, RAZORPAY_CLIENT_SECRET))
-
-# Setup Django logger
-logger = logging.getLogger(__name__)
+from .models import PaymentInfo
 
 
 @csrf_exempt
@@ -33,7 +25,7 @@ def razorpay_webhook(request):
         print("Webhook Received:", webhook_data)  # (For Debugging)
 
         # Step 2: Verify Razorpay signature
-        webhook_secret = "TaraFirst@2025"  # You must set this in Razorpay settings + Django settings
+        webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET  # You must set this in Razorpay settings + Django settings
 
         received_signature = request.headers.get('X-Razorpay-Signature')
 
