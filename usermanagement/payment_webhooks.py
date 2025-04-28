@@ -27,7 +27,7 @@ def razorpay_webhook(request):
         print("Webhook Received:", webhook_data)  # (For Debugging)
 
         # Step 2: Verify Razorpay signature
-        webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET  # You must set this in Razorpay settings + Django settings
+        webhook_secret = "TaraFirst@2025"  # You must set this in Razorpay settings + Django settings
 
         received_signature = request.headers.get('X-Razorpay-Signature')
 
