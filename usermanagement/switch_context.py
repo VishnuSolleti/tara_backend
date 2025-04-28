@@ -53,6 +53,32 @@ def generate_user_profile_response(user):
         "auto_renew": m.auto_renew
     } for m in module_subs]
 
+    all_contexts = []
+    user_context_roles = UserContextRole.objects.filter(
+        user=user,
+        status='active'
+    ).select_related('context', 'role')
+
+    for ucr in user_context_roles:
+        context = ucr.context
+        context_info = {
+            "id": context.id,
+            "name": context.name,
+            "context_type": context.context_type,
+            "status": context.status,
+            "profile_status": context.profile_status,
+            "created_at": context.created_at,
+            "is_active": context.id == user.active_context.id if user.active_context else False,
+            "business_id": context.business_id,
+            "role": {
+                "id": ucr.role.id,
+                "name": ucr.role.name,
+                "role_type": ucr.role.role_type,
+                "description": ucr.role.description
+            }
+        }
+        all_contexts.append(context_info)
+
     return {
         "user": {
             "id": user.id,
@@ -71,15 +97,19 @@ def generate_user_profile_response(user):
             "context_type": context.context_type,
             "status": context.status,
             "profile_status": context.profile_status,
-            "created_at": context.created_at
+            "created_at": context.created_at,
+            "business_id": context.business_id,
         },
+        "all_contexts": all_contexts,
         "user_role": {
             "id": user_context_role.role.id,
             "name": user_context_role.role.name,
             "role_type": user_context_role.role.role_type,
             "description": user_context_role.role.description
         },
-        "module_subscriptions": module_data
+        "module_subscriptions": module_data,
+        "user_context_role": user_context_role.id
+
     }
 
 
