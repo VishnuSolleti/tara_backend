@@ -60,16 +60,16 @@ def generate_user_profile_response(user):
     ).select_related('context', 'role')
 
     for ucr in user_context_roles:
-        context = ucr.context
+        ucr_context = ucr.context
         context_info = {
-            "id": context.id,
-            "name": context.name,
-            "context_type": context.context_type,
-            "status": context.status,
-            "profile_status": context.profile_status,
-            "created_at": context.created_at,
-            "is_active": context.id == user.active_context.id if user.active_context else False,
-            "business_id": context.business_id,
+            "id": ucr_context.id,
+            "name": ucr_context.name,
+            "context_type": ucr_context.context_type,
+            "status": ucr_context.status,
+            "profile_status": ucr_context.profile_status,
+            "created_at": ucr_context.created_at,
+            "is_active": ucr_context.id == user.active_context.id if user.active_context else False,
+            "business_id": ucr_context.business_id,
             "role": {
                 "id": ucr.role.id,
                 "name": ucr.role.name,
