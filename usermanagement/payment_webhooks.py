@@ -48,7 +48,7 @@ def razorpay_webhook(request):
 
             razorpay_payment_id = payment_entity['id']
             razorpay_order_id = payment_entity['order_id']
-            amount = Decimal(payment_entity['amount']) / 100  # Converting paise to rupees
+
 
             # Find PaymentIntent and update
             try:
