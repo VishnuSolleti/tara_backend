@@ -3,7 +3,7 @@
 import hmac
 import hashlib
 import json
-
+from decimal import Decimal
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework.decorators import api_view
@@ -48,7 +48,7 @@ def razorpay_webhook(request):
 
             razorpay_payment_id = payment_entity['id']
             razorpay_order_id = payment_entity['order_id']
-            amount = payment_entity['amount'] / 100  # Converting paise to rupees
+            amount = Decimal(payment_entity['amount']) / 100  # Converting paise to rupees
 
             # Find PaymentIntent and update
             try:
