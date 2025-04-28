@@ -648,6 +648,68 @@ class ContextSuiteSubscription(models.Model):
         return f"{self.context.name} - {self.suite.name} ({self.plan.name})"
 
 
+class PaymentInfo(models.Model):
+    context = models.ForeignKey(Context, on_delete=models.CASCADE)
+
+    plan = models.ForeignKey(
+        SubscriptionPlan,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        default=None,
+        related_name='payment_infos'
+    )
+
+    suite_subscription = models.ForeignKey(
+        ContextSuiteSubscription,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        default=None,
+        related_name='payment_infos'
+    )
+
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default='INR')
+
+    razorpay_order_id = models.CharField(max_length=255, unique=True)
+    razorpay_payment_id = models.CharField(max_length=255, blank=True, null=True)
+    razorpay_signature = models.TextField(blank=True, null=True)
+
+    payment_method = models.CharField(max_length=50, blank=True, null=True)  # UPI, card, wallet, netbanking etc.
+    card_last4 = models.CharField(max_length=4, blank=True, null=True)
+
+    status = models.CharField(max_length=20, choices=(
+        ('created', 'Created'),
+        ('paid', 'Paid'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),  # for future refund handling
+    ), default='created')
+
+    failure_reason = models.TextField(blank=True, null=True)
+
+    raw_response = models.JSONField(blank=True, null=True)  # full Razorpay order/payment response
+    notes = models.JSONField(blank=True, null=True)         # any custom notes from Razorpay
+
+    payment_captured = models.BooleanField(default=False)  # full payment captured?
+
+    added_by = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='payment_infos')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['razorpay_order_id']),
+            models.Index(fields=['razorpay_payment_id']),
+            models.Index(fields=['context', 'plan'])
+        ]
+
+    def __str__(self):
+        return f"PaymentInfo {self.razorpay_order_id} - {self.status}"
+
+
 class ModuleSubscription(models.Model):
     context = models.ForeignKey(Context, on_delete=models.CASCADE, related_name='module_subscriptions')
     module = models.ForeignKey(Module, on_delete=models.CASCADE, related_name='subscriptions')
