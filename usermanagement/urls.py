@@ -13,7 +13,8 @@ from . import context_business_subscription
 from . import personal_context_registration
 from . import add_team_business
 from . import module_subscription_upgrade
-
+from . import payment_integration
+from . import payment_webhooks
 urlpatterns = [
     # Registration endpoints
     # path('register/module', views.register_from_module, name='register_from_module'),
@@ -237,6 +238,11 @@ urlpatterns = [
     # Module Subscription Upgrade
     path('module-context-subscription/upgrade/', module_subscription_upgrade.upgrade_module_subscription,
          name='upgrade_subscription'),
+
+
+    path('create-order/', payment_integration.create_order, name='create_order'),
+    path('verify-payment/', payment_integration.verify_payment, name='verify_payment'),
+    path('webhooks/razorpay/', payment_webhooks.razorpay_webhook, name='razorpay_webhook'),
 
 
 ]
