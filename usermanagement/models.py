@@ -843,12 +843,25 @@ def handle_payment_success(sender, instance, created, **kwargs):
                     subscription.end_date = timezone.now() + timedelta(days=instance.plan.billing_cycle_days)
                     subscription.save()
 
+                # Handle amount conversion
+                try:
+                    if isinstance(instance.amount, (int, float)):
+                        amount = Decimal(str(instance.amount))
+                    elif isinstance(instance.amount, str):
+                        amount = Decimal(instance.amount)
+                    elif isinstance(instance.amount, Decimal):
+                        amount = instance.amount
+                    else:
+                        amount = Decimal('0.00')
+                except (InvalidOperation, TypeError, ValueError):
+                    amount = Decimal('0.00')
+
                 # Create new subscription cycle
                 new_cycle = SubscriptionCycle.objects.create(
                     subscription=subscription,
                     start_date=subscription.start_date,
                     end_date=subscription.end_date,
-                    amount=instance.amount,
+                    amount=amount,
                     is_paid='yes',
                     payment_id=instance.razorpay_payment_id,
                     feature_usage={}  # Initialize empty feature usage
@@ -886,6 +899,7 @@ def handle_payment_success(sender, instance, created, **kwargs):
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Failed to create/update subscription after payment: {str(e)}")
+
 
 @receiver(post_save, sender=ModuleSubscription)
 def create_initial_subscription_cycle(sender, instance, created, **kwargs):
