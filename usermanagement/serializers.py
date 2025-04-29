@@ -5,7 +5,7 @@ from .models import (
 )
 from .models import *
 from django.utils.timezone import now
-
+import re
 
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for the Users model"""
