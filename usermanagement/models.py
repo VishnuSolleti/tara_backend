@@ -16,7 +16,7 @@ from djongo.models import ArrayField, EmbeddedField, JSONField
 from .helpers import *
 from django.core.validators import RegexValidator
 from decimal import Decimal, InvalidOperation
-
+from decimal import Decimal, ROUND_HALF_UP
 
 YES_NO_CHOICES = [
         ('yes', 'Yes'),
@@ -669,7 +669,7 @@ class PaymentInfo(models.Model):
         related_name='payment_infos'
     )
 
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.FloatField()
     currency = models.CharField(max_length=10, default='INR')
 
     razorpay_order_id = models.CharField(max_length=255, unique=True)
@@ -708,6 +708,17 @@ class PaymentInfo(models.Model):
 
     def __str__(self):
         return f"PaymentInfo {self.razorpay_order_id} - {self.status}"
+
+    def save(self, *args, **kwargs):
+        # Before saving, ensure amount is rounded to 2 decimal places
+        if self.amount is not None:
+            try:
+                rounded_amount = Decimal(str(self.amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                self.amount = float(rounded_amount)
+            except (TypeError, ValueError, InvalidOperation):
+                self.amount = 0.0  # fallback to 0 if something wrong
+
+        super().save(*args, **kwargs)
 
 
 class ModuleSubscription(models.Model):
@@ -761,7 +772,7 @@ class ModuleAddOn(models.Model):
     subscription = models.ForeignKey(ModuleSubscription, on_delete=models.CASCADE)
     type = models.CharField(max_length=50)  # e.g., 'extra_user', 'extra_gstin'
     quantity = models.IntegerField(default=1)
-    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2)
+    price_per_unit = models.FloatField()
     billing_cycle = models.CharField(max_length=10, default="monthly")  # monthly/yearly
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -774,7 +785,7 @@ class SubscriptionCycle(models.Model):
     subscription = models.ForeignKey(ModuleSubscription, on_delete=models.CASCADE, related_name="cycles")
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    amount = models.FloatField()
     is_paid = models.CharField(
         max_length=3,
         choices=[
@@ -801,6 +812,17 @@ class SubscriptionCycle(models.Model):
         current_usage = self.feature_usage.get(feature_key, 0)
         self.feature_usage[feature_key] = current_usage + quantity
         self.save()
+
+    def save(self, *args, **kwargs):
+        # Before saving, ensure amount is rounded to 2 decimal places
+        if self.amount is not None:
+            try:
+                rounded_amount = Decimal(str(self.amount)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                self.amount = float(rounded_amount)
+            except (TypeError, ValueError, InvalidOperation):
+                self.amount = 0.0  # fallback to 0 if something wrong
+
+        super().save(*args, **kwargs)
 
 
 @receiver(post_save, sender=PaymentInfo)
@@ -843,25 +865,12 @@ def handle_payment_success(sender, instance, created, **kwargs):
                     subscription.end_date = timezone.now() + timedelta(days=instance.plan.billing_cycle_days)
                     subscription.save()
 
-                # Handle amount conversion
-                try:
-                    if isinstance(instance.amount, (int, float)):
-                        amount = Decimal(str(instance.amount))
-                    elif isinstance(instance.amount, str):
-                        amount = Decimal(instance.amount)
-                    elif isinstance(instance.amount, Decimal):
-                        amount = instance.amount
-                    else:
-                        amount = Decimal('0.00')
-                except (InvalidOperation, TypeError, ValueError):
-                    amount = Decimal('0.00')
-
                 # Create new subscription cycle
                 new_cycle = SubscriptionCycle.objects.create(
                     subscription=subscription,
                     start_date=subscription.start_date,
                     end_date=subscription.end_date,
-                    amount=amount,
+                    amount=round(float(instance.amount), 2),
                     is_paid='yes',
                     payment_id=instance.razorpay_payment_id,
                     feature_usage={}  # Initialize empty feature usage
@@ -881,17 +890,16 @@ def handle_payment_success(sender, instance, created, **kwargs):
                 if instance.notes and 'add_ons' in instance.notes:
                     for add_on in instance.notes['add_ons']:
                         try:
-                            price_str = str(add_on.get('price_per_unit', '0.00'))
-                            price_per_unit = Decimal(price_str) if price_str else Decimal('0.00')
-                        except (InvalidOperation, TypeError, ValueError):
-                            price_per_unit = Decimal('0.00')
+                            price_per_unit = round(float(add_on.get('price_per_unit', 0.00)), 2)
+                        except (TypeError, ValueError):
+                            price_per_unit = 0.00
 
                         ModuleAddOn.objects.create(
                             subscription=subscription,
-                            type=add_on['type'],
-                            quantity=add_on['quantity'],
+                            type=add_on.get('type', 'unknown'),
+                            quantity=add_on.get('quantity', 1),
                             price_per_unit=price_per_unit,
-                            billing_cycle=add_on['billing_cycle']
+                            billing_cycle=add_on.get('billing_cycle', 'monthly')
                         )
 
         except Exception as e:
@@ -904,31 +912,42 @@ def handle_payment_success(sender, instance, created, **kwargs):
 @receiver(post_save, sender=ModuleSubscription)
 def create_initial_subscription_cycle(sender, instance, created, **kwargs):
     """
-    Creates initial subscription cycle only when a new ModuleSubscription is created
+    Creates the initial subscription cycle only when a new ModuleSubscription is created
     """
-    if not created:  # Only proceed if this is a new subscription
+    if not created:  # Wrong in your code
         return
 
     try:
         with transaction.atomic():
-            # Initialize feature usage based on plan's features
+            # Initialize feature usage from plan's features
             initial_feature_usage = {}
             if instance.plan.features_enabled:
                 for feature, details in instance.plan.features_enabled.items():
                     if isinstance(details, dict) and 'limit' in details:
                         initial_feature_usage[feature] = 0
 
+            # Determine amount
+            if instance.status == 'trial':
+                amount = 0.00
+                is_paid = 'yes'
+            else:
+                try:
+                    amount = round(float(instance.plan.base_price), 2)
+                except (TypeError, ValueError):
+                    amount = 0.00
+                is_paid = 'no'
+
             # Create the initial subscription cycle
             cycle = SubscriptionCycle.objects.create(
                 subscription=instance,
                 start_date=instance.start_date,
                 end_date=instance.end_date,
-                amount=Decimal("0.00") if instance.status == 'trial' else Decimal(str(instance.plan.base_price)),
-                is_paid='yes' if instance.status == 'trial' else 'no',
+                amount=amount,
+                is_paid=is_paid,
                 feature_usage=initial_feature_usage
             )
 
-            # Initialize usage cycles for the new plan's features
+            # Initialize ModuleUsageCycle entries for feature tracking
             if instance.plan.features_enabled:
                 for feature_key, config in instance.plan.features_enabled.items():
                     if isinstance(config, dict) and (config.get("limit") is not None or config.get("track") is True):
@@ -939,7 +958,6 @@ def create_initial_subscription_cycle(sender, instance, created, **kwargs):
                         )
 
     except Exception as e:
-        print(f"Error creating initial subscription cycle: {str(e)}")
         raise
 
 
@@ -1121,6 +1139,7 @@ def create_or_update_business(sender, instance, created, **kwargs):
             # Update Business name if Context name changes
             instance.business.nameOfBusiness = instance.name
             instance.business.save()
+
 
 @receiver(pre_save, sender=Business)
 def sync_business_name_with_context(sender, instance, **kwargs):
