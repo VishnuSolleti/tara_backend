@@ -463,6 +463,221 @@ class GSTDetailsSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+class TDSDetailsSerializer(serializers.ModelSerializer):
+    authorized_personal_Details = serializers.JSONField(required=False, allow_null=True)
+    income_tax_details = serializers.JSONField(required=False, allow_null=True)
+
+    class Meta:
+        model = TDSDetails
+        fields = '__all__'
+
+    def create(self, validated_data):
+        """
+        Create and return a new `TDSDetails` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `TDSDetails` instance, given the validated data.
+        """
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
+
+
+class LicenseDetailsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for LicenseDetails model for listing and creating operations.
+    """
+
+    class Meta:
+        model = LicenseDetails
+        fields = '__all__'
+
+    def validate(self, data):
+        """
+        Validate the license details data.
+        """
+        # Check if date_of_expiry is after date_of_issue
+        if data.get('date_of_issue') and data.get('date_of_expiry'):
+            if data['date_of_expiry'] <= data['date_of_issue']:
+                raise serializers.ValidationError("Expiry date must be after issue date")
+        return data
+
+    def create(self, validated_data):
+        """
+        Create a new LicenseDetails instance with proper handling of the license document.
+        """
+        try:
+            # Create the license details instance
+            license_details = LicenseDetails.objects.create(**validated_data)
+            return license_details
+        except Exception as e:
+            raise serializers.ValidationError(f"Error creating license details: {str(e)}")
+
+    def update(self, instance, validated_data):
+        """
+        Update an existing LicenseDetails instance.
+        """
+        try:
+            # Update each field in the instance
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+
+            # Save the updated instance
+            instance.save()
+            return instance
+        except Exception as e:
+            raise serializers.ValidationError(f"Error updating license details: {str(e)}")
+
+
+class DSCDetailsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for DSCDetails model for listing and creating operations.
+    """
+
+    class Meta:
+        model = DSCDetails
+        fields = '__all__'
+
+    def validate(self, data):
+        """
+        Validate the DSC details data.
+        """
+        # Check if date_of_expiry is after date_of_issue
+        if data.get('date_of_issue') and data.get('date_of_expiry'):
+            if data['date_of_expiry'] <= data['date_of_issue']:
+                raise serializers.ValidationError("Expiry date must be after issue date")
+
+        return data
+
+    def create(self, validated_data):
+        """
+        Create a new DSCDetails instance.
+        """
+        try:
+            dsc_details = DSCDetails.objects.create(**validated_data)
+            return dsc_details
+        except Exception as e:
+            raise serializers.ValidationError(f"Error creating DSC details: {str(e)}")
+
+    def update(self, instance, validated_data):
+        """
+        Update an existing DSCDetails instance.
+        """
+        try:
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            return instance
+        except Exception as e:
+            raise serializers.ValidationError(f"Error updating DSC details: {str(e)}")
+
+
+class BankDetailsSerializer(serializers.ModelSerializer):
+    """
+    Serializer for BankDetails model for listing and creating operations.
+    """
+
+    class Meta:
+        model = BankDetails
+        fields = '__all__'
+
+    def validate(self, data):
+        """
+        Validate the bank details data.
+        """
+        # Validate IFSC code format (11 characters, alphanumeric)
+        if data.get('ifsc_code'):
+            if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', data['ifsc_code']):
+                raise serializers.ValidationError("Invalid IFSC code format")
+
+        # Validate SWIFT code format (8 or 11 characters, alphanumeric)
+        if data.get('swift_code'):
+            if not re.match(r'^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$', data['swift_code']):
+                raise serializers.ValidationError("Invalid SWIFT code format")
+
+        # Validate account number (numeric, 9-18 digits)
+        if data.get('account_number'):
+            if not re.match(r'^\d{9,18}$', data['account_number']):
+                raise serializers.ValidationError("Invalid account number format")
+
+        return data
+
+    def create(self, validated_data):
+        """
+        Create a new BankDetails instance.
+        """
+        try:
+            bank_details = BankDetails.objects.create(**validated_data)
+            return bank_details
+        except Exception as e:
+            raise serializers.ValidationError(f"Error creating bank details: {str(e)}")
+
+    def update(self, instance, validated_data):
+        """
+        Update an existing BankDetails instance.
+        """
+        try:
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            return instance
+        except Exception as e:
+            raise serializers.ValidationError(f"Error updating bank details: {str(e)}")
+
+
+class KeyManagerialPersonnelSerializer(serializers.ModelSerializer):
+    """
+    Serializer for KeyManagerialPersonnel model for listing and creating operations.
+    """
+
+    class Meta:
+        model = KeyManagerialPersonnel
+        fields = '__all__'
+
+    def validate(self, data):
+        """
+        Validate the KMP details data.
+        """
+        # Validate PAN number format if provided
+        if data.get('pan_number'):
+            if not re.match(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$', data['pan_number']):
+                raise serializers.ValidationError("Invalid PAN number format")
+
+        # Validate status if provided
+        if data.get('status'):
+            allowed_statuses = ['active', 'inactive', 'resigned']
+            if data['status'] not in allowed_statuses:
+                raise serializers.ValidationError(f"Status must be one of: {', '.join(allowed_statuses)}")
+
+        return data
+
+    def create(self, validated_data):
+        """
+        Create a new KeyManagerialPersonnel instance.
+        """
+        try:
+            kmp = KeyManagerialPersonnel.objects.create(**validated_data)
+            return kmp
+        except Exception as e:
+            raise serializers.ValidationError(f"Error creating KMP details: {str(e)}")
+
+    def update(self, instance, validated_data):
+        """
+        Update an existing KeyManagerialPersonnel instance.
+        """
+        try:
+            for attr, value in validated_data.items():
+                setattr(instance, attr, value)
+            instance.save()
+            return instance
+        except Exception as e:
+            raise serializers.ValidationError(f"Error updating KMP details: {str(e)}")
 
 class BusinessUserSerializer(serializers.ModelSerializer):
     entityType = serializers.CharField(max_length=50, required=False)

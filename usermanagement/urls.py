@@ -244,5 +244,24 @@ urlpatterns = [
     path('verify-payment/', payment_integration.verify_payment, name='verify_payment'),
     path('webhooks/razorpay/', payment_webhooks.razorpay_webhook, name='razorpay_webhook'),
 
+    # TDS Details URLs
+    path('tds-details/', other_factors.tds_details_list_create, name='tds-details-list-create'),
+    path('tds-details/<int:pk>/', other_factors.tds_details_detail, name='tds-details-detail'),
+
+    #Bank Details URLs
+    path('bank-details/', other_factors.bank_details_list_create, name='bank-details-list-create'),
+    path('bank-details/<int:pk>/', other_factors.bank_details_detail, name='bank-details-detail'),
+
+    #KeyManagerialPersonnel(KMP) Details URLs
+    path('kmp-details/', other_factors.kmp_list_create, name='kmp-details-list-create'),
+    path('kmp-details/<int:pk>/', other_factors.kmp_detail, name='kmp-details-detail'),
+
+    # License Details URLs
+    path('license-details/', other_factors.license_details_list_create, name='license-details-list-create'),
+    path('license-details/<int:pk>/', other_factors.license_details_detail, name='license-details-detail'),
+
+    # DSC Details URLs
+    path('dsc-details/', other_factors.dsc_details_list_create, name='dsc-details-list-create'),
+    path('dsc-details/<int:pk>/', other_factors.dsc_details_detail, name='dsc-details-detail'),
 
 ]
