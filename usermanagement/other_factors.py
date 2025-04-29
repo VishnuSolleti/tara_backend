@@ -408,7 +408,7 @@ class ActivateUserView(APIView):
     permission_classes = [AllowAny]
 
 
-    def get(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         """
         Handle user account activation using query parameters (uid and token).
         """
