@@ -277,7 +277,7 @@ def add_team_member_to_business(request):
                 # Generate invitation token
                 token = invitation_token_generator.make_token(user)
                 uid = urlsafe_base64_encode(str(user.pk).encode())
-                invitation_link = f"{FRONTEND_URL}/accept-invitation?uid={uid}&token={token}"
+                invitation_link = f"{FRONTEND_URL}accept-invitation?uid={uid}&token={token}"
 
                 # Initialize SES client
                 ses_client = boto3.client(
