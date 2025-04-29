@@ -1138,6 +1138,8 @@ def sync_business_name_with_context(sender, instance, **kwargs):
 class GSTDetails(BaseModel):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='gst_details')
     gstin = models.CharField(max_length=120, unique=True, null=True, blank=True)
+    legal_name = models.CharField(max_length=120, null=True, blank=True)
+    trade_name = models.CharField(max_length=120, null=True, blank=True)
     gst_username = models.CharField(max_length=60, null=True, blank=True)
     gst_password = models.CharField(max_length=20, null=True, blank=True)
     address = models.CharField(max_length=120, null=True, blank=True)
@@ -1146,10 +1148,87 @@ class GSTDetails(BaseModel):
     state = models.CharField(max_length=60, null=True, blank=True, default=None)
     authorized_signatory_pan = models.CharField(max_length=60, null=True, blank=True, default=None)
     gst_document = models.FileField(upload_to=gst_document_upload_path, null=True, blank=True)
+    is_composition_scheme = models.CharField(max_length=3, choices=YES_NO_CHOICES, default='no')
+    composition_scheme_percent = models.CharField(max_length=10, null=True, blank=True)
+    is_export_sez = models.CharField(max_length=3, choices=YES_NO_CHOICES, default='no')
+    lut_reg_no = models.CharField(max_length=100, blank=True)
+    dob = models.DateField(null=True, blank=True)
+    financial_year = models.CharField(max_length=20, blank=True)
 
     def __str__(self):
         return f"GST Details for {self.business.nameOfBusiness}"
 
+class TDSDetails(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='tds_details')
+    tan_number = models.CharField(max_length=20, null=True, blank=True)
+    pan = models.CharField(max_length=20, null=True, blank=True)
+    legal_name = models.CharField(max_length=120, null=True, blank=True)
+    trade_name = models.CharField(max_length=120, null=True, blank=True)
+    location = models.CharField(max_length=120, null=True, blank=True)
+    deductor_category = models.CharField(max_length=120, null=True, blank=True)
+    deductor_type = models.CharField(max_length=120, null=True, blank=True)
+    address = models.CharField(max_length=120, null=True, blank=True)
+    pinCode = models.IntegerField(null=True)
+    state = models.CharField(max_length=60, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    mobile_number = models.CharField(max_length=15, null=True, blank=True)
+    tds_username = models.CharField(max_length=60, null=True, blank=True)
+    tds_password = models.CharField(max_length=60, null=True, blank=True)
+    authorized_personal_Details = models.JSONField(default=dict, null=True, blank=True)
+    income_tax_details = models.JSONField(default=dict, null=True, blank=True)
+
+    def __str__(self):
+        return f"TDS Details for {self.business.nameOfBusiness}"
+
+class LicenseDetails(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='license_details')
+    license_type = models.CharField(max_length=100, null=True, blank=True)
+    license_number = models.CharField(max_length=100, null=True, blank=True)
+    location = models.CharField(max_length=100, null=True, blank=True)
+    date_of_issue = models.DateField(null=True, blank=True)
+    date_of_expiry = models.DateField(null=True, blank=True)
+    license_document = models.FileField(upload_to=license_document_upload_path, null=True, blank=True)
+
+    def __str__(self):
+        return f"License Details for {self.business.nameOfBusiness}"
+
+class DSCDetails(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='dsc_details')
+    name = models.CharField(max_length=100, null=True, blank=True)
+    dsc_type = models.CharField(max_length=100, null=True, blank=True)
+    dsc_number = models.CharField(max_length=100, null=True, blank=True)
+    issue_authority = models.CharField(max_length=100, null=True, blank=True)
+    date_of_issue = models.DateField(null=True, blank=True)
+    date_of_expiry = models.DateField(null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    mobile_number = models.CharField(max_length=15, null=True, blank=True)
+    location = models.CharField(max_length=100, null=True, blank=True)
+
+
+    def __str__(self):
+        return f"DSC Details for {self.business.nameOfBusiness}"
+
+class BankDetails(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='bank_details')
+    bank_name = models.CharField(max_length=100, null=True, blank=True)
+    account_number = models.CharField(max_length=20, null=True, blank=True)
+    branch_name = models.CharField(max_length=100, null=True, blank=True)
+    ifsc_code = models.CharField(max_length=11, null=True, blank=True)
+    swift_code = models.CharField(max_length=11, null=True, blank=True)
+
+    def __str__(self):
+        return f"Bank Details for {self.business.nameOfBusiness}"
+
+class KeyManagerialPersonnel(models.Model):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='key_managerial_personnel')
+    name = models.CharField(max_length=100, null=True, blank=True)
+    designation = models.CharField(max_length=100, null=True, blank=True)
+    pan_number = models.CharField(max_length=20, null=True, blank=True)
+    role = models.CharField(max_length=100, null=True, blank=True)
+    status = models.CharField(max_length=20, null=True, blank=True)
+
+    def __str__(self):
+        return f"KMP Details for {self.business.nameOfBusiness}"
 
 class ServiceDetails(models.Model):
     STATUS_CHOICES = [

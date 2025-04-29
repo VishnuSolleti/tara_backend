@@ -19,7 +19,8 @@ from django.contrib.auth import get_user_model
 from django.conf import settings
 from .models import *
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 import logging
@@ -1137,6 +1138,7 @@ def business_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 def gst_details_list_create(request):
     """
     List all GST details or create a new GST detail.
@@ -1156,6 +1158,7 @@ def gst_details_list_create(request):
 
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 def gst_details_detail(request, pk):
     """
     Retrieve, update or delete a GST detail by ID.
@@ -1180,6 +1183,241 @@ def gst_details_detail(request, pk):
         gst_detail.delete()
         return Response({"message": "GST Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
+@api_view(['GET', 'POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def tds_details_list_create(request):
+    """
+    List all TDS details or create a new TDS detail.
+    """
+    if request.method == 'GET':
+        tds_details = TDSDetails.objects.all()
+        serializer = TDSDetailsSerializer(tds_details, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = TDSDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def tds_details_detail(request, pk):
+    """
+    Retrieve, update or delete a TDS detail by ID.
+    """
+    try:
+        tds_detail = TDSDetails.objects.get(pk=pk)
+    except TDSDetails.DoesNotExist:
+        return Response({"error": "TDS Detail not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = TDSDetailsSerializer(tds_detail)
+        return Response(serializer.data)
+
+    elif request.method in ['PUT', 'PATCH']:
+        serializer = TDSDetailsSerializer(tds_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        tds_detail.delete()
+        return Response({"message": "TDS Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def license_details_list_create(request):
+    """
+    List all license details or create a new license detail.
+    """
+    if request.method == 'GET':
+        license_details = LicenseDetails.objects.all()
+        serializer = LicenseDetailsSerializer(license_details, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = LicenseDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def license_details_detail(request, pk):
+    """
+    Retrieve, update or delete a license detail by ID.
+    """
+    try:
+        license_detail = LicenseDetails.objects.get(pk=pk)
+    except LicenseDetails.DoesNotExist:
+        return Response({"error": "License Detail not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = LicenseDetailsSerializer(license_detail)
+        return Response(serializer.data)
+
+    elif request.method in ['PUT', 'PATCH']:
+        serializer = LicenseDetailsSerializer(license_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        license_detail.delete()
+        return Response({"message": "License Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def dsc_details_list_create(request):
+    """
+    List all DSC details or create a new DSC detail.
+    """
+    if request.method == 'GET':
+        dsc_details = DSCDetails.objects.all()
+        serializer = DSCDetailsSerializer(dsc_details, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'POST':
+        serializer = DSCDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def dsc_details_detail(request, pk):
+    """
+    Retrieve, update or delete a DSC detail by ID.
+    """
+    try:
+        dsc_detail = DSCDetails.objects.get(pk=pk)
+    except DSCDetails.DoesNotExist:
+        return Response({"error": "DSC Detail not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = DSCDetailsSerializer(dsc_detail)
+        return Response(serializer.data)
+
+    elif request.method in ['PUT', 'PATCH']:
+        serializer = DSCDetailsSerializer(dsc_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        dsc_detail.delete()
+        return Response({"message": "DSC Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def bank_details_list_create(request):
+    """
+    List all bank details or create a new bank detail.
+    """
+    if request.method == 'GET':
+        bank_details = BankDetails.objects.all()
+        serializer = BankDetailsSerializer(bank_details, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = BankDetailsSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def bank_details_detail(request, pk):
+    """
+    Retrieve, update or delete a bank detail.
+    """
+    try:
+        bank_detail = BankDetails.objects.get(pk=pk)
+    except BankDetails.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = BankDetailsSerializer(bank_detail)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = BankDetailsSerializer(bank_detail, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'PATCH':
+        serializer = BankDetailsSerializer(bank_detail, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        bank_detail.delete()
+        return Response({"message": "Bank Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+@api_view(['GET', 'POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def kmp_list_create(request):
+    """
+    List all KMP details or create a new KMP detail.
+    """
+    if request.method == 'GET':
+        kmp_details = KeyManagerialPersonnel.objects.all()
+        serializer = KeyManagerialPersonnelSerializer(kmp_details, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = KeyManagerialPersonnelSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
+def kmp_detail(request, pk):
+    """
+    Retrieve, update or delete a KMP detail.
+    """
+    try:
+        kmp = KeyManagerialPersonnel.objects.get(pk=pk)
+    except KeyManagerialPersonnel.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = KeyManagerialPersonnelSerializer(kmp)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = KeyManagerialPersonnelSerializer(kmp, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'PATCH':
+        serializer = KeyManagerialPersonnelSerializer(kmp, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        kmp.delete()
+        return Response({"message": "Key Managerial Personnel Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 def documents_view(request):
     # Get the URL from the query parameters
