@@ -415,8 +415,8 @@ class ActivateUserView(APIView):
         logger.info("Starting user account activation process.")
 
         # Get 'uid' and 'token' from query parameters
-        uid = request.query_params.get('uid')
-        token = request.query_params.get('token')
+        uid = request.data.get('uid')
+        token = request.data.get('token')
 
         if not uid or not token:
             raise Http404("UID or token is missing from the request.")
