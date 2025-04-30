@@ -92,10 +92,7 @@ class Context(models.Model):
     name = models.CharField(max_length=255)
     context_type = models.CharField(
         max_length=20,
-        choices=[
-            ('personal', 'Personal'),
-            ('business', 'Business')
-        ]
+        choices=[('personal', 'Personal'), ('business', 'Business')]
     )
     owner_user = models.ForeignKey(
         'Users',
@@ -146,23 +143,30 @@ class Context(models.Model):
                 'business': 'Personal context cannot be associated with a Business record.'
             })
 
+    def validate_profile_completion(self):
+        if self.context_type == 'business':
+            if self.business:
+                self.profile_status = 'complete'
+        elif self.context_type == 'personal':
+            if hasattr(self.owner_user, 'userkyc') and self.owner_user.userkyc.is_completed:
+                self.profile_status = 'complete'
+            else:
+                self.profile_status = 'incomplete'
+
     def save(self, *args, **kwargs):
-        # Set initial profile status for business context
         if self.context_type == 'business' and self.pk is None:
             self.profile_status = 'pending_business_details'
 
-        self.clean()
+        self.validate_profile_completion()
+        self.full_clean()
         is_new = self.pk is None
         super().save(*args, **kwargs)
 
-        # If this is a new context, create default roles
         if is_new:
             self.create_default_roles()
 
     def create_default_roles(self):
-        """Create default roles for this context"""
         if self.context_type == 'personal':
-            # Personal context only gets owner role
             Role.objects.get_or_create(
                 name="Owner",
                 context=self,
@@ -175,7 +179,6 @@ class Context(models.Model):
                 }
             )
         else:
-            # Business context gets standard roles
             business_roles = [
                 {
                     "name": "Owner",
@@ -198,7 +201,6 @@ class Context(models.Model):
                     "description": "Regular employee with basic access"
                 }
             ]
-
             for role_data in business_roles:
                 Role.objects.get_or_create(
                     name=role_data["name"],
@@ -213,7 +215,6 @@ class Context(models.Model):
                 )
 
     def get_business_details(self):
-        """Get business details if context is business type"""
         if self.context_type == 'business':
             if self.business:
                 return {
@@ -1111,6 +1112,30 @@ class UserKYC(models.Model):
         return f"{self.user.email} - {self.user.user_type}"
 
 
+@receiver(post_save, sender=UserKYC)
+def update_personal_context_on_kyc_complete(sender, instance, **kwargs):
+    user = instance.user
+    if not instance.is_completed:
+        return
+
+    # Update all personal contexts owned by this user
+    personal_contexts = Context.objects.filter(owner_user=user, context_type='personal')
+    for context in personal_contexts:
+        context.profile_status = 'complete'
+
+        # Update metadata with KYC info
+        context.metadata['kyc'] = {
+            'name': instance.name,
+            'pan_number': instance.pan_number,
+            'aadhaar_number': instance.aadhaar_number,
+            'date': str(instance.date) if instance.date else None,
+            'icai_number': instance.icai_number if instance.have_firm else None,
+            'address': instance.address if instance.address else {}
+        }
+
+        context.save()
+
+
 class FirmKYC(models.Model):
     user = models.OneToOneField(Users, on_delete=models.CASCADE)
     firm_name = models.CharField(max_length=255, blank=True, null=True)
@@ -1263,6 +1288,7 @@ class GSTDetails(BaseModel):
     def __str__(self):
         return f"GST Details for {self.business.nameOfBusiness}"
 
+
 class TDSDetails(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='tds_details')
     tan_number = models.CharField(max_length=20, null=True, blank=True)
@@ -1285,6 +1311,7 @@ class TDSDetails(models.Model):
     def __str__(self):
         return f"TDS Details for {self.business.nameOfBusiness}"
 
+
 class LicenseDetails(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='license_details')
     license_type = models.CharField(max_length=100, null=True, blank=True)
@@ -1296,6 +1323,7 @@ class LicenseDetails(models.Model):
 
     def __str__(self):
         return f"License Details for {self.business.nameOfBusiness}"
+
 
 class DSCDetails(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='dsc_details')
@@ -1313,6 +1341,7 @@ class DSCDetails(models.Model):
     def __str__(self):
         return f"DSC Details for {self.business.nameOfBusiness}"
 
+
 class BankDetails(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='bank_details')
     bank_name = models.CharField(max_length=100, null=True, blank=True)
@@ -1324,6 +1353,7 @@ class BankDetails(models.Model):
     def __str__(self):
         return f"Bank Details for {self.business.nameOfBusiness}"
 
+
 class KeyManagerialPersonnel(models.Model):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='key_managerial_personnel')
     name = models.CharField(max_length=100, null=True, blank=True)
@@ -1334,6 +1364,7 @@ class KeyManagerialPersonnel(models.Model):
 
     def __str__(self):
         return f"KMP Details for {self.business.nameOfBusiness}"
+
 
 class ServiceDetails(models.Model):
     STATUS_CHOICES = [

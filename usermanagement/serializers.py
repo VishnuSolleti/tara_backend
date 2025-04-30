@@ -729,76 +729,47 @@ class UserBusinessSerializer(serializers.ModelSerializer):
 
 
 class UsersKYCSerializer(serializers.ModelSerializer):
-    address = AddressSerializer(default={}, required=False)  # Nested serializer for address
+    address = AddressSerializer(required=True)
 
     class Meta:
         model = UserKYC
         fields = [
-            'id', 'user', 'pan_number', 'aadhaar_number', 'date', 'icai_number', 'address', 'name', 'have_firm'
+            'id', 'user', 'pan_number', 'aadhaar_number', 'date',
+            'icai_number', 'address', 'name', 'have_firm'
         ]
-        read_only_fields = ['user']  # Prevent modification of `user` field
+        read_only_fields = ['user']
 
     def validate(self, data):
-        """
-        Validate data based on the user type.
-        """
-        user = self.context['request'].user  # Accessing the user from the request context
-
-        # Ensure user_type exists in the user model
-        if not hasattr(user, 'user_type'):
-            raise serializers.ValidationError("User type is missing.")
-
-        user_type = user.user_type
+        have_firm = data.get('have_firm', False)
         icai_number = data.get('icai_number')
 
-        # Ensure `icai_number` is None for individuals
-        if user_type == 'individual' and icai_number is not None:
+        # Enforce ICAI number if the user has a firm
+        if have_firm and not icai_number:
             raise serializers.ValidationError({
-                "icai_number": "ICAI Number must be None for individual user type."
+                "icai_number": "ICAI Number is required when 'have_firm' is true."
             })
 
-        # Ensure `icai_number` is provided for CA firms
-        if user_type == 'cafirm' and not icai_number:
+        # Prevent ICAI number if user has no firm
+        if not have_firm and icai_number:
             raise serializers.ValidationError({
-                "icai_number": "ICAI Number is required for Chartered Accountant Firm."
+                "icai_number": "ICAI Number must not be provided when 'have_firm' is false."
             })
 
         return data
 
     def create(self, validated_data):
-        """
-        Create a new `UserKYC` instance.
-        """
-        # Handle address field: if it's not provided, use default empty address
-        address_data = validated_data.pop('address', None)
-        if address_data is None:
-            address_data = {
-                "address_line1": None,
-                "address_line2": None,
-                "address_line3": None,
-                "pincode": None,
-                "state": None,
-                "city": None,
-                "country": None
-            }
+        address_data = validated_data.pop('address', {})
+        user = self.context['request'].user
+        return UserKYC.objects.create(user=user, address=address_data, **validated_data)
 
-        # Create the UserKYC instance
-        user_details = UserKYC.objects.create(**validated_data, address=address_data)
-        return user_details
 
     def update(self, instance, validated_data):
-        """
-        Update an existing `UserKYC` instance.
-        """
-        # Extract and handle address data
         address_data = validated_data.pop('address', None)
 
-        # Update other fields
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        # Update the address field if it's provided
-        if address_data:
+        if address_data is not None:
             instance.address = address_data
 
         instance.save()

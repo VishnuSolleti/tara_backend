@@ -265,9 +265,9 @@ urlpatterns = [
     path('dsc-details/', other_factors.dsc_details_list_create, name='dsc-details-list-create'),
     path('dsc-details/<int:pk>/', other_factors.dsc_details_detail, name='dsc-details-detail'),
 
-    path('services/', service_views.service_list_create),
-    path('services/<int:service_id>/', service_views.service_detail),
-    path('services/<int:service_id>/plans/', service_views.service_plan_list_create),
-    path('plans/<int:plan_id>/', service_views.service_plan_detail),
+    path('feature-services/', service_views.service_list_create),
+    path('feature-services/<int:service_id>', service_views.service_detail),
+    path('feature-services/<int:service_id>/plans/', service_views.service_plan_list_create),
+    path('feature-service-plans/<int:plan_id>', service_views.service_plan_detail),
 
 ]
