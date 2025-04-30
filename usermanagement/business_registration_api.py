@@ -70,7 +70,8 @@ def register_business(request):
                 context_type='business',
                 owner_user=user,
                 status='active',
-                profile_status='complete'
+                profile_status='complete',
+                metadata={}
             )
 
             # 3. Set active_context_id for the user
@@ -285,7 +286,8 @@ def add_another_context(request):
                 context_type='business',
                 owner_user=user,
                 status='active',
-                profile_status='complete'
+                profile_status='complete',
+                metadata={}
             )
 
             # 2. Get or create owner role for this context

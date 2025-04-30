@@ -14,6 +14,7 @@ from .models import (
     Context, Role, UserContextRole, Module,
     ModuleFeature, UserFeaturePermission
 )
+from django.db import IntegrityError
 from .models import *
 import boto3
 from botocore.exceptions import ClientError
@@ -140,32 +141,18 @@ def initial_registration(request):
 def select_context(request):
     """
     Select context type (personal or business) and create necessary records.
-
-    Expected request data:
-    {
-        "user_id": 1,
-        "context_type": "personal" or "business",
-        "context_name": "Personal Account" or "Business Name",
-        "first_name": "John",
-        "last_name": "Doe"
-    }
     """
-    # Extract data from request
     user_id = request.data.get('user_id')
     context_type = request.data.get('context_type')
     context_name = request.data.get('context_name')
 
-
-    # Validate required fields
+    # Validate input
     if not all([user_id, context_type, context_name]):
         return Response(
-            {
-                "error": "Missing required fields. "
-                         "Please provide user_id, context_type and  context_name."},
+            {"error": "Missing required fields. Please provide user_id, context_type, and context_name."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Validate context type
     if context_type not in ['personal', 'business']:
         return Response(
             {"error": "Invalid context type. Must be 'personal' or 'business'."},
@@ -173,16 +160,8 @@ def select_context(request):
         )
 
     try:
-        # Get user
-        try:
-            user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "User not found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        user = User.objects.get(id=user_id)
 
-        # Check if user is active
         if user.is_active != 'yes':
             return Response(
                 {"error": "User account is not active. Please activate your account first."},
@@ -193,73 +172,48 @@ def select_context(request):
         context = Context.objects.create(
             name=context_name,
             context_type=context_type,
-            status='active',
-            profile_status='incomplete',
-            owner_user=user
+            owner_user=user,
+            metadata={}  # prevent "blank" metadata error
         )
 
-        # Set active context for user
+        # Default roles are created automatically in context.save()
+        # Now get the default "Owner" role for this context
+        role = Role.objects.get(name='Owner', context=context)
+
+        # Create user-role mapping
+        UserContextRole.objects.create(
+            user=user,
+            context=context,
+            role=role,
+            status='active'
+        )
+
+        # Set as active context for user
         user.active_context = context
         user.save()
 
-        # Create role based on context type
-        if context_type == 'personal':
-            # For personal context, create a basic role
-            role = Role.objects.get(
-                name='Owner',
-                context=context
-            )
+        message = (
+            "Personal context created successfully."
+            if context_type == 'personal'
+            else "Business context created successfully. You can now purchase a suite or subscription plan."
+        )
 
-            # Create user context role
-            user_context_role = UserContextRole.objects.create(
-                user=user,
-                context=context,
-                role=role,
-                status='active'
-            )
+        return Response({
+            "message": message,
+            "user_id": user.id,
+            "context_id": context.id,
+            "context_type": context.context_type,
+            "context_name": context.name
+        }, status=status.HTTP_201_CREATED)
 
-            # Return success response for personal context
-            return Response({
-                "message": "Personal context created successfully.",
-                "user_id": user.id,
-                "context_id": context.id,
-                "context_type": context.context_type,
-                "context_name": context.name
-            }, status=status.HTTP_201_CREATED)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        else:  # Business context
-            # For business context, create an owner role
-            role = Role.objects.create(
-                name='Owner',
-                role_type='business',
-                created_by=user
-            )
-
-            # Create user context role
-            user_context_role = UserContextRole.objects.create(
-                user=user,
-                context=context,
-                role=role,
-                status='active'
-            )
-
-            # For business context, we don't create module subscriptions yet
-            # They will be created when the user purchases a suite or subscription plan
-
-            # Return success response for business context
-            return Response({
-                "message": "Business context created successfully. You can now purchase a suite or subscription plan.",
-                "user_id": user.id,
-                "context_id": context.id,
-                "context_type": context.context_type,
-                "context_name": context.name
-            }, status=status.HTTP_201_CREATED)
+    except IntegrityError as e:
+        return Response({"error": f"Integrity error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
     except Exception as e:
-        return Response(
-            {"error": f"Context selection failed: {str(e)}"},
-            status=status.HTTP_500_INTERNAL_SERVER_ERROR
-        )
+        return Response({"error": f"Context selection failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
