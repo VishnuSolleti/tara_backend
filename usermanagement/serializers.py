@@ -760,7 +760,6 @@ class UsersKYCSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         address_data = validated_data.pop('address', {})
         user = self.context['request'].user
-        # restructed Code
         return UserKYC.objects.create(user=user, address=address_data, **validated_data)
 
 
