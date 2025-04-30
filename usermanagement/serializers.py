@@ -306,7 +306,7 @@ class AddressSerializer(serializers.Serializer):
     address_line1 = serializers.CharField(max_length=255, required=False)
     address_line2 = serializers.CharField(max_length=255, required=False)
     address_line3 = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    pinCode = serializers.IntegerField(required=False, allow_null=True)
+    pincode = serializers.IntegerField(required=False, allow_null=True)
     state = serializers.CharField(max_length=20, required=False)
     city = serializers.CharField(max_length=20, required=False)
     country = serializers.CharField(max_length=20, required=False)
@@ -763,6 +763,7 @@ class UsersKYCSerializer(serializers.ModelSerializer):
         # restructed Code
         return UserKYC.objects.create(user=user, address=address_data, **validated_data)
 
+
     def update(self, instance, validated_data):
         address_data = validated_data.pop('address', None)
 
@@ -798,7 +799,7 @@ class FirmKYCSerializer(serializers.ModelSerializer):
                 "address_line1": None,
                 "address_line2": None,
                 "address_line3": None,
-                "pinCode": None,
+                "pincode": None,
                 "state": None,
                 "city": None,
                 "country": None

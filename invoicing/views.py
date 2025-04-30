@@ -1362,7 +1362,7 @@ def createDocument(request, id):
             'address': invoice.invoicing_profile.business.headOffice.get('address_line1', ''),
             'state': invoice.invoicing_profile.business.headOffice.get('state', ''),
             'country': "India",
-            'pincode': invoice.invoicing_profile.business.headOffice.get('pinCode', ''),
+            'pincode': invoice.invoicing_profile.business.headOffice.get('pincode', ''),
             'registration_number': getattr(invoice.invoicing_profile.business, 'registrationNumber', ''),
             'gst_registered': getattr(invoice.invoicing_profile, 'gst_registered', ''),
             'gstin': getattr(invoice.invoicing_profile, 'gstin', ''),

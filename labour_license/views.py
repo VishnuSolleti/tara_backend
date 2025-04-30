@@ -29,6 +29,7 @@ def entrepreneur_details_list(request):
         try:
             entrepreneurs = EntrepreneurDetails.objects.get(user_id=data['user'])
             serializer = EntrepreneurDetailsSerializer(entrepreneurs,data=data,partial=True)
+
         except:
             serializer = EntrepreneurDetailsSerializer(data=data)
 
@@ -75,7 +76,7 @@ def entrepreneur_details_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser,JSONParser])
 def establishment_details_list(request):
     if request.method == 'GET':
-        establishments = establishment_details.objects.all()
+        establishments = EstablishmentDetails.objects.all()
         serializer = EstablishmentDetailsSerializerRetrival(establishments, many=True)
         return Response(serializer.data)
 
@@ -91,7 +92,7 @@ def establishment_details_list(request):
                     return Response({"error": "Invalid JSON format for address"},
                                     status=status.HTTP_400_BAD_REQUEST)
         try:
-            establishments = establishment_details.objects.get(license_id=data['license'])
+            establishments = EstablishmentDetails.objects.get(license_id=data['license'])
             serializer = EstablishmentDetailsSerializer(establishments,data=data,partial=True)
         except:
             serializer = EstablishmentDetailsSerializer(data=data)
@@ -104,8 +105,8 @@ def establishment_details_list(request):
 @parser_classes([MultiPartParser, FormParser,JSONParser])
 def establishment_details_detail(request, pk):
     try:
-        establishment = establishment_details.objects.get(  license_id=pk)
-    except establishment_details.DoesNotExist:
+        establishment = EstablishmentDetails.objects.get(  license_id=pk)
+    except EstablishmentDetails.DoesNotExist:
         return Response({"error": "Establishment not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
@@ -113,7 +114,7 @@ def establishment_details_detail(request, pk):
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        establishment = establishment_details.objects.get(license_id=pk)
+        establishment = EstablishmentDetails.objects.get(license_id=pk)
         data = request.data.copy()
         if 'address_of_establishment' in data:
             address_data = data.get('address_of_establishment')
@@ -139,18 +140,18 @@ def establishment_details_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser,JSONParser])
 def work_location_list(request):
     if request.method == 'GET':
-        worklocation = Work_Location.objects.all()
+        worklocation = WorkLocation.objects.all()
         serializer = WorkLocationSerializerRetrival(worklocation, many=True)
         return Response(serializer.data)
 
     elif request.method == 'POST':
         data = request.data.copy()
-        if 'work_location' in data:
-            address_data = data.get('work_location')
+        if 'WorkLocation' in data:
+            address_data = data.get('WorkLocation')
             if isinstance(address_data, str):
                 try:
                     address_data = json.loads(address_data)  # Convert string to dict
-                    data['work_location'] = address_data
+                    data['WorkLocation'] = address_data
                 except json.JSONDecodeError:
                     return Response({"error": "Invalid JSON format for address"},
                                     status=status.HTTP_400_BAD_REQUEST)
@@ -164,14 +165,14 @@ def work_location_list(request):
 @parser_classes([MultiPartParser, FormParser,JSONParser])
 def work_location_detail(request, pk):
     try:
-        worklocation = Work_Location.objects.filter(license_id=pk)
-    except Work_Location.DoesNotExist:
+        worklocation = WorkLocation.objects.filter(license_id=pk)
+    except WorkLocation.DoesNotExist:
         return Response({"error": "Work Location not found"}, status=status.HTTP_404_NOT_FOUND)
     if request.method == 'GET':
         serializer = WorkLocationSerializerRetrival(worklocation,many=True)
         return Response(serializer.data)
     elif request.method == 'PUT':
-        worklocation = Work_Location.objects.get(license_id=pk)
+        worklocation = WorkLocation.objects.get(license_id=pk)
         serializer = WorkLocationSerializer(worklocation, data=request.data,partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -265,13 +266,13 @@ def employer_details_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser,JSONParser])
 def files_list(request):
     if request.method == 'GET':
-        file = files.objects.all()
+        file = Files.objects.all()
         serializer = filesSerializer(file, many=True)
         return Response(serializer.data)
     elif request.method == 'POST':
         data = request.data
         try:
-            file = files.objects.get(license_id=data['license'])
+            file = Files.objects.get(license_id=data['license'])
             serializer = filesSerializer(file,data=data,partial=True)
         except:
             serializer = filesSerializer(data=data)
@@ -285,8 +286,8 @@ def files_list(request):
 @parser_classes([MultiPartParser, FormParser,JSONParser])
 def files_detail(request, pk):
     try:
-        file = files.objects.get(license_id=pk)
-    except files.DoesNotExist:
+        file = Files.objects.get(license_id=pk)
+    except Files.DoesNotExist:
         return Response({"error": "File not found"}, status=status.HTTP_404_NOT_FOUND)
     if request.method == 'GET':
         serializer = filesSerializer(file)

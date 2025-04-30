@@ -3,7 +3,6 @@ from Tara.settings.default import *
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from djongo.models import ArrayField, EmbeddedField, JSONField
 from .helpers import *
-from django.core.validators import RegexValidator
 from usermanagement.models import *
 
 class EntrepreneurDetails(models.Model):
@@ -22,8 +21,8 @@ class EntrepreneurDetails(models.Model):
     def __str__(self):
         return self.name
 
-class establishment_details(models.Model):
-    license = models.ForeignKey(EntrepreneurDetails, on_delete=models.CASCADE, related_name='establishment_details')
+class EstablishmentDetails(models.Model):
+    license = models.ForeignKey(EntrepreneurDetails, on_delete=models.CASCADE, related_name='EstablishmentDetails')
     classification = models.CharField(max_length=255)
     category = models.CharField(max_length=255)
     name_of_establishment = models.CharField(max_length=255)
@@ -32,7 +31,7 @@ class establishment_details(models.Model):
     def __str__(self):
         return self.name_of_establishment
 
-class Work_Location(models.Model):
+class WorkLocation(models.Model):
     license = models.ForeignKey(EntrepreneurDetails, on_delete=models.CASCADE, related_name='work_location')
     work_location = JSONField(default=dict)
 
@@ -61,7 +60,7 @@ class EmployerDetails(models.Model):
     def __str__(self):
         return self.first_name
 
-class files(models.Model):
+class Files(models.Model):
     license = models.ForeignKey(EntrepreneurDetails, on_delete=models.CASCADE, related_name='files_uploaded')
     pan_entity_file = models.FileField(upload_to=labour_license_upload_file)
     address_proof_of_establishment = models.FileField(upload_to=labour_license_upload_file)
@@ -71,7 +70,6 @@ class files(models.Model):
     partnership_deed = models.FileField(upload_to=labour_license_upload_file, blank=True, null=True)
     certificate_of_incorporation = models.FileField(upload_to=labour_license_upload_file, blank=True, null=True)
     memorandum_of_articles = models.FileField(upload_to=labour_license_upload_file, blank=True, null=True)
-
 
     def __str__(self):
         return self.license.name

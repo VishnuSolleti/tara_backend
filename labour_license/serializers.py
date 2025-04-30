@@ -14,24 +14,24 @@ class EntrepreneurDetailsSerializerRetrival(serializers.ModelSerializer):
 
 class EstablishmentDetailsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = establishment_details
+        model = EstablishmentDetails
         fields = '__all__'
 
 class EstablishmentDetailsSerializerRetrival(serializers.ModelSerializer):
     address_of_establishment = serializers.JSONField()
     class Meta:
-        model = establishment_details
+        model = EstablishmentDetails
         fields = '__all__'
 
 class WorkLocationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Work_Location
+        model = WorkLocation
         fields = '__all__'
 
 class WorkLocationSerializerRetrival(serializers.ModelSerializer):
     work_location = serializers.JSONField()
     class Meta:
-        model = Work_Location
+        model = WorkLocation
         fields = '__all__'
 
 class EmployerDetailsSerializer(serializers.ModelSerializer):
@@ -48,5 +48,5 @@ class EmployerDetailsSerializerRetrival(serializers.ModelSerializer):
 
 class filesSerializer(serializers.ModelSerializer):
     class Meta:
-        model = files
+        model = Files
         fields = '__all__'

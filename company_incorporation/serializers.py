@@ -27,11 +27,11 @@ class CompanyIncorporationSerializerRetrieval(serializers.ModelSerializer):
 
 class DirectorsDetailsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Directors_details
+        model = DirectorsDetails
         fields = '__all__'
 
         def create(self, validated_data):
-            return Share_Holders_Information.objects.create(**validated_data)
+            return ShareHoldersInformation.objects.create(**validated_data)
 
         def update(self, instance, validated_data):
             for attr, value in validated_data.items():
@@ -46,17 +46,17 @@ class DirectorsDetailsSerializerRetrieval(serializers.ModelSerializer):
     shareholder_details = serializers.JSONField()
 
     class Meta:
-        model = Directors_details
+        model = DirectorsDetails
         fields = '__all__'
 
 
 class AuthorizedAndPaidUpCapitalSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Authorized_And_Paid_up_Capital
+        model = AuthorizedAndPaidupCapital
         fields = '__all__'
 
     def create(self, validated_data):
-        return Authorized_And_Paid_up_Capital.objects.create(**validated_data)
+        return AuthorizedAndPaidupCapital.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():
@@ -67,11 +67,11 @@ class AuthorizedAndPaidUpCapitalSerializer(serializers.ModelSerializer):
 
 class ShareHoldersInformationSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Share_Holders_Information
+        model = ShareHoldersInformation
         fields = '__all__'
 
     def create(self, validated_data):
-        return Share_Holders_Information.objects.create(**validated_data)
+        return ShareHoldersInformation.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():
@@ -84,17 +84,17 @@ class ShareHoldersInformationSerializerRetrieval(serializers.ModelSerializer):
     address = serializers.JSONField()
 
     class Meta:
-        model = Share_Holders_Information
+        model = ShareHoldersInformation
         fields = '__all__'
 
 
 class DetailsOfExistingDirectorshipsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Details_of_Existing_Directorships
+        model = DetailsOfExistingDirectorships
         fields = '__all__'
 
     def create(self, validated_data):
-        return Details_of_Existing_Directorships.objects.create(**validated_data)
+        return DetailsOfExistingDirectorships.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         for attr, value in validated_data.items():

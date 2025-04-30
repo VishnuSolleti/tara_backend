@@ -3,7 +3,6 @@ from Tara.settings.default import *
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from djongo.models import ArrayField, EmbeddedField, JSONField
 from .helpers import *
-from django.core.validators import RegexValidator
 from usermanagement.models import *
 
 class CompanyIncorporation(models.Model):
@@ -43,7 +42,8 @@ class CompanyIncorporation(models.Model):
 
     def __str__(self):
         return self.company_type
-class Directors_details(models.Model):
+
+class DirectorsDetails(models.Model):
     EDUCATION_LEVEL_CHOICES = [
         ('highSchool', 'High School'),
         ('bachelor', "Bachelor's Degree"),
@@ -97,10 +97,10 @@ class Directors_details(models.Model):
     shareholder_details = JSONField(default = dict)
     share_file = models.FileField(upload_to=upload_to_directors,blank=True,null = True)
     def __str__(self):
-        return f"{self.first_name} - {self.last_name}"
+        return "{} - {}".format(self.first_name, self.last_name)
 
-class Details_of_Existing_Directorships(models.Model):
-    director = models.ForeignKey(Directors_details, on_delete=models.CASCADE, related_name="existing_company")
+class DetailsOfExistingDirectorships(models.Model):
+    director = models.ForeignKey(DirectorsDetails, on_delete=models.CASCADE, related_name="existing_company")
     companyName = models.CharField(max_length = 255)
     cin = models.CharField(max_length=255)
     typeOfCompany = models.CharField(max_length=255)
@@ -109,26 +109,24 @@ class Details_of_Existing_Directorships(models.Model):
     def __str__(self):
         return self.companyName
 
-
-
-class Authorized_And_Paid_up_Capital(models.Model):
+class AuthorizedAndPaidupCapital(models.Model):
     company = models.ForeignKey(CompanyIncorporation, on_delete=models.CASCADE, related_name="authorized_capital")
     authorized_share_capital = models.DecimalField(max_digits=15, decimal_places=2)
     paid_up_share_capital = models.DecimalField(max_digits=15, decimal_places=2)
     face_value_per_share = models.DecimalField(max_digits=10, decimal_places=2)
     no_of_shares = models.PositiveIntegerField()
     bank_name = models.CharField(max_length=255)
+
     def __str__(self):
         return self.company
 
-class Share_Holders_Information(models.Model):
+class ShareHoldersInformation(models.Model):
     IDENTITY_PROOF_CHOICES = [
         ('Aadhaar', 'Aadhaar Card'),
         ('Passport', 'Passport'),
         ('Driving License', 'Driving License'),
         ('Voter ID', 'Voter ID'),
     ]
-
 
     company = models.ForeignKey(CompanyIncorporation, on_delete=models.CASCADE, related_name="share_holders")
     type_of_shareholder = models.CharField(max_length=255)
@@ -142,6 +140,6 @@ class Share_Holders_Information(models.Model):
     pan_number_file = models.FileField(upload_to=upload_to_shareholders_details)
     address_proof = models.CharField(max_length=50,choices=IDENTITY_PROOF_CHOICES)
     address_proof_file = models.FileField(upload_to=upload_to_shareholders_details)
-    def __str__(self):
-        return f"{self.first_name} - {self.last_name}"
 
+    def __str__(self):
+        return "{} - {}".format(self.first_name, self.last_name)
