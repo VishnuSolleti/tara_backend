@@ -104,7 +104,7 @@ def directors_details(request):
                                     status=status.HTTP_400_BAD_REQUEST)
 
         if 'company' in data:
-            existing_directors = Directors_details.objects.filter(
+            existing_directors = DirectorsDetails.objects.filter(
                 first_name=data.get('first_name'),
                 email=data.get('email'),
                 phone_number=data.get('phone_number'),
@@ -124,7 +124,7 @@ def directors_details(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     elif request.method == 'GET':
-        companies = Directors_details.objects.all()
+        companies = DirectorsDetails.objects.all()
         serializer = DirectorsDetailsSerializerRetrieval(companies, many=True)
         if serializer.data:
             return Response(serializer.data, status=status.HTTP_200_OK)
@@ -137,8 +137,8 @@ def directors_details(request):
 def directors_details_update(request, pk):
     if request.method == 'GET':
         try:
-            director = Directors_details.objects.filter(company_id=pk)
-        except Directors_details.DoesNotExist:
+            director = DirectorsDetails.objects.filter(company_id=pk)
+        except DirectorsDetails.DoesNotExist:
             return Response({'error': 'Director not found'}, status=status.HTTP_404_NOT_FOUND)
         if not director.exists():
             return Response({"detail": "No directors found for this company."}, status=status.HTTP_201_CREATED)
@@ -148,7 +148,7 @@ def directors_details_update(request, pk):
 
 
     elif request.method == 'PUT':
-        director = Directors_details.objects.get(pk=pk)
+        director = DirectorsDetails.objects.get(pk=pk)
         data = request.data
 
         if 'address' in data and isinstance(data['address'], str):
@@ -181,7 +181,7 @@ def directors_details_update(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        director = Directors_details.objects.get(pk=pk)
+        director = DirectorsDetails.objects.get(pk=pk)
         director.delete()
         return Response({'message': 'Director deleted successfully'}, status=status.HTTP_204_NO_CONTENT)
 
@@ -190,7 +190,7 @@ def directors_details_update(request, pk):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def share_holders_list_create(request):
     if request.method == 'GET':
-        share_holders = Share_Holders_Information.objects.all()
+        share_holders = ShareHoldersInformation.objects.all()
         serializer = ShareHoldersInformationSerializerRetrieval(share_holders, many=True)
         return Response(serializer.data)
     elif request.method == 'POST':
@@ -206,7 +206,7 @@ def share_holders_list_create(request):
                                     status=status.HTTP_400_BAD_REQUEST)
 
         if 'company' in data:
-            existing_shareholders = Share_Holders_Information.objects.filter(
+            existing_shareholders = ShareHoldersInformation.objects.filter(
                 type_of_shareholder=data.get('type_of_shareholder'),
                 first_name=data.get('first_name'),
                 email=data.get('email'),
@@ -232,17 +232,17 @@ def share_holders_list_create(request):
 @parser_classes([MultiPartParser, FormParser])
 def shareholder_detail(request, pk):
     try:
-        shareholder = Share_Holders_Information.objects.filter(company_id=pk)
-    except Share_Holders_Information.DoesNotExist:
+        shareholder = ShareHoldersInformation.objects.filter(company_id=pk)
+    except ShareHoldersInformation.DoesNotExist:
         return Response({"error": "Record not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        shareholder = Share_Holders_Information.objects.filter(company_id=pk)
+        shareholder = ShareHoldersInformation.objects.filter(company_id=pk)
         serializer = ShareHoldersInformationSerializerRetrieval(shareholder, many=True)
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        shareholder = Share_Holders_Information.objects.get(pk=pk)
+        shareholder = ShareHoldersInformation.objects.get(pk=pk)
         data = request.data.copy()
         if 'address' in data:
             address_data = data.get('address')
@@ -260,7 +260,7 @@ def shareholder_detail(request, pk):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        shareholder = Share_Holders_Information.objects.get(company_id=pk)
+        shareholder = ShareHoldersInformation.objects.get(company_id=pk)
         shareholder.delete()
         return Response({"message": "Record deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
@@ -269,14 +269,14 @@ def shareholder_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def authorized_capital_list_create(request):
     if request.method == 'GET':
-        capital_entries = Authorized_And_Paid_up_Capital.objects.all()
+        capital_entries = AuthorizedAndPaidupCapital.objects.all()
         serializer = AuthorizedAndPaidUpCapitalSerializer(capital_entries, many=True)
         return Response(serializer.data)
 
     elif request.method == 'POST':
         data = request.data
         try:
-            capital_entries = Authorized_And_Paid_up_Capital.objects.get(company_id=data['company'])
+            capital_entries = AuthorizedAndPaidupCapital.objects.get(company_id=data['company'])
             serializer = AuthorizedAndPaidUpCapitalSerializer(capital_entries, data=data, partial=True)
         except:
             serializer = AuthorizedAndPaidUpCapitalSerializer(data=data)
@@ -290,8 +290,8 @@ def authorized_capital_list_create(request):
 @parser_classes([MultiPartParser, FormParser])
 def authorized_capital_detail(request, pk):
     try:
-        capital_entry = Authorized_And_Paid_up_Capital.objects.get(company_id=pk)
-    except Authorized_And_Paid_up_Capital.DoesNotExist:
+        capital_entry = AuthorizedAndPaidupCapital.objects.get(company_id=pk)
+    except AuthorizedAndPaidupCapital.DoesNotExist:
         return Response({"error": "Record not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
@@ -314,7 +314,7 @@ def authorized_capital_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def existing_company(request):
     if request.method == 'GET':
-        capital_entries = Details_of_Existing_Directorships.objects.all()
+        capital_entries = DetailsOfExistingDirectorships.objects.all()
         serializer = DetailsOfExistingDirectorshipsSerializer(capital_entries, many=True)
         return Response(serializer.data)
 
@@ -323,7 +323,7 @@ def existing_company(request):
 
         # Check for existing company with same director and details
         if 'director' in data:
-            existing_companies = Details_of_Existing_Directorships.objects.filter(
+            existing_companies = DetailsOfExistingDirectorships.objects.filter(
                 companyName=data.get('companyName'),
                 cin=data.get('cin'),
                 typeOfCompany=data.get('typeOfCompany'),
@@ -347,13 +347,13 @@ def existing_company(request):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def existing_company_detail(request, pk):
     if request.method == 'GET':
-        capital_entry = Details_of_Existing_Directorships.objects.filter(director_id=pk)
+        capital_entry = DetailsOfExistingDirectorships.objects.filter(director_id=pk)
 
         serializer = DetailsOfExistingDirectorshipsSerializer(capital_entry, many=True)
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        capital_entry = Details_of_Existing_Directorships.objects.get(id=pk)
+        capital_entry = DetailsOfExistingDirectorships.objects.get(pk=pk)
 
         serializer = DetailsOfExistingDirectorshipsSerializer(capital_entry, data=request.data, partial=True)
         if serializer.is_valid():
@@ -363,16 +363,16 @@ def existing_company_detail(request, pk):
 
     elif request.method == 'DELETE':
         try:
-            capital_entry = Details_of_Existing_Directorships.objects.get(pk=pk)
+            capital_entry = DetailsOfExistingDirectorships.objects.get(pk=pk)
             capital_entry.delete()
             return Response(
                 {"message": "Record deleted successfully"},
                 status=status.HTTP_204_NO_CONTENT
             )
 
-        except Details_of_Existing_Directorships.DoesNotExist:
+        except DetailsOfExistingDirectorships.DoesNotExist:
             return Response(
-                {"error": f"Record with id {pk} does not exist"},
+                {"error": "Record with id {} does not exist".format(pk)},
                 status=status.HTTP_404_NOT_FOUND
             )
 

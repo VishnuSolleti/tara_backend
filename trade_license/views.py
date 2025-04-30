@@ -11,7 +11,7 @@ import json
 @parser_classes([MultiPartParser, FormParser,JSONParser])
 def basic_details_list(request):
     if request.method == 'GET':
-        details = Basic_Detail.objects.all()
+        details = BasicDetail.objects.all()
         serializer = BasicDetailsSerializerRetrieval(details, many=True)
         return Response(serializer.data)
 
@@ -30,7 +30,7 @@ def basic_details_list(request):
                                     status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            details = Basic_Detail.objects.get(user_id=data['user'])
+            details = BasicDetail.objects.get(user_id=data['user'])
             serializer = BasicDetailsSerializer(details,data=data,partial=True)
         except:
             serializer = BasicDetailsSerializer(data=data)
@@ -43,7 +43,7 @@ def basic_details_list(request):
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser,JSONParser])
 def basic_detail(request, pk):
-    detail = get_object_or_404(Basic_Detail, pk=pk)
+    detail = get_object_or_404(BasicDetail, pk=pk)
 
     if request.method == 'GET':
         serializer = BasicDetailsSerializerRetrieval(detail)
@@ -72,7 +72,7 @@ def basic_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser])
 def trade_license_exist_list(request):
     if request.method == 'GET':
-        licenses = Trade_License_Exist_or_not.objects.all()
+        licenses = TradeLicenseExistOrNot.objects.all()
         serializer = TradeLicenseExistOrNotSerializer(licenses, many=True)
         return Response(serializer.data)
     elif request.method == 'POST':
@@ -92,7 +92,7 @@ def trade_license_exist_list(request):
                         return Response({"error": "Invalid JSON format for address"},
                                         status=status.HTTP_400_BAD_REQUEST)
             try:
-                licenses = Trade_License_Exist_or_not.objects.get(license_id=data['license'])
+                licenses = TradeLicenseExistOrNot.objects.get(license_id=data['license'])
                 serializer = TradeLicenseExistOrNotSerializer(licenses,data=data,partial=True)
             except:
                 serializer = TradeLicenseExistOrNotSerializer(data=data)
@@ -110,7 +110,7 @@ def trade_license_exist_list(request):
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def trade_license_exist(request, pk):
-    applicant = Trade_License_Exist_or_not.objects.get(license_id=pk)
+    applicant = TradeLicenseExistOrNot.objects.get(license_id=pk)
     if request.method == 'GET':
         serializer = TradeLicenseExistOrNotSerializer(applicant)
         return Response(serializer.data)
@@ -130,7 +130,7 @@ def trade_license_exist(request, pk):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def trade_entity_list(request):
     if request.method == 'GET':
-        entities = Trade_Entity.objects.all()
+        entities = TradeEntity.objects.all()
         serializer = TradeEntitySerializerRetrieval(entities, many=True)
         return Response(serializer.data)
 
@@ -145,7 +145,7 @@ def trade_entity_list(request):
                 return Response({"error": "Invalid JSON format for address"},
                                 status=status.HTTP_400_BAD_REQUEST)
         try:
-            entities = Trade_Entity.objects.get(license_id=data['license'])
+            entities = TradeEntity.objects.get(license_id=data['license'])
             serializer = TradeEntitySerializer(entities,data=data,partial=True)
         except:
             serializer = TradeEntitySerializer(data=data)
@@ -158,8 +158,8 @@ def trade_entity_list(request):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def trade_entity_detail(request, pk):
     try:
-        entity = Trade_Entity.objects.get(license_id=pk)
-    except Trade_Entity.DoesNotExist:
+        entity = TradeEntity.objects.get(license_id=pk)
+    except TradeEntity.DoesNotExist:
         return Response({"error": "Trade Entity not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
@@ -192,14 +192,14 @@ def trade_entity_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser,JSONParser])
 def partner_details_list(request):
     if request.method == 'GET':
-        partners = Partner_Details.objects.all()
+        partners = PartnerDetails.objects.all()
         serializer = PartnerDetailsSerializer(partners, many=True)
         return Response(serializer.data)
 
     elif request.method == 'POST':
         data = request.data.copy()
         if 'license' in data:
-            existing_partners = Partner_Details.objects.filter(
+            existing_partners = PartnerDetails.objects.filter(
                 license_id=data.get('license'),
                 partner_name=data.get('partner_name'),
                 partner_address=data.get('partner_address'),
@@ -222,8 +222,8 @@ def partner_details_list(request):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def partner_details(request, pk):
     try:
-        partner = Partner_Details.objects.filter(license_id=pk)
-    except Partner_Details.DoesNotExist:
+        partner = PartnerDetails.objects.filter(license_id=pk)
+    except PartnerDetails.DoesNotExist:
         return Response(status=404)
 
     if request.method == 'GET':
@@ -231,7 +231,7 @@ def partner_details(request, pk):
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        partner = Partner_Details.objects.get(pk=pk)
+        partner = PartnerDetails.objects.get(pk=pk)
         data = request.data.copy()
         serializer = PartnerDetailsSerializer(partner, data=data,partial=True)
         if serializer.is_valid():
@@ -240,6 +240,6 @@ def partner_details(request, pk):
         return Response(serializer.errors, status=400)
 
     elif request.method == 'DELETE':
-        partner = Partner_Details.objects.filter(pk=pk)
+        partner = PartnerDetails.objects.filter(pk=pk)
         partner.delete()
         return Response({"message": "Deleted Successfully"},status=204)

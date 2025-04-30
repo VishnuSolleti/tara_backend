@@ -4,12 +4,12 @@ import json
 
 class BasicDetailsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = basic_Details
+        model = BasicDetails
         fields = '__all__'
 
 class BusinessDetailsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = business_Details
+        model = BusinessDetails
         fields = '__all__'
 
     def create(self, validated_data):
@@ -33,7 +33,7 @@ class BusinessDetailsSerializer(serializers.ModelSerializer):
 class BusinessDetailsSerializerRetrieval(serializers.ModelSerializer):
     gst_details = serializers.JSONField()
     class Meta:
-        model = business_Details
+        model = BusinessDetails
         fields = '__all__'
 
 class BusinessDocumentsSerializer(serializers.ModelSerializer):
@@ -52,7 +52,7 @@ class BusinessDocumentsSerializer(serializers.ModelSerializer):
 class PartnerSerializer(serializers.ModelSerializer):
     address = serializers.JSONField()
     class Meta:
-        model = partner
+        model = Partner
         fields = '__all__'
 
     def create(self, validated_data):
@@ -73,7 +73,7 @@ class PartnerSerializer(serializers.ModelSerializer):
 class PrincipalPlaceDetailSerializer(serializers.ModelSerializer):
     address = serializers.JSONField()
     class Meta:
-        model = principal_Place_Detail
+        model = PrincipalPlaceDetails
         fields = '__all__'
 
 
