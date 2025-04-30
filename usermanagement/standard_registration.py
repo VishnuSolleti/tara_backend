@@ -20,6 +20,7 @@ import boto3
 from botocore.exceptions import ClientError
 import logging
 from rest_framework_simplejwt.tokens import RefreshToken
+from .serializers import *
 
 User = get_user_model()
 # Configure logging
@@ -139,23 +140,14 @@ def initial_registration(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def select_context(request):
-    """
-    Select context type (personal or business) and create necessary records.
-    """
     user_id = request.data.get('user_id')
     context_type = request.data.get('context_type')
-    context_name = request.data.get('context_name')
+    user_kyc_data = request.data.get('user_kyc', {})
+    business_data = request.data.get('business_details', {})
 
-    # Validate input
-    if not all([user_id, context_type, context_name]):
+    if not user_id or context_type not in ['personal', 'business']:
         return Response(
-            {"error": "Missing required fields. Please provide user_id, context_type, and context_name."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    if context_type not in ['personal', 'business']:
-        return Response(
-            {"error": "Invalid context type. Must be 'personal' or 'business'."},
+            {"error": "Missing required fields. Provide user_id and valid context_type."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -163,55 +155,71 @@ def select_context(request):
         user = User.objects.get(id=user_id)
 
         if user.is_active != 'yes':
-            return Response(
-                {"error": "User account is not active. Please activate your account first."},
-                status=status.HTTP_403_FORBIDDEN
+            return Response({"error": "User is not active."}, status=status.HTTP_403_FORBIDDEN)
+
+        with transaction.atomic():
+            # Create Context first
+            context_name = None
+            if context_type == 'personal':
+                context_name = user_kyc_data.get('name')
+            else:
+                context_name = business_data.get('nameOfBusiness')
+
+            if not context_name:
+                return Response(
+                    {"error": "Missing name inside user_kyc or business_details."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Check for duplicate business
+            if context_type == 'business' and Business.objects.filter(nameOfBusiness=context_name).exists():
+                return Response({"error": "Business with this name already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Check if UserKYC already exists
+            if context_type == 'personal' and hasattr(user, 'userkyc'):
+                return Response({"error": "UserKYC already exists."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Create the context
+            context = Context.objects.create(
+                name=context_name,
+                context_type=context_type,
+                owner_user=user,
+                metadata={}
             )
 
-        # Create context
-        context = Context.objects.create(
-            name=context_name,
-            context_type=context_type,
-            owner_user=user,
-            metadata={}  # prevent "blank" metadata error
-        )
+            # Handle KYC or Business after context creation
+            if context_type == 'personal':
+                serializer = UsersKYCSerializer(data=user_kyc_data, context={'request': request})
+                serializer.is_valid(raise_exception=True)
+                serializer.save(user=user)
 
-        # Default roles are created automatically in context.save()
-        # Now get the default "Owner" role for this context
-        role = Role.objects.get(name='Owner', context=context)
+            else:  # context_type == 'business'
+                business_serializer = BusinessSerializer(data=business_data)
+                business_serializer.is_valid(raise_exception=True)
+                business = business_serializer.save()
+                context.business = business
+                context.save()
 
-        # Create user-role mapping
-        UserContextRole.objects.create(
-            user=user,
-            context=context,
-            role=role,
-            status='active'
-        )
+            # Assign owner role
+            role = Role.objects.get(name='Owner', context=context)
+            UserContextRole.objects.create(user=user, context=context, role=role, status='active')
 
-        # Set as active context for user
-        user.active_context = context
-        user.save()
+            # Set user's active context
+            user.active_context = context
+            user.save()
 
-        message = (
-            "Personal context created successfully."
-            if context_type == 'personal'
-            else "Business context created successfully. You can now purchase a suite or subscription plan."
-        )
-
-        return Response({
-            "message": message,
-            "user_id": user.id,
-            "context_id": context.id,
-            "context_type": context.context_type,
-            "context_name": context.name
-        }, status=status.HTTP_201_CREATED)
+            return Response({
+                "message": f"{context_type.capitalize()} context created successfully.",
+                "user_id": user.id,
+                "context_id": context.id,
+                "context_type": context.context_type,
+                "context_name": context.name
+            }, status=status.HTTP_201_CREATED)
 
     except User.DoesNotExist:
         return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    except IntegrityError as e:
-        return Response({"error": f"Integrity error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
+    except ValidationError as e:
+        return Response({"error": e.message_dict if hasattr(e, 'message_dict') else str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({"error": f"Context selection failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
