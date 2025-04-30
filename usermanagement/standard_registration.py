@@ -196,7 +196,7 @@ def select_context(request):
             else:  # context_type == 'business'
                 business_serializer = BusinessSerializer(data=business_data)
                 business_serializer.is_valid(raise_exception=True)
-                business = business_serializer.save()
+                business = business_serializer.save(client=user)
                 context.business = business
                 context.save()
 
