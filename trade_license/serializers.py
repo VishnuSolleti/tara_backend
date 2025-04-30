@@ -5,33 +5,33 @@ class BasicDetailsSerializer(serializers.ModelSerializer):
     trade_license_file = serializers.FileField(required=False)
     upload_photo = serializers.FileField(required=False)
     class Meta:
-        model = Basic_Detail
+        model = BasicDetail
         fields = '__all__'
 
 class BasicDetailsSerializerRetrieval(serializers.ModelSerializer):
     address = serializers.JSONField()
     class Meta:
-        model = Basic_Detail
+        model = BasicDetail
         fields = '__all__'
 
 class TradeLicenseExistOrNotSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Trade_License_Exist_or_not
+        model = TradeLicenseExistOrNot
         fields = '__all__'
 
 class TradeEntitySerializer(serializers.ModelSerializer):
     # address = serializers.JSONField()
     class Meta:
-        model = Trade_Entity
+        model = TradeEntity
         fields = '__all__'
 
 class TradeEntitySerializerRetrieval(serializers.ModelSerializer):
     address = serializers.JSONField()
     class Meta:
-        model = Trade_Entity
+        model = TradeEntity
         fields = '__all__'
 
 class PartnerDetailsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Partner_Details
+        model = PartnerDetails
         fields = '__all__'

@@ -3,10 +3,9 @@ from Tara.settings.default import *
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from djongo.models import ArrayField, EmbeddedField, JSONField
 from .helpers import *
-from django.core.validators import RegexValidator
 from usermanagement.models import *
 
-class Basic_Detail(models.Model):
+class BasicDetail(models.Model):
     Genders = [
         ('male', 'Male'),
         ('female', 'Female'),
@@ -36,15 +35,15 @@ class Basic_Detail(models.Model):
     def __str__(self):
         return self.first_name
 
-class Trade_License_Exist_or_not(models.Model):
-    license = models.ForeignKey(Basic_Detail, on_delete=models.CASCADE, related_name='trade_license')
+class TradeLicenseExistOrNot(models.Model):
+    license = models.ForeignKey(BasicDetail, on_delete=models.CASCADE, related_name='trade_license')
     tin_number = models.CharField(max_length=255,blank=True,null=True)
     trade_license_file = models.FileField(upload_to=trade_license_upload_trade_license, blank=True, null=True)
 
     def __str__(self):
-        return self.license.id
+        return self.license
 
-class Trade_Entity(models.Model):
+class TradeEntity(models.Model):
     Trade_Premises = [
         ('commercial', 'Commercial Area'),
         ('residential', 'Residential')
@@ -60,7 +59,7 @@ class Trade_Entity(models.Model):
         ('company', 'Company'),
         ('trust', 'Trust')
     ]
-    license = models.ForeignKey(Basic_Detail, on_delete=models.CASCADE, related_name='trade_license_entity')
+    license = models.ForeignKey(BasicDetail, on_delete=models.CASCADE, related_name='trade_license_entity')
     name_of_entity = models.CharField(max_length=255)
     trade_premises = models.CharField(max_length=255, choices=Trade_Premises)
     trade_description = models.TextField()
@@ -78,8 +77,8 @@ class Trade_Entity(models.Model):
     def __str__(self):
         return self.name_of_entity
 
-class Partner_Details(models.Model):
-    license = models.ForeignKey(Basic_Detail, on_delete=models.CASCADE, related_name='trade_license_partner')
+class PartnerDetails(models.Model):
+    license = models.ForeignKey(BasicDetail, on_delete=models.CASCADE, related_name='trade_license_partner')
     partner_name = models.CharField(max_length=255)
     partner_address = models.CharField(max_length=255)
     designation = models.CharField(max_length=255)

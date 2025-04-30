@@ -8,20 +8,19 @@ import json
 from django.shortcuts import get_object_or_404
 from .models import *
 from .serializers import *
-from .models import partner
 
 
 @api_view(['GET', 'POST'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def create_basic_details(request):
     if request.method == 'GET':
-        details = basic_Details.objects.all()
+        details = BasicDetails.objects.all()
         serializer = BasicDetailsSerializer(details, many=True)
         return Response(serializer.data)
     elif request.method == 'POST':
         data = request.data
         try:
-            details = basic_Details.objects.get(user_id=data['user'])
+            details = BasicDetails.objects.get(user_id=data['user'])
             serializer = BasicDetailsSerializer(details, data=data, partial=True)
         except:
             serializer = BasicDetailsSerializer(data=data)
@@ -35,7 +34,7 @@ def create_basic_details(request):
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def basic_details_view(request, pk):
-    basic_detail = basic_Details.objects.get(pk=pk)
+    basic_detail = BasicDetails.objects.get(pk=pk)
 
     if request.method == 'GET':
         serializer = BasicDetailsSerializer(basic_detail)
@@ -57,7 +56,7 @@ def basic_details_view(request, pk):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_details_list(request):
     if request.method == 'GET':
-        queryset = business_Details.objects.all()
+        queryset = BusinessDetails.objects.all()
         serializer = BusinessDetailsSerializerRetrieval(queryset, many=True)  # ✅ Fix: many=True for multiple objects
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -73,7 +72,7 @@ def business_details_list(request):
                     return Response({"error": "Invalid JSON format for address"},
                                     status=status.HTTP_400_BAD_REQUEST)
         try:
-            queryset = business_Details.objects.get(gst_id=data['gst'])
+            queryset = BusinessDetails.objects.get(gst_id=data['gst'])
             serializer = BusinessDetailsSerializer(queryset, data=data, partial=True)
         except:
             serializer = BusinessDetailsSerializer(data=data)
@@ -87,7 +86,7 @@ def business_details_list(request):
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_details_view(request, pk):
-    business_detail = business_Details.objects.get(gst_id=pk)
+    business_detail = BusinessDetails.objects.get(gst_id=pk)
     if request.method == 'GET':
         serializer = BusinessDetailsSerializerRetrieval(business_detail)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -161,14 +160,14 @@ def business_document_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def partner_list(request):
     if request.method == 'GET':
-        queryset = partner.objects.all()
+        queryset = Partner.objects.all()
         serializer = PartnerSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         data = request.data.copy()
         if 'gst' in data:
-            existing_partners = partner.objects.filter(
+            existing_partners = Partner.objects.filter(
                 gst_id=data.get('gst'),
                 first_name=data.get('first_name'),
                 email=data.get('email'),
@@ -192,14 +191,14 @@ def partner_list(request):
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def partner_detail(request, pk):
-    partner_instance = partner.objects.filter(gst_id=pk)
+    partner_instance = Partner.objects.filter(gst_id=pk)
 
     if request.method == 'GET':
         serializer = PartnerSerializer(partner_instance, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
-        partner_instance = partner.objects.get(id=pk)
+        partner_instance = Partner.objects.get(id=pk)
         serializer = PartnerSerializer(partner_instance, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -215,14 +214,14 @@ def partner_detail(request, pk):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def principal_place_list(request):
     if request.method == 'GET':
-        queryset = principal_Place_Detail.objects.all()
+        queryset = PrincipalPlaceDetails.objects.all()
         serializer = PrincipalPlaceDetailSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         data = request.data
         try:
-            queryset = principal_Place_Detail.objects.get(gst_id=data['gst'])
+            queryset = PrincipalPlaceDetails.objects.get(gst_id=data['gst'])
             serializer = PrincipalPlaceDetailSerializer(queryset, data=data, partial=True)
         except:
             serializer = PrincipalPlaceDetailSerializer(data=data)
@@ -236,7 +235,7 @@ def principal_place_list(request):
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def principal_place_detail_view(request, pk):
-    principal_place = principal_Place_Detail.objects.get(gst_id=pk)
+    principal_place = PrincipalPlaceDetails.objects.get(gst_id=pk)
 
     if request.method == 'GET':
         serializer = PrincipalPlaceDetailSerializer(principal_place)
@@ -244,8 +243,8 @@ def principal_place_detail_view(request, pk):
 
     elif request.method == 'PUT':
         try:
-            instance = principal_Place_Detail.objects.get(gst_id=pk)
-        except principal_Place_Detail.DoesNotExist:
+            instance = PrincipalPlaceDetails.objects.get(gst_id=pk)
+        except PrincipalPlaceDetails.DoesNotExist:
             return Response({"error": "Data not found"}, status=404)
         serializer = PrincipalPlaceDetailSerializer(instance, data=request.data, partial=True)
 
