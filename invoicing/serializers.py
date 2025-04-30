@@ -226,7 +226,7 @@ class InvoicingProfileSerializer(serializers.ModelSerializer):
     address_line1 = serializers.CharField(write_only=True, required=False)
     address_line2 = serializers.CharField(write_only=True, required=False)
     state = serializers.CharField(write_only=True, required=False)
-    pinCode = serializers.IntegerField(write_only=True, required=False)
+    pincode = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = InvoicingProfile
@@ -237,7 +237,7 @@ class InvoicingProfileSerializer(serializers.ModelSerializer):
             # Business patch fields (used only during POST/PUT)
             'nameOfBusiness', 'registrationNumber', 'entityType',
             'email', 'mobile_number', 'pan',
-            'address_line1', 'address_line2', 'state', 'pinCode'
+            'address_line1', 'address_line2', 'state', 'pincode'
         ]
 
     def business_patch(self, business, validated_data):
@@ -251,7 +251,7 @@ class InvoicingProfileSerializer(serializers.ModelSerializer):
         head_office = business.headOffice or {}
         updated = False  # Track if any value changed
 
-        for field in ['address_line1', 'address_line2', 'state', 'pinCode']:
+        for field in ['address_line1', 'address_line2', 'state', 'pincode']:
             value = validated_data.pop(field, None)
             if value is not None and head_office.get(field) != value:
                 head_office[field] = value
