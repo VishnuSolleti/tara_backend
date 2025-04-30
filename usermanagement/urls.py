@@ -15,6 +15,7 @@ from . import add_team_business
 from . import module_subscription_upgrade
 from . import payment_integration
 from . import payment_webhooks
+from . import service_views
 urlpatterns = [
     # Registration endpoints
     # path('register/module', views.register_from_module, name='register_from_module'),
@@ -263,5 +264,10 @@ urlpatterns = [
     # DSC Details URLs
     path('dsc-details/', other_factors.dsc_details_list_create, name='dsc-details-list-create'),
     path('dsc-details/<int:pk>/', other_factors.dsc_details_detail, name='dsc-details-detail'),
+
+    path('services/', service_views.service_list_create),
+    path('services/<int:service_id>/', service_views.service_detail),
+    path('services/<int:service_id>/plans/', service_views.service_plan_list_create),
+    path('plans/<int:plan_id>/', service_views.service_plan_detail),
 
 ]

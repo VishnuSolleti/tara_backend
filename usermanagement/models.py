@@ -334,6 +334,92 @@ class Module(models.Model):
         return self.name
 
 
+class Service(models.Model):  # Use singular 'Service'
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    is_active = models.CharField(
+        max_length=3,
+        choices=YES_NO_CHOICES,
+        default='yes'
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ServicePlan(models.Model):
+    service = models.ForeignKey('Service', on_delete=models.CASCADE, related_name='plans')
+    name = models.CharField(max_length=100)  # e.g., "Standard", "Combo", "Mega"
+    plan_type = models.CharField(max_length=20, null=False, blank=False)
+    description = models.TextField(null=True, blank=True)
+    amount = models.FloatField()
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.service.name} - {self.name}"
+
+
+class ServiceRequest(models.Model):
+    SERVICE_STATUS_CHOICES = [
+        ('initiated', 'Initiated'),
+        ('payment_pending', 'Payment Pending'),
+        ('paid', 'Paid'),
+        ('documents_pending', 'Documents Pending'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    plan = models.ForeignKey('ServicePlan', on_delete=models.SET_NULL, null=True, blank=True)
+    context = models.ForeignKey('Context', null=True, blank=True, on_delete=models.SET_NULL)
+
+    status = models.CharField(max_length=20, choices=SERVICE_STATUS_CHOICES, default='initiated')
+    payment_order_id = models.CharField(max_length=100, null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def is_personal(self):
+        return self.context is None
+
+    @property
+    def service(self):
+        return self.plan.service if self.plan else None
+
+    def __str__(self):
+        return f"{self.user.email} - {self.plan.service.name if self.plan else 'No Plan'}"
+
+
+class ServicePaymentInfo(models.Model):
+    PAYMENT_STATUS = [
+        ('initiated', 'Initiated'),
+        ('captured', 'Captured'),
+        ('failed', 'Failed'),
+    ]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    service_request = models.OneToOneField('ServiceRequest', on_delete=models.CASCADE, related_name='payment')
+
+    razorpay_order_id = models.CharField(max_length=100)
+    razorpay_payment_id = models.CharField(max_length=100, null=True, blank=True)
+    amount = models.FloatField()  # Replaced DecimalField with FloatField
+    currency = models.CharField(max_length=10, default='INR')
+
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='initiated')
+    method = models.CharField(max_length=50, null=True, blank=True)
+    captured = models.BooleanField(default=False)
+    failure_reason = models.TextField(null=True, blank=True)
+
+    paid_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Payment for {self.service_request.service.name} - {self.status}"
+
+
 class Role(models.Model):
     name = models.CharField(max_length=100)
     context = models.ForeignKey(Context, on_delete=models.CASCADE, related_name='roles')
