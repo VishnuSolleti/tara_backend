@@ -193,12 +193,18 @@ def select_context(request):
                 serializer.is_valid(raise_exception=True)
                 serializer.save(user=user)
 
-            else:  # context_type == 'business'
-                business_serializer = BusinessSerializer(data=business_data)
+            else:
+                # Let signal create Business
+                # Now update the business with additional fields
+                business = context.business  # ✅ created by signal
+                if not business:
+                    return Response({"error": "Business record could not be initialized."},
+                                    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+                # Use serializer to validate the additional business data
+                business_serializer = BusinessSerializer(business, data=business_data, partial=True)
                 business_serializer.is_valid(raise_exception=True)
-                business = business_serializer.save(client=user)
-                context.business = business
-                context.save()
+                business_serializer.save()
 
             # Assign owner role
             role = Role.objects.get(name='Owner', context=context)
