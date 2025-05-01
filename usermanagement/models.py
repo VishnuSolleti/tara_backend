@@ -145,13 +145,34 @@ class Context(models.Model):
 
     def validate_profile_completion(self):
         if self.context_type == 'business':
-            if self.business:
+            if self.business and self._is_business_complete():
                 self.profile_status = 'complete'
+            else:
+                self.profile_status = 'pending_business_details'
         elif self.context_type == 'personal':
             if hasattr(self.owner_user, 'userkyc') and self.owner_user.userkyc.is_completed:
                 self.profile_status = 'complete'
             else:
                 self.profile_status = 'incomplete'
+
+    def _is_business_complete(self):
+        required_fields = [
+            'nameOfBusiness',
+            'registrationNumber',
+            'entityType',
+            'pan',
+            'business_nature',
+            'trade_name',
+            'mobile_number',
+            'email',
+            'dob_or_incorp_date',
+            'headOffice'
+        ]
+        for field in required_fields:
+            value = getattr(self.business, field, None)
+            if not value:
+                return False
+        return True
 
     def save(self, *args, **kwargs):
         if self.context_type == 'business' and self.pk is None:
@@ -374,7 +395,7 @@ class ServiceRequest(models.Model):
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    service = models.ForeignKey(Service, on_delete=models.CASCADE)
+    service = models.ForeignKey(Service, on_delete=models.CASCADE)  # ✅ actual field
     plan = models.ForeignKey('ServicePlan', on_delete=models.SET_NULL, null=True, blank=True)
     context = models.ForeignKey('Context', null=True, blank=True, on_delete=models.SET_NULL)
 
@@ -387,12 +408,8 @@ class ServiceRequest(models.Model):
     def is_personal(self):
         return self.context is None
 
-    @property
-    def service(self):
-        return self.plan.service if self.plan else None
-
     def __str__(self):
-        return f"{self.user.email} - {self.plan.service.name if self.plan else 'No Plan'}"
+        return f"{self.user.email} - {self.service.name if self.service else 'No Service'}"
 
 
 class ServicePaymentInfo(models.Model):
@@ -404,10 +421,11 @@ class ServicePaymentInfo(models.Model):
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     service_request = models.OneToOneField('ServiceRequest', on_delete=models.CASCADE, related_name='payment')
+    plan = models.ForeignKey('ServicePlan', on_delete=models.CASCADE, null=True, blank=True)
 
     razorpay_order_id = models.CharField(max_length=100)
     razorpay_payment_id = models.CharField(max_length=100, null=True, blank=True)
-    amount = models.FloatField()  # Replaced DecimalField with FloatField
+    amount = models.FloatField()
     currency = models.CharField(max_length=10, default='INR')
 
     status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='initiated')
@@ -415,8 +433,23 @@ class ServicePaymentInfo(models.Model):
     captured = models.BooleanField(default=False)
     failure_reason = models.TextField(null=True, blank=True)
 
+    is_latest = models.BooleanField(default=True)  # ✅ New field to track active order
     paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def mark_as_captured(self, payment_id, method):
+        self.status = 'captured'
+        self.razorpay_payment_id = payment_id
+        self.method = method
+        self.captured = True
+        self.paid_at = timezone.now()
+        self.save()
+
+    def mark_as_failed(self, reason):
+        self.status = 'failed'
+        self.failure_reason = reason
+        self.captured = False
+        self.save()
 
     def __str__(self):
         return f"Payment for {self.service_request.service.name} - {self.status}"
@@ -657,8 +690,7 @@ class SubscriptionPlan(models.Model):
 
     module = models.ForeignKey(Module, on_delete=models.CASCADE, null=True, blank=True,
                                related_name='module_subscriptions')
-    suite = models.ForeignKey(Suite
-                              , on_delete=models.CASCADE, null=True, blank=True,
+    suite = models.ForeignKey(Suite, on_delete=models.CASCADE, null=True, blank=True,
                               related_name='suite_subscriptions')
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True, null=True)
@@ -703,8 +735,7 @@ class SubscriptionPlan(models.Model):
 
 class ContextSuiteSubscription(models.Model):
     context = models.ForeignKey(Context, on_delete=models.CASCADE, related_name='context_subscriptions')
-    plan = models.ForeignKey(SubscriptionPlan, on_delete=models.CASCADE,
-                                      related_name='subscription_processed_for')
+    plan = models.ForeignKey(SubscriptionPlan, on_delete=models.CASCADE, related_name='subscription_processed_for')
     status = models.CharField(
         max_length=20,
         choices=[
@@ -967,7 +998,8 @@ def handle_payment_success(sender, instance, created, **kwargs):
                 # Initialize usage cycles for the new plan's features
                 if instance.plan.features_enabled:
                     for feature_key, config in instance.plan.features_enabled.items():
-                        if isinstance(config, dict) and (config.get("limit") is not None or config.get("track") is True):
+                        if isinstance(config, dict) and (config.get("limit") is not None
+                                                         or config.get("track") is True):
                             ModuleUsageCycle.objects.create(
                                 cycle=new_cycle,
                                 feature_key=feature_key,
@@ -1445,12 +1477,5 @@ class Consultation(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} - {self.email}"
-
-
-
-
-
-
-
 
 
