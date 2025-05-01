@@ -165,7 +165,7 @@ urlpatterns = [
     path('users-kyc/', other_factors.UsersKYCListView.as_view(), name='user-kyc-list'),
 
     # URL for retrieving, updating, and deleting specific user details
-    path('users-kyc/<int:pk>/', other_factors.UsersKYCDetailView.as_view(), name='user-kyc-detail'),
+    path('users-kyc/<int:pk>', other_factors.UsersKYCDetailView.as_view(), name='user-kyc-detail'),
 
     # firm urls
     path('firmkyc/', other_factors.FirmKYCView.as_view(), name='firmkyc'),
