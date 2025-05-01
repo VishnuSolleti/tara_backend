@@ -16,6 +16,8 @@ from . import module_subscription_upgrade
 from . import payment_integration
 from . import payment_webhooks
 from . import service_views
+from . import service_registration_process
+from . import service_payment
 urlpatterns = [
     # Registration endpoints
     # path('register/module', views.register_from_module, name='register_from_module'),
@@ -28,6 +30,9 @@ urlpatterns = [
     # Comprehensive business registration with module subscription and feature permissions
     path('register/business-with-module/', business_registration_api.register_business,
          name='register_business_with_module'),
+
+    path('register/register_user_with_service/', service_registration_process.register_user_with_service,
+             name='register_user_with_service'),
 
     path('register/add-another-context/', business_registration_api.add_another_context, name='add_another_context'),
 
@@ -135,9 +140,7 @@ urlpatterns = [
     path('context/<int:context_id>/module-features', feature_views.get_context_module_features,
          name='get-context-module-features'),
 
-
     # Reverted Api views As per the data
-
 
     path('users/stats/', other_factors.DynamicUserStatsAPIView.as_view(), name='user-stats'),
     path('users/by-type/', other_factors.UsersByDynamicTypeAPIView.as_view(), name='users-by-type'),
@@ -182,7 +185,6 @@ urlpatterns = [
 
     path('corporate-details', other_factors.corporate_details, name='corporate_details'),
 
-
     path('user-search', other_factors.user_search, name='user_Search'),
 
     # Adding GST Details
@@ -226,7 +228,6 @@ urlpatterns = [
     # List all users in a context
     path('context/users', add_team_business.list_context_users, name='list-context-users'),
 
-
     path('business/context', add_team_business.get_business_context_data, name='get-business-context-data'),
 
 
@@ -269,5 +270,9 @@ urlpatterns = [
     path('feature-services/<int:service_id>', service_views.service_detail),
     path('feature-services/<int:service_id>/plans/', service_views.service_plan_list_create),
     path('feature-service-plans/<int:plan_id>', service_views.service_plan_detail),
+
+    path('service-payment/create-order/', service_payment.create_razorpay_order_for_services,
+         name='create_razorpay_order'),
+    path('service-payment/webhook/', service_payment.service_razorpay_webhook, name='service_razorpay_webhook'),
 
 ]

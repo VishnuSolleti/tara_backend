@@ -7,9 +7,10 @@ from rest_framework import status
 from .serializers import *
 import json
 
+
 @api_view(['GET', 'POST'])
 @parser_classes([MultiPartParser, FormParser,JSONParser])
-def msme_list(request):
+def msme_registration_list_create(request):
     if request.method == 'GET':
         msme_details = MSMEDetails.objects.all()
         serializer = MSMEDetailsSerializerRetrieval(msme_details, many=True)
@@ -18,8 +19,8 @@ def msme_list(request):
     elif request.method == 'POST':
         data = request.data.copy()
         try:
-            msme_details = MSMEDetails.objects.get(user_id=data['user'])
-            serializer = MSMEDetailsSerializer(msme_details,data=data,partial=True)
+            msme_details = MSMEDetails.objects.get(service_request=data['service_request'])
+            serializer = MSMEDetailsSerializer(msme_details, data=data, partial=True)
         except:
             serializer = MSMEDetailsSerializer(data=data)
         if serializer.is_valid():
@@ -30,7 +31,7 @@ def msme_list(request):
 
 @api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser,JSONParser])
-def msme_detail(request, pk):
+def msme_registration_detail_update_delete(request, pk):
     try:
         msme = MSMEDetails.objects.get(pk=pk)
     except MSMEDetails.DoesNotExist:
@@ -42,7 +43,7 @@ def msme_detail(request, pk):
     elif request.method == 'PUT':
         data = request.data.copy()
         json_fields = ['official_address_of_enterprise', 'location_of_plant_or_unit', 'bank_details','status',
-                       'no_of_persons_employed','nic_code']
+                       'no_of_persons_employed', 'nic_code']
         for field in json_fields:
             if field in data:
                 field_data = data.get(field)
@@ -53,7 +54,7 @@ def msme_detail(request, pk):
                     except json.JSONDecodeError:
                         return Response({f"error": f"Invalid JSON format for {field}"},
                                         status=status.HTTP_400_BAD_REQUEST)
-        serializer = MSMEDetailsSerializer(msme, data=data,partial=True)
+        serializer = MSMEDetailsSerializer(msme, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -62,3 +63,14 @@ def msme_detail(request, pk):
     elif request.method == 'DELETE':
         msme.delete()
         return Response({"message": "Deleted successfully"}, status=204)
+
+
+@api_view(['GET'])
+def service_request_with_msme(request, service_request_id):
+    try:
+        service_request = ServiceRequest.objects.get(id=service_request_id, user=request.user)
+        serializer = ServiceRequestWithMSMESerializer(service_request)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except ServiceRequest.DoesNotExist:
+        return Response({"error": "ServiceRequest not found."}, status=status.HTTP_404_NOT_FOUND)
+

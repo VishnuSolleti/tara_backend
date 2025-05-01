@@ -188,7 +188,7 @@ def select_context(request):
         )
 
         if context_type == 'personal':
-            serializer.save(user=user)
+            serializer.save()
         else:
             business = context.business
             if not business:

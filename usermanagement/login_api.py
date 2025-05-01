@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from .models import (
     Users, Context, Role, UserContextRole, Module,
-    ModuleFeature, UserFeaturePermission, ModuleSubscription
+    ModuleFeature, UserFeaturePermission, ModuleSubscription, ServiceRequest
 )
 
 User = get_user_model()
@@ -17,28 +17,9 @@ User = get_user_model()
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login_user(request):
-    """
-    Login API that authenticates a user and returns:
-    - Access token
-    - Refresh token
-    - User details
-    - Active context information
-    - All contexts for the user
-    - User role in the active context
-    - Module subscriptions for the active context
-
-
-    Expected request data:
-    {
-        "email": "user@example.com",
-        "password": "securepassword"
-    }
-    """
-    # Extract data from request
     email = request.data.get('email')
     password = request.data.get('password')
 
-    # Validate required fields
     if not all([email, password]):
         return Response(
             {"error": "Missing required fields. Please provide email and password."},
@@ -46,10 +27,8 @@ def login_user(request):
         )
 
     try:
-        # Try to get the user directly by email
         try:
             user = User.objects.get(email=email)
-            # Check if the password is correct
             if not user.check_password(password):
                 return Response(
                     {"error": "Invalid credentials. Please check your email and password."},
@@ -61,23 +40,19 @@ def login_user(request):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        # Check if user is active
         if user.is_active != 'yes':
             return Response(
                 {"error": "Your account is not active. Please activate your account or contact support."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        # Update last login time
         user.last_login = timezone.now()
         user.save()
 
-        # Generate tokens
         refresh = RefreshToken.for_user(user)
         access_token = str(refresh.access_token)
         refresh_token = str(refresh)
 
-        # Get user's active context
         active_context = None
         context_data = None
         user_role = None
@@ -86,8 +61,9 @@ def login_user(request):
         all_contexts = []
         active_user_context_role = None
         user_context_role_id = None
+        service_requests = []
 
-        # Get all contexts for the user
+        # Get all active context roles for the user
         user_context_roles = UserContextRole.objects.filter(
             user=user,
             status='active'
@@ -125,7 +101,6 @@ def login_user(request):
                 "business_id": active_context.business_id,
             }
 
-            # Get user's role in the active context
             try:
                 user_context_role = UserContextRole.objects.get(
                     user=user,
@@ -142,7 +117,6 @@ def login_user(request):
                     "description": user_role.description
                 }
 
-                # Get user's feature permissions
                 feature_permissions = UserFeaturePermission.objects.filter(
                     user_context_role=user_context_role,
                     is_active="yes"
@@ -151,7 +125,6 @@ def login_user(request):
             except UserContextRole.DoesNotExist:
                 pass
 
-            # Get module subscriptions for the active context
             subscriptions = ModuleSubscription.objects.filter(
                 context=active_context,
                 status__in=['active', 'trial']
@@ -170,7 +143,22 @@ def login_user(request):
                     "auto_renew": subscription.auto_renew
                 })
 
-        # Prepare user data
+            # ✅ Only include service requests where the logged-in user owns the context
+            if active_context.owner_user_id == user.id:
+                requests = ServiceRequest.objects.filter(context=active_context)
+                for req in requests:
+                    service_requests.append({
+                        "id": req.id,
+                        "service_id": req.service.id,
+                        "service_name": req.service.name,
+                        "plan_id": req.plan.id if req.plan else None,
+                        "plan_name": req.plan.name if req.plan else None,
+                        "status": req.status,
+                        "payment_order_id": req.payment_order_id,
+                        "created_at": req.created_at,
+                        "updated_at": req.updated_at
+                    })
+
         user_data = {
             "id": user.id,
             "email": user.email,
@@ -181,16 +169,14 @@ def login_user(request):
             "registration_completed": user.registration_completed,
             "created_at": user.created_at,
             "last_login": user.last_login,
-            "user_context_role": user_context_role_id  # Add user_context_role to user data
+            "user_context_role": user_context_role_id
         }
 
-        # Add user_context_role to the token payload
         if active_user_context_role:
             refresh['user_context_role'] = active_user_context_role.id
             access_token = str(refresh.access_token)
             refresh_token = str(refresh)
 
-        # Return success response with all required data
         return Response({
             "message": "Login successful",
             "access_token": access_token,
@@ -200,7 +186,8 @@ def login_user(request):
             "all_contexts": all_contexts,
             "user_role": role_data,
             "module_subscriptions": module_subscriptions,
-            "user_context_role": user_context_role_id  # Add user_context_role to response
+            "service_requests": service_requests,
+            "user_context_role": user_context_role_id
         }, status=status.HTTP_200_OK)
 
     except Exception as e:
