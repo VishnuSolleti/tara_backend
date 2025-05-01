@@ -1148,7 +1148,8 @@ def gst_details_detail(request, pk):
         return Response({"error": "GST Detail not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = GSTDetailsSerializer(gst_detail)
+        gst_detail = GSTDetails.objects.filter(business_id=pk)
+        serializer = GSTDetailsSerializer(gst_detail,many=True)
         return Response(serializer.data)
 
     elif request.method in ['PUT']:
@@ -1189,7 +1190,8 @@ def tds_details_detail(request, pk):
         return Response({"error": "TDS Detail not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = TDSDetailsSerializer(tds_detail)
+        tds_detail = TDSDetails.objects.filter(business_id=pk)
+        serializer = TDSDetailsSerializer(tds_detail,many=True)
         return Response(serializer.data)
 
     elif request.method in ['PUT', 'PATCH']:
@@ -1230,7 +1232,8 @@ def license_details_detail(request, pk):
         return Response({"error": "License Detail not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = LicenseDetailsSerializer(license_detail)
+        license_detail = LicenseDetails.objects.filter(business_id=pk)
+        serializer = LicenseDetailsSerializer(license_detail,many=True)
         return Response(serializer.data)
 
     elif request.method in ['PUT']:
@@ -1271,7 +1274,8 @@ def dsc_details_detail(request, pk):
         return Response({"error": "DSC Detail not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = DSCDetailsSerializer(dsc_detail)
+        dsc_detail = DSCDetails.objects.filter(business_id=pk)
+        serializer = DSCDetailsSerializer(dsc_detail,many=True)
         return Response(serializer.data)
 
     elif request.method in ['PUT']:
@@ -1296,22 +1300,8 @@ def bank_details_list_create(request):
     if request.method == 'POST':
         serializer = BankDetailsSerializer(data=request.data)
         if serializer.is_valid():
-            # Check if a record with the same business, account_number, and ifsc_code exists
-            try:
-                existing_bank = BankDetails.objects.get(
-                    business=serializer.validated_data['business'],
-                    account_number=serializer.validated_data['account_number'],
-                    ifsc_code=serializer.validated_data['ifsc_code']
-                )
-                # Update existing record instead of creating new one
-                serializer = BankDetailsSerializer(existing_bank, data=request.data)
-                if serializer.is_valid():
-                    serializer.save()
-                    return Response(serializer.data, status=status.HTTP_200_OK)
-            except BankDetails.DoesNotExist:
-                # Create new record if no matching record exists
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -1327,7 +1317,8 @@ def bank_details_detail(request, pk):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = BankDetailsSerializer(bank_detail)
+        bank_detail = BankDetails.objects.filter(business_id=pk)
+        serializer = BankDetailsSerializer(bank_detail,many=True)
         return Response(serializer.data)
 
     elif request.method == 'PUT':
@@ -1352,22 +1343,8 @@ def kmp_list_create(request):
     if request.method == 'POST':
         serializer = KeyManagerialPersonnelSerializer(data=request.data)
         if serializer.is_valid():
-            # Check if a record with the same business, name, pan, and designation exists
-            try:
-                existing_personnel = KeyManagerialPersonnel.objects.get(
-                    business=serializer.validated_data['business'],
-                    name=serializer.validated_data['name'],
-                    pan_number=serializer.validated_data['pan_number'],
-                )
-                # Update existing record instead of creating new one
-                serializer = KeyManagerialPersonnelSerializer(existing_personnel, data=request.data)
-                if serializer.is_valid():
-                    serializer.save()
-                    return Response(serializer.data, status=status.HTTP_200_OK)
-            except KeyManagerialPersonnel.DoesNotExist:
-                # Create new record if no matching record exists
-                serializer.save()
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -1377,27 +1354,45 @@ def kmp_detail(request, pk):
     """
     Retrieve, update or delete a KMP detail.
     """
-    try:
-        kmp = KeyManagerialPersonnel.objects.get(business_id=pk)
-    except KeyManagerialPersonnel.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
     if request.method == 'GET':
-        serializer = KeyManagerialPersonnelSerializer(kmp)
-        return Response(serializer.data)
+        try:
+            try:
+                kmp = KeyManagerialPersonnel.objects.filter(business_id=pk)
+            except KeyManagerialPersonnel.DoesNotExist:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+            serializer = KeyManagerialPersonnelSerializer(kmp, many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     elif request.method == 'PUT':
-        kmp = KeyManagerialPersonnel.objects.get(pk=pk)
-        serializer = KeyManagerialPersonnelSerializer(kmp, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            try:
+                kmp = KeyManagerialPersonnel.objects.get(pk=pk)
+            except KeyManagerialPersonnel.DoesNotExist:
+                return Response({"error": "Key Managerial Personnel not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            serializer = KeyManagerialPersonnelSerializer(kmp, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     elif request.method == 'DELETE':
-        kmp = KeyManagerialPersonnel.objects.get(pk=pk)
-        kmp.delete()
-        return Response({"message": "Key Managerial Personnel Detail deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        try:
+            try:
+                kmp = KeyManagerialPersonnel.objects.get(pk=pk)
+            except KeyManagerialPersonnel.DoesNotExist:
+                return Response({"error": "Key Managerial Personnel not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            kmp.delete()
+            return Response({"message": "Key Managerial Personnel Detail deleted successfully"},
+                            status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 def documents_view(request):
     # Get the URL from the query parameters
