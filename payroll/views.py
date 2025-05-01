@@ -1732,8 +1732,11 @@ def employee_detail(request, pk):
 def new_employees_list(request):
     try:
         payroll_id = request.query_params.get('payroll_id')
-        month = request.query_params.get('month')
-        year = request.query_params.get('year')
+        month = int(request.query_params.get('month'))
+        financial_year = request.query_params.get('financial_year')
+
+        if financial_year:
+            year = int(financial_year.split('-')[1]) if 1 <= month <= 3 else int(financial_year.split('-')[0])
 
         # Default to current date if month/year are not provided
         current_date = now().date()
@@ -2422,12 +2425,19 @@ def generate_current_month_attendance(request):
     excluding employees who have left the organization. If records already exist, it skips them.
     """
     payroll_id = request.query_params.get("payroll_id")
+    current_month = int(request.query_params.get("month"))
+    financial_year = request.query_params.get("financial_year")
     if not payroll_id:
         return Response({"error": "Payroll ID is required."}, status=status.HTTP_400_BAD_REQUEST)
-
     today = date.today()
-    current_month = today.month
-    current_year = today.year
+    if not current_month:
+        current_month = today.month
+    if not financial_year:
+        current_year = today.year
+        financial_year = f"{current_year}-{current_year + 1}" if current_month >= 4 else f"{current_year - 1}-{current_year}"
+    else:
+        current_year = int(financial_year.split('-')[1]) if 1 <= current_month <= 3 else int(financial_year.split('-')[0])
+
     first_day_current_month = date(current_year, current_month, 1)
 
     # Fetch all employees under the given payroll_id
@@ -2462,7 +2472,6 @@ def generate_current_month_attendance(request):
     skipped_records = 0
 
     for employee in active_employees:
-        financial_year = f"{current_year}-{current_year + 1}" if current_month >= 4 else f"{current_year - 1}-{current_year}"
 
         # Check if an attendance record already exists
         if EmployeeAttendance.objects.filter(
