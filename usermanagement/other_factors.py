@@ -1142,15 +1142,15 @@ def gst_details_detail(request, pk):
     """
     Retrieve, update or delete a GST detail by ID.
     """
-    try:
-        gst_detail = GSTDetails.objects.get(business_id=pk)
-    except GSTDetails.DoesNotExist:
-        return Response({"error": "GST Detail not found"}, status=status.HTTP_404_NOT_FOUND)
+
 
     if request.method == 'GET':
-        gst_detail = GSTDetails.objects.filter(business_id=pk)
-        serializer = GSTDetailsSerializer(gst_detail,many=True)
-        return Response(serializer.data)
+        try:
+            gst_detail = GSTDetails.objects.filter(business_id=pk)
+            serializer = GSTDetailsSerializer(gst_detail,many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method in ['PUT']:
         gst_detail = GSTDetails.objects.get(pk=pk)
@@ -1184,15 +1184,13 @@ def tds_details_detail(request, pk):
     """
     Retrieve, update or delete a TDS detail by ID.
     """
-    try:
-        tds_detail = TDSDetails.objects.get(business_id=pk)
-    except TDSDetails.DoesNotExist:
-        return Response({"error": "TDS Detail not found"}, status=status.HTTP_404_NOT_FOUND)
-
     if request.method == 'GET':
-        tds_detail = TDSDetails.objects.filter(business_id=pk)
-        serializer = TDSDetailsSerializer(tds_detail,many=True)
-        return Response(serializer.data)
+        try:
+            tds_detail = TDSDetails.objects.filter(business_id=pk)
+            serializer = TDSDetailsSerializer(tds_detail,many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method in ['PUT', 'PATCH']:
         tds_detail = TDSDetails.objects.get(pk=pk)
@@ -1226,15 +1224,13 @@ def license_details_detail(request, pk):
     """
     Retrieve, update or delete a license detail by ID.
     """
-    try:
-        license_detail = LicenseDetails.objects.get(business_id=pk)
-    except LicenseDetails.DoesNotExist:
-        return Response({"error": "License Detail not found"}, status=status.HTTP_404_NOT_FOUND)
-
     if request.method == 'GET':
-        license_detail = LicenseDetails.objects.filter(business_id=pk)
-        serializer = LicenseDetailsSerializer(license_detail,many=True)
-        return Response(serializer.data)
+        try:
+            license_detail = LicenseDetails.objects.filter(business_id=pk)
+            serializer = LicenseDetailsSerializer(license_detail,many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method in ['PUT']:
         license_detail = LicenseDetails.objects.get(pk=pk)
@@ -1268,15 +1264,13 @@ def dsc_details_detail(request, pk):
     """
     Retrieve, update or delete a DSC detail by ID.
     """
-    try:
-        dsc_detail = DSCDetails.objects.get(business_id=pk)
-    except DSCDetails.DoesNotExist:
-        return Response({"error": "DSC Detail not found"}, status=status.HTTP_404_NOT_FOUND)
-
     if request.method == 'GET':
-        dsc_detail = DSCDetails.objects.filter(business_id=pk)
-        serializer = DSCDetailsSerializer(dsc_detail,many=True)
-        return Response(serializer.data)
+        try:
+            dsc_detail = DSCDetails.objects.filter(business_id=pk)
+            serializer = DSCDetailsSerializer(dsc_detail,many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method in ['PUT']:
         dsc_detail = DSCDetails.objects.get(pk=pk)
@@ -1317,9 +1311,12 @@ def bank_details_detail(request, pk):
         return Response(status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        bank_detail = BankDetails.objects.filter(business_id=pk)
-        serializer = BankDetailsSerializer(bank_detail,many=True)
-        return Response(serializer.data)
+        try:
+            bank_detail = BankDetails.objects.filter(business_id=pk)
+            serializer = BankDetailsSerializer(bank_detail,many=True)
+            return Response(serializer.data)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'PUT':
         bank_detail = BankDetails.objects.get(pk=pk)
