@@ -1,5 +1,6 @@
 from rest_framework import status
 from rest_framework.response import Response
+from django.db.models import Count
 from rest_framework.views import APIView
 from .models import *
 from .serializers import *
@@ -428,6 +429,15 @@ def work_location_list(request):
 
             work_locations = WorkLocations.objects.filter(payroll=payroll_org)
             work_location_data = WorkLocationSerializer(work_locations, many=True).data
+
+            # Add employee count for each work location
+            for i, loc in enumerate(work_locations):
+                employee_count = EmployeeManagement.objects.filter(
+                    payroll=payroll_org,
+                    work_location=loc,
+                ).count()
+                work_location_data[i]['employee_count'] = employee_count
+
             return Response(work_location_data, status=status.HTTP_200_OK)
 
         return Response({"error": "Either business_id or payroll_id is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -559,7 +569,17 @@ def department_list(request):
             departments = Departments.objects.all().order_by('-id')
 
         serializer = DepartmentsSerializer(departments, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        data = serializer.data
+
+        # Add employee count for each department
+        for i, dept in enumerate(departments):
+            employee_count = EmployeeManagement.objects.filter(
+                payroll_id=payroll_id,
+                department=dept,
+            ).count()
+            data[i]['employee_count'] = employee_count
+
+        return Response(data, status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         serializer = DepartmentsSerializer(data=request.data)
@@ -666,8 +686,19 @@ def designation_list(request):
         else:
             # Retrieve all designations if no payroll_id is provided
             designations = Designation.objects.all().order_by('-id')
+
         serializer = DesignationSerializer(designations, many=True)
-        return Response(serializer.data)
+        data = serializer.data
+
+        # Add employee count for each designation
+        for i, designation in enumerate(designations):
+            employee_count = EmployeeManagement.objects.filter(
+                payroll_id=payroll_id,
+                designation=designation,
+            ).count()
+            data[i]['employee_count'] = employee_count
+
+        return Response(data,status=status.HTTP_200_OK)
 
     elif request.method == 'POST':
         serializer = DesignationSerializer(data=request.data)
