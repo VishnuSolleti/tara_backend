@@ -116,30 +116,49 @@ def service_razorpay_webhook(request):
     try:
         webhook_secret = "servicetesting"
         received_sig = request.headers.get('X-Razorpay-Signature')
+        print("[Webhook] Received Signature:", received_sig)
+
         generated_sig = hmac.new(
             webhook_secret.encode(),
             request.body,
             hashlib.sha256
         ).hexdigest()
 
-        if hmac.compare_digest(received_sig, generated_sig):
-            data = json.loads(request.body)
-            if data['event'] == 'payment.captured':
-                payment_id = data['payload']['payment']['entity']['id']
-                order_id = data['payload']['payment']['entity']['order_id']
-                method = data['payload']['payment']['entity']['method']
+        print("[Webhook] Generated Signature:", generated_sig)
 
-                payment = ServicePaymentInfo.objects.get(razorpay_order_id=order_id)
-                payment.mark_as_captured(payment_id, method)
-
-                service_request = payment.service_request
-                service_request.status = 'paid'
-                service_request.save()
-
-            return JsonResponse({'status': 'ok'})
-        else:
+        if not hmac.compare_digest(received_sig, generated_sig):
+            print("[Webhook] Signature mismatch.")
             return JsonResponse({'error': 'Signature mismatch'}, status=400)
 
+        data = json.loads(request.body)
+        print("[Webhook] Payload received:\n", json.dumps(data, indent=2))
+
+        if data.get('event') == 'payment.captured':
+            entity = data['payload']['payment']['entity']
+            payment_id = entity['id']
+            order_id = entity['order_id']
+            method = entity['method']
+
+            print(f"[Webhook] Payment Captured: payment_id={payment_id}, order_id={order_id}, method={method}")
+
+            payment = ServicePaymentInfo.objects.get(razorpay_order_id=order_id)
+            payment.mark_as_captured(payment_id, method)
+            print(f"[Webhook] Payment marked as captured for order_id={order_id}")
+
+            service_request = payment.service_request
+            service_request.status = 'paid'
+            service_request.save()
+            print(f"[Webhook] ServiceRequest #{service_request.id} marked as 'paid'")
+
+        return JsonResponse({'status': 'ok'})
+
+    except ServicePaymentInfo.DoesNotExist:
+        print(f"[Webhook][ERROR] No payment found for Razorpay order_id: {order_id}")
+        return JsonResponse({'error': 'Payment record not found'}, status=404)
+
     except Exception as e:
+        import traceback
+        print("[Webhook][ERROR] Exception occurred:", str(e))
+        print(traceback.format_exc())
         return JsonResponse({'error': str(e)}, status=500)
 
