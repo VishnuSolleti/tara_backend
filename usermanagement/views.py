@@ -65,15 +65,7 @@ def list_modules(request):
             filters['context_type'] = context_type
 
         if is_active_param is not None:
-            if is_active_param.lower() == 'true':
-                filters['is_active'] = 'yes'
-            elif is_active_param.lower() == 'false':
-                filters['is_active'] = 'no'
-            else:
-                return Response({
-                    'success': False,
-                    'error': 'Invalid value for is_active. Use "true" or "false".'
-                }, status=status.HTTP_400_BAD_REQUEST)
+            filters['is_active'] = is_active_param
 
         # Fetch modules with or without filters
         modules = Module.objects.filter(**filters)
