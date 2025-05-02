@@ -1322,7 +1322,7 @@ def split_address(address):
     ]
 )
 @api_view(["GET"])
-@require_permissions(2, required_actions=['Invoice.print'])
+# @require_permissions(2, required_actions=['Invoice.print'])
 def createDocument(request, id):
     try:
         # Fetch the invoice object
