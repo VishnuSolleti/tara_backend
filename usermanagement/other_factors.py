@@ -1309,11 +1309,6 @@ def bank_details_detail(request, pk):
     """
     Retrieve, update or delete a bank detail.
     """
-    try:
-        bank_detail = BankDetails.objects.get(business_id=pk)
-    except BankDetails.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
-
     if request.method == 'GET':
         try:
             bank_detail = BankDetails.objects.filter(business_id=pk)
