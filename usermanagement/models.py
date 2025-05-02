@@ -336,6 +336,12 @@ class Users(AbstractBaseUser):
 class Module(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    category = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Optional category label. You can define choices later."
+    )
     context_type = models.CharField(
         max_length=20,
         choices=[

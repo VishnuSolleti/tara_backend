@@ -44,7 +44,7 @@ class ModuleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Module
-        fields = ['id', 'name', 'description', 'context_type', 'is_active']
+        fields = ['id', 'name', 'category', 'description', 'context_type', 'is_active']
 
 
 class RoleSerializer(serializers.ModelSerializer):
