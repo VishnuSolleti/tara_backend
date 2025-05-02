@@ -336,6 +336,12 @@ class Users(AbstractBaseUser):
 class Module(models.Model):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
+    category = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+        help_text="Optional category label. You can define choices later."
+    )
     context_type = models.CharField(
         max_length=20,
         choices=[
@@ -420,7 +426,7 @@ class ServicePaymentInfo(models.Model):
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    service_request = models.OneToOneField('ServiceRequest', on_delete=models.CASCADE, related_name='payment')
+    service_request = models.ForeignKey('ServiceRequest', on_delete=models.CASCADE)
     plan = models.ForeignKey('ServicePlan', on_delete=models.CASCADE, null=True, blank=True)
 
     razorpay_order_id = models.CharField(max_length=100)
@@ -430,29 +436,23 @@ class ServicePaymentInfo(models.Model):
 
     status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='initiated')
     method = models.CharField(max_length=50, null=True, blank=True)
-    captured = models.BooleanField(default=False)
+    captured = models.CharField(
+        max_length=3,
+        choices=YES_NO_CHOICES,
+        default='no'
+    )
     failure_reason = models.TextField(null=True, blank=True)
 
-    is_latest = models.BooleanField(default=True)  # ✅ New field to track active order
+    is_latest = models.CharField(
+        max_length=3,
+        choices=YES_NO_CHOICES,
+        default='yes'
+    )  # ✅ New field to track active order
     paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def mark_as_captured(self, payment_id, method):
-        self.status = 'captured'
-        self.razorpay_payment_id = payment_id
-        self.method = method
-        self.captured = True
-        self.paid_at = timezone.now()
-        self.save()
-
-    def mark_as_failed(self, reason):
-        self.status = 'failed'
-        self.failure_reason = reason
-        self.captured = False
-        self.save()
-
     def __str__(self):
-        return f"Payment for {self.service_request.service.name} - {self.status}"
+        return f"ServiceRequest #{self.id} - {self.status}"
 
 
 class Role(models.Model):

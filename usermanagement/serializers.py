@@ -44,7 +44,7 @@ class ModuleSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Module
-        fields = ['id', 'name', 'description', 'context_type', 'is_active']
+        fields = ['id', 'name', 'category', 'description', 'context_type', 'is_active']
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -986,3 +986,9 @@ class ContextWithRolesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Context
         fields = ['id', 'name', 'context_type', 'roles']
+
+
+class ServicePaymentInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServicePaymentInfo
+        fields = '__all__'
