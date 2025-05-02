@@ -12,6 +12,7 @@ from django.http import JsonResponse
 from .models import ServicePaymentInfo, ServiceRequest, ServicePlan
 import json
 from rest_framework.permissions import AllowAny
+from .serializers import *
 
 # Initialize Razorpay client
 client = razorpay.Client(auth=(RAZORPAY_CLIENT_ID, RAZORPAY_CLIENT_SECRET))
@@ -43,15 +44,25 @@ def create_razorpay_order_for_services(request):
         service_request.plan = plan
         service_request.save()
 
-        amount = int(plan.price * 100)  # Amount in paisa
+        amount = int(plan.amount * 100)  # Amount in paisa
 
-        # ✅ Step 1: Mark previous orders as not latest
-        ServicePaymentInfo.objects.filter(
-            service_request=service_request,
-            status='initiated',
-            captured=False,
-            is_latest=True
-        ).update(is_latest=False)
+        try:
+            old_payments = ServicePaymentInfo.objects.filter(
+                service_request=service_request.id,
+                status__iexact='initiated',
+                captured="no",
+                is_latest="yes"
+            )
+            print("[DEBUG] About to check if old payments exist")
+            if old_payments.exists():
+                print("[DEBUG] Old payments found, updating...")
+                old_payments.update(is_latest=False)
+            else:
+                print("[DEBUG] No old payments to update.")
+        except Exception as e:
+            print("EXCEPTION OCCURRED:", str(e))
+            import traceback
+            print(traceback.format_exc())
 
         # ✅ Step 2: Create a new Razorpay order
         razorpay_order = client.order.create({
@@ -61,22 +72,33 @@ def create_razorpay_order_for_services(request):
         })
 
         # ✅ Step 3: Save new payment info
-        ServicePaymentInfo.objects.create(
-            user=request.user,
-            service_request=service_request,
-            plan=plan,
-            amount=plan.price,
-            razorpay_order_id=razorpay_order['id'],
-            status='initiated',
-            is_latest=True
-        )
+        order_id = razorpay_order.get('id')
+        if not order_id:
+            raise ValueError("Razorpay order creation failed: no order ID returned.")
+
+        serializer = ServicePaymentInfoSerializer(data={
+            'user': request.user.id,
+            'service_request': service_request.id,
+            'plan': plan.id,
+            'amount': plan.amount,
+            'razorpay_order_id': order_id,
+            'status': 'initiated',
+            'is_latest': 'yes'
+        })
+
+        if serializer.is_valid():
+            serializer.save()
+            print("[DEBUG] Payment info created:", serializer.data)
+        else:
+            print("[ERROR] Payment creation failed:", serializer.errors)
+            return Response({"error": serializer.errors}, status=400)
 
         return Response({
             "message": "Razorpay order created successfully.",
             "order_id": razorpay_order['id'],
             "amount": amount,
             "currency": "INR",
-            "key_id": settings.RAZORPAY_KEY_ID
+            "key_id": RAZORPAY_CLIENT_ID
         }, status=status.HTTP_200_OK)
 
     except ServiceRequest.DoesNotExist:
@@ -92,7 +114,7 @@ def create_razorpay_order_for_services(request):
 @permission_classes([AllowAny])
 def service_razorpay_webhook(request):
     try:
-        webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
+        webhook_secret = "servicetesting"
         received_sig = request.headers.get('X-Razorpay-Signature')
         generated_sig = hmac.new(
             webhook_secret.encode(),

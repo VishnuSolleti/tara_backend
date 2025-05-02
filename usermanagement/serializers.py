@@ -986,3 +986,9 @@ class ContextWithRolesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Context
         fields = ['id', 'name', 'context_type', 'roles']
+
+
+class ServicePaymentInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServicePaymentInfo
+        fields = '__all__'
