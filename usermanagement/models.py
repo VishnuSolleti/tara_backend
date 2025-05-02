@@ -1261,6 +1261,24 @@ class Business(BaseModel):
     mobile_number = models.CharField(max_length=15, null=True, blank=True, default=None)
     email = models.EmailField(null=True, blank=True, default=None)
     dob_or_incorp_date = models.DateField(null=True, blank=True, default=None)
+    is_msme_registered = models.CharField(max_length=5, choices=YES_NO_CHOICES, default='no')
+    msme_registration_type = models.CharField(max_length=100, null=True, blank=True)
+    msme_registration_number = models.CharField(max_length=100, null=True, blank=True)
+
+    def clean(self):
+        """Validate model data before saving"""
+        super().clean()
+
+        # Check if MSME is registered but no registration number provided
+        if (self.is_msme_registered == 'yes' or self.is_msme_registered == 'Yes') and not self.msme_registration_number:
+            raise ValidationError({
+                'msme_registration_number': 'MSME registration number is required when business is MSME registered.'
+            })
+
+    def save(self, *args, **kwargs):
+        """Override save to ensure validation happens"""
+        self.clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return str(self.nameOfBusiness)
