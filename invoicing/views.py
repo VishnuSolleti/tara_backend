@@ -1384,12 +1384,15 @@ def createDocument(request, id):
             'invoice_date': invoice_date_str,
             'place_of_supply': getattr(invoice, 'place_of_supply', ''),
 
+
             # Bill To address fields
             'bill_to_address': invoice.billing_address.get('address_line1', '') if hasattr(invoice,
                                                                                            'billing_address') else '',
             'bill_to_state': invoice.billing_address.get('state', '') if hasattr(invoice, 'billing_address') else '',
             'bill_to_country': invoice.billing_address.get('country', '') if hasattr(invoice,
                                                                                      'billing_address') else '',
+            'customer_gstin': getattr(invoice, 'customer_gstin', ''),
+            'customer_pan': getattr(invoice, 'customer_pan', ''),
             'bill_to_pincode': invoice.billing_address.get('postal_code', '') if hasattr(invoice,
                                                                                          'billing_address') else '',
 
