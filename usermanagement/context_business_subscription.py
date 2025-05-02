@@ -57,9 +57,6 @@ def create_business_context(request):
     mobile_number = request.data.get('mobile_number')
     email = request.data.get('email')
     dob_or_incorp_date = request.data.get('dob_or_incorp_date')
-    is_msme_registered = request.data.get('is_msme_registered')
-    msme_registration_type = request.data.get('msme_registration_type')
-    msme_registration_number = request.data.get('msme_registration_number')
 
     # Validate required fields
     if not all([user_id, business_name]):
@@ -135,11 +132,6 @@ def create_business_context(request):
                     business.mobile_number = mobile_number
                     business.email = email
                     business.dob_or_incorp_date = dob_or_incorp_date
-                    business.is_msme_registered = is_msme_registered
-                    if msme_registration_type:
-                        business.msme_registration_type = msme_registration_type
-                    if msme_registration_number:
-                        business.msme_registration_number = msme_registration_number
                     business.save()
 
                 return Response({

@@ -1113,8 +1113,12 @@ def business_detail(request, pk):
     elif request.method == 'PUT':
         serializer = BusinessSerializer(business, data=request.data, partial=True)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            try:
+                serializer.save()
+                return Response(serializer.data)
+            except Exception as e:
+                logger.error(f"Error saving business data: {str(e)}")
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
