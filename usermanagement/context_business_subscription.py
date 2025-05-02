@@ -57,6 +57,9 @@ def create_business_context(request):
     mobile_number = request.data.get('mobile_number')
     email = request.data.get('email')
     dob_or_incorp_date = request.data.get('dob_or_incorp_date')
+    is_msme_registered = request.data.get('is_msme_registered')
+    msme_registration_type = request.data.get('msme_registration_type')
+    msme_registration_number = request.data.get('msme_registration_number')
 
     # Validate required fields
     if not all([user_id, business_name]):
@@ -82,64 +85,75 @@ def create_business_context(request):
                     {"error": "User account is not active. Please activate your account first."},
                     status=status.HTTP_403_FORBIDDEN
                 )
+            try:
+                # Create business context
+                context = Context.objects.create(
+                    name=business_name,
+                    context_type='business',
+                    owner_user=user,
+                    status='active',
+                    profile_status='complete',
+                    metadata={
+                        'registration_number': registration_number,
+                        'entity_type': entity_type,
+                        'head_office': head_office,
+                        'pan': pan,
+                        'business_nature': business_nature,
+                        'trade_name': trade_name,
+                        'mobile_number': mobile_number,
+                        'email': email,
+                        'dob_or_incorp_date': dob_or_incorp_date
+                    }
+                )
 
-            # Create business context
-            context = Context.objects.create(
-                name=business_name,
-                context_type='business',
-                owner_user=user,
-                status='active',
-                profile_status='complete',
-                metadata={
-                    'registration_number': registration_number,
-                    'entity_type': entity_type,
-                    'head_office': head_office,
-                    'pan': pan,
-                    'business_nature': business_nature,
-                    'trade_name': trade_name,
-                    'mobile_number': mobile_number,
-                    'email': email,
-                    'dob_or_incorp_date': dob_or_incorp_date
-                }
-            )
+                # Create owner role for the business
+                owner_role = Role.objects.get(
+                    context=context,
+                    role_type='owner'
+                )
 
-            # Create owner role for the business
-            owner_role = Role.objects.get(
-                context=context,
-                role_type='owner'
-            )
+                # Assign user to context with owner role
+                user_context_role = UserContextRole.objects.create(
+                    user=user,
+                    context=context,
+                    role=owner_role,
+                    status='active',
+                    added_by=user
+                )
 
-            # Assign user to context with owner role
-            user_context_role = UserContextRole.objects.create(
-                user=user,
-                context=context,
-                role=owner_role,
-                status='active',
-                added_by=user
-            )
+                # Get the business created by the signal
+                business = context.business
 
-            # Get the business created by the signal
-            business = context.business
+                # Update business with additional data
+                if business:
+                    business.registrationNumber = registration_number
+                    business.entityType = entity_type
+                    business.headOffice = head_office
+                    business.pan = pan
+                    business.business_nature = business_nature
+                    business.trade_name = trade_name
+                    business.mobile_number = mobile_number
+                    business.email = email
+                    business.dob_or_incorp_date = dob_or_incorp_date
+                    business.is_msme_registered = is_msme_registered
+                    if msme_registration_type:
+                        business.msme_registration_type = msme_registration_type
+                    if msme_registration_number:
+                        business.msme_registration_number = msme_registration_number
+                    business.save()
 
-            # Update business with additional data
-            if business:
-                business.registrationNumber = registration_number
-                business.entityType = entity_type
-                business.headOffice = head_office
-                business.pan = pan
-                business.business_nature = business_nature
-                business.trade_name = trade_name
-                business.mobile_number = mobile_number
-                business.email = email
-                business.dob_or_incorp_date = dob_or_incorp_date
-                business.save()
-
-            return Response({
-                "message": "Business context created successfully",
-                "context_id": context.id,
-                "business_id": business.id if business else None,
-                "business_name": business_name
-            }, status=status.HTTP_201_CREATED)
+                return Response({
+                    "message": "Business context created successfully",
+                    "context_id": context.id,
+                    "business_id": business.id if business else None,
+                    "business_name": business_name
+                }, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                logger.error(f"Error creating business context: {str(e)}")
+                return Response(
+                    {"error": f"An error occurred while creating the business context: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
     except Exception as e:
         logger.error(f"Error creating business context: {str(e)}")
