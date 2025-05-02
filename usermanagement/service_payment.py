@@ -142,13 +142,14 @@ def service_razorpay_webhook(request):
             print(f"[Webhook] Payment Captured: payment_id={payment_id}, order_id={order_id}, method={method}")
 
             payment = ServicePaymentInfo.objects.get(razorpay_order_id=order_id)
-            payment.mark_as_captured(payment_id, method)
-            print(f"[Webhook] Payment marked as captured for order_id={order_id}")
+            payment = ServicePaymentInfo.objects.get(razorpay_order_id=order_id)
 
-            service_request = payment.service_request
-            service_request.status = 'paid'
-            service_request.save()
-            print(f"[Webhook] ServiceRequest #{service_request.id} marked as 'paid'")
+            payment.razorpay_payment_id = payment_id
+            payment.method = method
+            payment.status = 'captured'
+            payment.captured = 'yes'
+            payment.paid_at = timezone.now()
+            payment.save()
 
         return JsonResponse({'status': 'ok'})
 
