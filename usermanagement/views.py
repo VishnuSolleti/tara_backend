@@ -59,6 +59,7 @@ def list_modules(request):
     try:
         context_type = request.query_params.get('context_type')
         is_active_param = request.query_params.get('is_active')
+        category = request.query_params.get('category')
 
         filters = {}
         if context_type:
@@ -66,6 +67,8 @@ def list_modules(request):
 
         if is_active_param is not None:
             filters['is_active'] = is_active_param
+        if category:
+            filters['category'] = category
 
         # Fetch modules with or without filters
         modules = Module.objects.filter(**filters)
