@@ -19,6 +19,7 @@ from . import service_views
 from . import service_registration_process
 from . import service_payment
 from . import create_service_request
+
 urlpatterns = [
     # Registration endpoints
     # path('register/module', views.register_from_module, name='register_from_module'),
@@ -278,4 +279,6 @@ urlpatterns = [
 
     path('service-request/create/', create_service_request.create_new_service_request, name='create-service-request'),
 
+    # User detail
+    path('users/<int:pk>/', other_factors.user_detail, name='user-detail'),
 ]
