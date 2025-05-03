@@ -708,7 +708,7 @@ class UsersKYCDetailView(APIView):
         Retrieve user details by ID.
         """
         try:
-            user_details = UserKYC.objects.get(pk=pk, user=request.user)
+            user_details = UserKYC.objects.get(user=pk)
             serializer = UsersKYCSerializer(user_details)
             return Response(serializer.data)
         except UserKYC.DoesNotExist:
