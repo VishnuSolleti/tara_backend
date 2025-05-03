@@ -274,7 +274,7 @@ urlpatterns = [
 
     path('service-payment/create-order/', service_payment.create_razorpay_order_for_services,
          name='create_razorpay_order'),
-    path('service-payment/webhook/', service_payment.service_razorpay_webhook, name='service_razorpay_webhook'),
+    path('service-payment/webhook/', service_payment.unified_razorpay_webhook, name='service_razorpay_webhook'),
 
     path('service-request/create/', create_service_request.create_new_service_request, name='create-service-request'),
 
