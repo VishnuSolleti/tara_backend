@@ -708,6 +708,7 @@
                       </tr>
                     </thead>
                     <tbody>
+                      {% if epf %}
                       <tr style="border-bottom: 1px solid #e2e2e2">
                         <td
                           style="
@@ -727,6 +728,8 @@
                           {{epf_contribution}}
                         </td>
                       </tr>
+                      {% endif %}
+                      {% if esi %}
                       <tr style="border-bottom: 1px solid #e2e2e2">
                         <td
                           style="
@@ -746,6 +749,8 @@
                           {{esi_employee_contribution}}
                         </td>
                       </tr>
+                      {% endif %}
+                      {% if pt %}
                       <tr style="border-bottom: 1px solid #e2e2e2">
                         <td
                           style="
@@ -765,6 +770,7 @@
                           {{professional_tax}}
                         </td>
                       </tr>
+                      {% endif %}
                       <tr style="border-bottom: 1px solid #e2e2e2">
                         <td
                           style="

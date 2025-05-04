@@ -3122,9 +3122,12 @@ def employee_monthly_salary_template(request):
             "salary_adjustments": 0,  # Placeholder if any adjustments apply
 
             # Individual Deductions
+            "epf": EPF.objects.filter(payroll=getattr(salary_record.employee,"payroll_id","")).exists(),
             "epf_contribution": format_with_commas(deduction_values.get("epf_employee_contribution", 0)),
+            "pt": PT.objects.filter(payroll=getattr(salary_record.employee,"payroll_id","")).exists(),
             "professional_tax": format_with_commas(deduction_values.get("professional_tax",0)),
             "income_tax": format_with_commas(deduction_values.get("income_tax", 0)),
+            "esi": ESI.objects.filter(payroll=getattr(salary_record.employee,"payroll_id","")).exists(),
             "esi_employee_contribution": format_with_commas(deduction_values.get("esi_employee_contribution", 0)),
             "total_deduction": format_with_commas(total_deduction),
 
