@@ -42,7 +42,7 @@ urlpatterns = [
     path('business/create/', context_business_subscription.create_business_context, name='create-business-context'),
     path('business/subscription/add/', context_business_subscription.add_subscription_to_business,
          name='add-subscription-to-business'),
-    path('context/subscriptions/', context_business_subscription.get_module_subscriptions, 
+    path('context-subscriptions/<int:pk>/', context_business_subscription.get_module_subscriptions,
          name='get-context-subscriptions'),
 
     # Personal context registration
@@ -289,6 +289,7 @@ urlpatterns = [
     path('module-payment-history', payment_webhooks.payment_history, name='payment-history'),
     
     # Get service requests by context
-    path('context-service-requests/', service_views.get_context_service_requests, name='get-context-service-requests'),
+
+    path('context-service-requests/<int:pk>/', service_views.get_context_service_requests, name='get-context-service-requests'),
 
 ]
