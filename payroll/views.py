@@ -72,7 +72,8 @@ class PayrollOrgList(APIView):
 
     def post(self, request):
         try:
-            data = request.data
+            # Create a mutable copy of the data
+            data = request.data.copy()  # Use .copy() to create a mutable copy
             file = request.FILES.get('logo') if 'logo' in request.FILES else None
             business_id = data.get('business')
             business_data = data.pop('business_details', None)
