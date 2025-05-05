@@ -284,7 +284,7 @@ urlpatterns = [
     # User detail
     path('users/<int:pk>/', other_factors.user_detail, name='user-detail'),
 
-    path('service-payments-history/', service_payment.get_service_payment_history, name='service-payment-history'),
+    path('service-payments-history', service_payment.get_service_payment_history, name='service-payment-history'),
 
     path('module-payment-history', payment_webhooks.payment_history, name='payment-history'),
     
