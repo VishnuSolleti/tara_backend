@@ -109,25 +109,18 @@ def service_plan_detail(request, plan_id):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_context_service_requests(request):
+def get_context_service_requests(request,pk):
     """
     Retrieve all service requests for a specific context.
     
     Query parameters:
     - context_id: ID of the context to get service requests for
     """
-    context_id = request.query_params.get('context_id')
-    
-    if not context_id:
-        return Response(
-            {"error": "Missing required parameter. Please provide context_id."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    
+
     try:
         # Verify context exists and user has access
         try:
-            context = Context.objects.get(pk=context_id)
+            context = Context.objects.get(pk=pk)
             # Check if user has access to this context
             if not Users.objects.filter(id=request.user.id).exists():
                 return Response(
@@ -141,7 +134,7 @@ def get_context_service_requests(request):
             )
         
         # Get all service requests for this context
-        service_requests = ServiceRequest.objects.filter(context_id=context_id)
+        service_requests = ServiceRequest.objects.filter(context_id=pk)
         
         # Serialize the data
         serializer = ServiceRequestSerializer(service_requests, many=True)

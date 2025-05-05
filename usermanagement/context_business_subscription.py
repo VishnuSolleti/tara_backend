@@ -279,25 +279,19 @@ def add_subscription_to_business(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def get_module_subscriptions(request):
+def get_module_subscriptions(request,pk):
     """
     Retrieve module subscription details for a specific context.
     
     Query parameters:
     - context_id: ID of the context to get subscriptions for
     """
-    context_id = request.query_params.get('context_id')
-    
-    if not context_id:
-        return Response(
-            {"error": "Missing required parameter. Please provide context_id."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
+
     
     try:
         # Verify context exists
         try:
-            context = Context.objects.get(pk=context_id)
+            context = Context.objects.get(pk=pk)
         except Context.DoesNotExist:
             return Response(
                 {"error": "Context not found."},
@@ -305,7 +299,7 @@ def get_module_subscriptions(request):
             )
         
         # Get all module subscriptions for the context
-        subscriptions = ModuleSubscription.objects.filter(context=context_id)
+        subscriptions = ModuleSubscription.objects.filter(context=pk)
         
         # Format the response data
         subscription_data = []
