@@ -11,9 +11,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import api_view, permission_classes
-from .models import PaymentInfo
-from .serializers import PaymentInfoSerializer
-
+from .models import PaymentInfo, ServicePaymentInfo
+from .serializers import PaymentInfoSerializer, ServicePaymentInfoSerializer
 
 @csrf_exempt
 @api_view(['POST'])
@@ -139,3 +138,30 @@ def payment_history(request):
 
     serializer = PaymentInfoSerializer(payments, many=True)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+def unified_payment_history(request):
+    """
+    Get all payment records for a given context:
+    - Service payments (via ServicePaymentInfo)
+    - Module/suite payments (via PaymentInfo)
+    """
+    context_id = request.GET.get('context_id')
+    if not context_id:
+        return Response({"error": "Missing required query param: context_id"}, status=400)
+
+    # --- Service Payments ---
+    service_payments = ServicePaymentInfo.objects.filter(service_request__context_id=context_id)
+    service_serializer = ServicePaymentInfoSerializer(service_payments.order_by('-created_at'), many=True)
+
+    # --- Module/Suite Payments ---
+    module_payments = PaymentInfo.objects.filter(context_id=context_id)
+    module_serializer = PaymentInfoSerializer(module_payments.order_by('-created_at'), many=True)
+
+    return Response({
+        "context_id": context_id,
+        "service_payments": service_serializer.data,
+        "module_payments": module_serializer.data
+    })
+
