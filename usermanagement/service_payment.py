@@ -250,7 +250,7 @@ def handle_service_payment(order_id, payment_id, method):
 
 def handle_module_payment(notes, order_id, payment_id, method):
     try:
-        subscription_id = notes.get('subscription_id')
+        subscription_id = notes.get('plan_id')
         context_id = notes.get('context_id')
 
         print(f"[ModulePayment] Looking for ModuleSubscription id={subscription_id}, context_id={context_id}")
