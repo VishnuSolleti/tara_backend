@@ -12,6 +12,7 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.decorators import api_view, permission_classes
 from .models import PaymentInfo
+from .serializers import PaymentInfoSerializer
 
 
 @csrf_exempt
@@ -121,3 +122,20 @@ def razorpay_webhook(request):
     except Exception as e:
         print('Webhook Error:', str(e))
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET'])
+def payment_history(request):
+    """
+    Returns payment history for a given context (business).
+    Requires ?context_id=... as query param.
+    """
+    context_id = request.query_params.get('context_id')
+
+    if not context_id:
+        return Response({"error": "Missing required query param: context_id"}, status=400)
+
+    payments = PaymentInfo.objects.filter(context_id=context_id)
+
+    serializer = PaymentInfoSerializer(payments, many=True)
+    return Response(serializer.data)
