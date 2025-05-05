@@ -23,17 +23,21 @@ User = get_user_model()
 def register_user_with_service(request):
     email = request.data.get('email')
     password = request.data.get('password')
-    business_name = request.data.get('business_name')
+    name = request.data.get('name')  # Now using 'name' for both personal and business
     service_id = request.data.get('service_id')
+    account_type = request.data.get('account_type', 'business').lower()  # default is 'business'
 
-    # ✅ Step 1: Validate input presence
-    if not all([email, password, business_name, service_id]):
+    # ✅ Step 1: Validate required fields
+    if not all([email, password, service_id]):
         return Response(
-            {"error": "All fields are required: email, password, business_name, service_id"},
+            {"error": "Required fields: email, password, service_id"},
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # ✅ Step 2: Validate user does not already exist
+    if account_type == 'business' and not name:
+        return Response({"error": "Name is required for business account."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # ✅ Step 2: Check if user already exists
     if User.objects.filter(email=email).exists():
         return Response({"error": "User already exists with this email."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -43,19 +47,19 @@ def register_user_with_service(request):
     except Service.DoesNotExist:
         return Response({"error": "Invalid service ID."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # ✅ Step 4: Validate business name uniqueness
-    if Context.objects.filter(name=business_name, context_type='business').exists():
+    # ✅ Step 4: Validate context name uniqueness for business
+    if account_type == 'business' and Context.objects.filter(name=name, context_type='business').exists():
         return Response({"error": "Business context with this name already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # ✅ Step 5: Validate role exists
-    role_qs = Role.objects.filter(name='Owner', context_type='business', is_system_role=True)
+    # ✅ Step 5: Validate role
+    role_qs = Role.objects.filter(name='Owner', context_type=account_type, is_system_role=True)
     if not role_qs.exists():
-        return Response({"error": "System role 'Owner' for business context not found."},
+        return Response({"error": f"System role 'Owner' for {account_type} context not found."},
                         status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # ✅ All validation passed — now safely write
     try:
         with transaction.atomic():
+            # ✅ Create user
             user = User.objects.create_user(
                 email=email,
                 password=password,
@@ -65,9 +69,13 @@ def register_user_with_service(request):
                 status='active'
             )
 
+            # ✅ Determine context name
+            context_name = name
+
+            # ✅ Create context
             context = Context.objects.create(
-                name=business_name,
-                context_type='business',
+                name=context_name,
+                context_type=account_type,
                 owner_user=user,
                 status='active',
                 profile_status='incomplete',
@@ -80,6 +88,7 @@ def register_user_with_service(request):
             role = Role.objects.get(name='Owner', context=context)
             UserContextRole.objects.create(user=user, context=context, role=role, status='active', added_by=user)
 
+            # ✅ Create service request
             ServiceRequest.objects.create(
                 user=user,
                 context=context,
@@ -87,7 +96,7 @@ def register_user_with_service(request):
                 status='initiated'
             )
 
-            # ✅ Send activation email (optional)
+            # ✅ Send activation email
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(str(user.pk).encode())
             activation_link = f"{FRONTEND_URL}activation?uid={uid}&token={token}"
