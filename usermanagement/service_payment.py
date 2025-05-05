@@ -28,7 +28,7 @@ def create_razorpay_order_for_services(request):
         return Response({"error": "Both service_request_id and plan_id are required."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        service_request = ServiceRequest.objects.get(id=service_request_id, user=request.user)
+        service_request = ServiceRequest.objects.get(id=service_request_id)
 
         if service_request.status != 'initiated':
             return Response({"error": "Payment not allowed. Service already processed."},
@@ -297,3 +297,28 @@ def create_subscription_cycle(subscription):
             print("[SubscriptionCycle] Created successfully")
     except Exception as e:
         print(f"[SubscriptionCycle][ERROR] Failed to create cycle: {str(e)}")
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_service_payment_history(request):
+    """
+    Get all service payment records for a user.
+    Optional filters: context_id, service_request_id
+    """
+    user = request.user
+    context_id = request.GET.get('context_id')
+    service_request_id = request.GET.get('service_request_id')
+
+    payments = ServicePaymentInfo.objects.filter(user=user)
+
+    if context_id:
+        payments = payments.filter(service_request__context_id=context_id)
+
+    if service_request_id:
+        payments = payments.filter(service_request_id=service_request_id)
+
+    payments = payments.order_by('-created_at')
+    serializer = ServicePaymentInfoSerializer(payments, many=True)
+    return Response(serializer.data)
+
