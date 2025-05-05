@@ -71,7 +71,8 @@ class PayrollOrgList(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        data = request.data.copy()
+        data = request.data
+        file = request.FILES.get('logo') if 'logo' in request.FILES else None
         business_id = data.get('business')
         business_data = data.pop('business_details', None)
 
@@ -92,20 +93,33 @@ class PayrollOrgList(APIView):
                                 status=status.HTTP_400_BAD_REQUEST)
             business_serializer = BusinessSerializer(business, data=business_data, partial=True)
             if business_serializer.is_valid():
-                business_serializer.save()  
+                business_serializer.save()
             else:
                 return Response(business_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Fetch or create PayrollOrg
+        # Remove logo from data to avoid validation errors
+        if file:
+            if 'logo' in data:
+                data.pop('logo')
+            
         try:
             payroll_org = PayrollOrg.objects.get(business_id=business_id)
-            serializer = PayrollOrgSerializer(payroll_org, data=request.data, partial=True)
+            serializer = PayrollOrgSerializer(payroll_org, data=data, partial=True)
         except PayrollOrg.DoesNotExist:
-            serializer = PayrollOrgSerializer(data=request.data)
+            serializer = PayrollOrgSerializer(data=data)
 
         # Validate and save PayrollOrg
         if serializer.is_valid():
             payroll_org = serializer.save()
+            
+            # Handle the file upload separately after the model is saved
+            try:
+                if file:
+                    payroll_org.logo = file
+                    payroll_org.save(update_fields=['logo'])
+            except Exception as e:
+                return Response({"error": f"Error uploading file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+                
             return Response(PayrollOrgSerializer(payroll_org).data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
