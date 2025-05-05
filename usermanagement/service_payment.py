@@ -255,62 +255,61 @@ def handle_module_payment(notes, order_id, payment_id, method):
         added_by_id = notes.get('added_by')
 
         if not all([plan_id, context_id, added_by_id]):
-            return JsonResponse({'error': 'Missing data in Razorpay notes'}, status=400)
+            return JsonResponse({'error': 'Missing Razorpay notes (plan_id, context_id, added_by)'}, status=400)
 
         plan = SubscriptionPlan.objects.get(id=plan_id)
         module = plan.module
         context = Context.objects.get(id=context_id)
         added_by = Users.objects.get(id=added_by_id)
-
         now = timezone.now()
 
-        # Find existing subscription for context+module
-        subscription = ModuleSubscription.objects.filter(
-            context=context,
-            module=module
-        ).first()
-
-        if subscription:
-            print(f"[ModulePayment] Existing subscription found. Updating.")
-            subscription.plan = plan
-            subscription.status = 'active'
-            subscription.payment_status = 'captured'
-            subscription.payment_method = method
-            subscription.razorpay_payment_id = payment_id
-            subscription.paid_at = now
-            subscription.start_date = now
-            subscription.end_date = now + timedelta(days=30)  # Replace with plan.billing_cycle_days if needed
-            subscription.updated_at = now
-            subscription.save()
-
-            # Expire existing cycles if any
-            active_cycles = SubscriptionCycle.objects.filter(
-                subscription=subscription,
-                end_date__gt=now
-            )
-            for cycle in active_cycles:
-                cycle.end_date = now
-                cycle.save()
-        else:
-            print(f"[ModulePayment] No subscription found. Creating new.")
-            subscription = ModuleSubscription.objects.create(
+        with transaction.atomic():
+            # Step 1: Update or create subscription
+            subscription = ModuleSubscription.objects.filter(
                 context=context,
-                module=module,
-                plan=plan,
-                status='active',
-                payment_status='captured',
-                payment_method=method,
-                razorpay_payment_id=payment_id,
-                paid_at=now,
-                start_date=now,
-                end_date=now + timedelta(days=30),
-                added_by=added_by
-            )
+                module=module
+            ).first()
 
-        # Create a new subscription cycle
-        create_subscription_cycle(subscription)
+            if subscription:
+                subscription.plan = plan
+                subscription.status = 'active'
+                subscription.start_date = now
+                subscription.end_date = now + timedelta(days=30)
+                subscription.save()
 
-        return JsonResponse({'status': 'subscription created/updated and cycle reset'})
+                # End any overlapping cycles
+                SubscriptionCycle.objects.filter(
+                    subscription=subscription,
+                    end_date__gt=now
+                ).update(end_date=now)
+            else:
+                subscription = ModuleSubscription.objects.create(
+                    context=context,
+                    module=module,
+                    plan=plan,
+                    status='active',
+                    start_date=now,
+                    end_date=now + timedelta(days=30),
+                    added_by=added_by
+                )
+
+            # Step 2: Create subscription cycle
+            create_subscription_cycle(subscription)
+
+            # Step 3: Update PaymentInfo
+            try:
+                payment_info = PaymentInfo.objects.get(razorpay_order_id=order_id)
+                payment_info.razorpay_payment_id = payment_id
+                payment_info.status = 'paid'
+                payment_info.payment_method = method
+                payment_info.payment_captured = True
+                payment_info.updated_at = now
+                payment_info.save()
+                print(f"[PaymentInfo] Updated successfully for order_id={order_id}")
+            except PaymentInfo.DoesNotExist:
+                print(f"[PaymentInfo][WARNING] No PaymentInfo found for Razorpay order_id={order_id}")
+
+        return JsonResponse({'status': 'subscription and payment updated'})
 
     except (SubscriptionPlan.DoesNotExist, Context.DoesNotExist, Users.DoesNotExist) as e:
         return JsonResponse({'error': str(e)}, status=404)
