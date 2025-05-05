@@ -293,7 +293,8 @@ urlpatterns = [
     path('context-service-requests/<int:pk>/', service_views.get_context_service_requests,
          name='get-context-service-requests'),
 
-    path('payment-history', payment_webhooks.unified_payment_history, name='unified-payment-history')
+    path('payment-history', payment_webhooks.unified_payment_history, name='unified-payment-history'),
 
+    path('services-by-type', service_views.get_services_by_type, name='get-services-by-type'),
 
 ]
