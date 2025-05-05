@@ -71,58 +71,61 @@ class PayrollOrgList(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        data = request.data
-        file = request.FILES.get('logo') if 'logo' in request.FILES else None
-        business_id = data.get('business')
-        business_data = data.pop('business_details', None)
-
-        # Fetch business instance
         try:
-            business = Business.objects.get(pk=business_id)
-        except ObjectDoesNotExist:
-            return Response({"error": "Business not found"}, status=status.HTTP_404_NOT_FOUND)
+            data = request.data
+            file = request.FILES.get('logo') if 'logo' in request.FILES else None
+            business_id = data.get('business')
+            business_data = data.pop('business_details', None)
 
-        # Update business details if provided
-        if business_data:
-            if isinstance(business_data, list):  # Ensure we are working with a list
-                business_data = business_data[0]  # Extract the first element (string)
+            # Fetch business instance
             try:
-                business_data = json.loads(business_data)  # Convert JSON string to dictionary
-            except json.JSONDecodeError:
-                return Response({"error": "Invalid JSON format in business_details"},
-                                status=status.HTTP_400_BAD_REQUEST)
-            business_serializer = BusinessSerializer(business, data=business_data, partial=True)
-            if business_serializer.is_valid():
-                business_serializer.save()
-            else:
-                return Response(business_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                business = Business.objects.get(pk=business_id)
+            except ObjectDoesNotExist:
+                return Response({"error": "Business not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Remove logo from data to avoid validation errors
-        if file:
-            if 'logo' in data:
-                data.pop('logo')
-            
-        try:
-            payroll_org = PayrollOrg.objects.get(business_id=business_id)
-            serializer = PayrollOrgSerializer(payroll_org, data=data, partial=True)
-        except PayrollOrg.DoesNotExist:
-            serializer = PayrollOrgSerializer(data=data)
+            # Update business details if provided
+            if business_data:
+                if isinstance(business_data, list):  # Ensure we are working with a list
+                    business_data = business_data[0]  # Extract the first element (string)
+                try:
+                    business_data = json.loads(business_data)  # Convert JSON string to dictionary
+                except json.JSONDecodeError:
+                    return Response({"error": "Invalid JSON format in business_details"},
+                                    status=status.HTTP_400_BAD_REQUEST)
+                business_serializer = BusinessSerializer(business, data=business_data, partial=True)
+                if business_serializer.is_valid():
+                    business_serializer.save()
+                else:
+                    return Response(business_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate and save PayrollOrg
-        if serializer.is_valid():
-            payroll_org = serializer.save()
-            
-            # Handle the file upload separately after the model is saved
+            # Remove logo from data to avoid validation errors
+            if file:
+                if 'logo' in data:
+                    data.pop('logo')
+
             try:
-                if file:
-                    payroll_org.logo = file
-                    payroll_org.save(update_fields=['logo'])
-            except Exception as e:
-                return Response({"error": f"Error uploading file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-                
-            return Response(PayrollOrgSerializer(payroll_org).data, status=status.HTTP_201_CREATED)
+                payroll_org = PayrollOrg.objects.get(business_id=business_id)
+                serializer = PayrollOrgSerializer(payroll_org, data=data, partial=True)
+            except PayrollOrg.DoesNotExist:
+                serializer = PayrollOrgSerializer(data=data)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            # Validate and save PayrollOrg
+            if serializer.is_valid():
+                payroll_org = serializer.save()
+
+                # Handle the file upload separately after the model is saved
+                try:
+                    if file:
+                        payroll_org.logo = file
+                        payroll_org.save(update_fields=['logo'])
+                except Exception as e:
+                    return Response({"error": f"Error uploading file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+                return Response(PayrollOrgSerializer(payroll_org).data, status=status.HTTP_201_CREATED)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
