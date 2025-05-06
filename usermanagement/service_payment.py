@@ -42,6 +42,15 @@ def create_razorpay_order_for_services(request):
         if plan.service.id != service_request.service.id:
             return Response({"error": "Selected plan does not belong to the requested service."},
                             status=status.HTTP_400_BAD_REQUEST)
+
+        # ADD THIS CHECK:
+        if plan.plan_type != 'fixed':
+            return Response(
+                {
+                    "error": "Online payment is only available for"
+                             "fixed price plans. Please contact support for this plan type."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         added_by = Users.objects.get(id=added_by_id)
         context = Context.objects.get(id=context_id)
 
