@@ -32,9 +32,10 @@ def create_new_service_request(request):
         return Response({'error': str(e)}, status=404)
 
     data = {
-        "context": context.id,
+        "context_id": context_id,
         "service_id": service_id,
-        "user_id": added_by_id
+        "user_id": added_by_id,
+        "plan_id": plan_id,
     }
 
     serializer = ServiceRequestCreateSerializer(data=data)
