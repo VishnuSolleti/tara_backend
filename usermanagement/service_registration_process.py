@@ -60,7 +60,7 @@ def register_user_with_service(request):
             return Response({"error": "Personal context with this name already exists."}, status=status.HTTP_400_BAD_REQUEST)
 
     # ✅ Step 6: Validate role exists based on account_type
-    role_name = 'Owner' if account_type == 'business' else 'User'
+    role_name = 'Owner'
     role_qs = Role.objects.filter(name=role_name, context_type=account_type, is_system_role=True)
     if not role_qs.exists():
         return Response(
