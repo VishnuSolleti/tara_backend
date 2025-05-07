@@ -1273,53 +1273,64 @@ def calculate_payroll(request):
         basic_monthly = basic_annual / 12
         pf_restricted_wage = min(basic_annual, 180000)  # Max PF restricted wage = 15000 per month (180000 per year)
 
-        # Compute Benefits
+        # Get Payroll Org details (assuming the payroll info is part of the request data)
+        payroll_id = data.get("payroll")
+        payroll = PayrollOrg.objects.get(id=payroll_id)
+
+        # Check if EPF, ESI, PT are enabled for the payroll org
+        epf_enabled = payroll.epf_details.exists() and not payroll.epf_details.is_disabled if hasattr(payroll, 'epf_details') else False
+        esi_enabled = payroll.esi_details.exists() and not payroll.esi_details.is_disabled if hasattr(payroll, 'esi_details') else False
+        pt_enabled = payroll.pt_details.exists()  # Simply check if PT records exist
+
+        # Compute Benefits only if EPF, ESI, PT are enabled
         benefits = {}
 
-        # EPF (Always applicable)
-        benefits["EPF"] = {
-            "monthly": 0.12 * pf_restricted_wage / 12,
-            "annually": 0.12 * pf_restricted_wage,
-            "calculation_type": "Percentage (12%) of PF wage"
-        }
-
-        # EDLI & Admin Charges
-        if basic_monthly <= 15000:
-            benefits["EDLI"] = {
-                "monthly": 0.005 * pf_restricted_wage / 12,
-                "annually": 0.005 * pf_restricted_wage,
-                "calculation_type": "Percentage (0.5%) of PF wage"
-            }
-            benefits["EPF admin charges"] = {
-                "monthly": 0.005 * pf_restricted_wage / 12,
-                "annually": 0.005 * pf_restricted_wage,
-                "calculation_type": "Percentage (0.5%) of PF wage"
-            }
-        else:
-            benefits["EDLI"] = {
-                "monthly": 75,
-                "annually": 900,
-                "calculation_type": "Fixed Amount"
-            }
-            benefits["EPF admin charges"] = {
-                "monthly": 75,
-                "annually": 900,
-                "calculation_type": "Fixed Amount"
+        if epf_enabled:
+            # EPF (Always applicable)
+            benefits["EPF"] = {
+                "monthly": 0.12 * pf_restricted_wage / 12,
+                "annually": 0.12 * pf_restricted_wage,
+                "calculation_type": "Percentage (12%) of PF wage"
             }
 
-        # ESI (Only if PF wage is <= 21000)
-        if basic_monthly <= 21000:
-            benefits["ESI"] = {
-                "monthly": 0.0325 * pf_restricted_wage / 12,
-                "annually": 0.0325 * pf_restricted_wage,
-                "calculation_type": "Percentage (3.25%) of PF wage"
-            }
-        else:
-            benefits["ESI"] = {
-                "monthly": 0,
-                "annually": 0,
-                "calculation_type": "Not Applicable"
-            }
+            # EDLI & Admin Charges
+            if basic_monthly <= 15000:
+                benefits["EDLI"] = {
+                    "monthly": 0.005 * pf_restricted_wage / 12,
+                    "annually": 0.005 * pf_restricted_wage,
+                    "calculation_type": "Percentage (0.5%) of PF wage"
+                }
+                benefits["EPF admin charges"] = {
+                    "monthly": 0.005 * pf_restricted_wage / 12,
+                    "annually": 0.005 * pf_restricted_wage,
+                    "calculation_type": "Percentage (0.5%) of PF wage"
+                }
+            else:
+                benefits["EDLI"] = {
+                    "monthly": 75,
+                    "annually": 900,
+                    "calculation_type": "Fixed Amount"
+                }
+                benefits["EPF admin charges"] = {
+                    "monthly": 75,
+                    "annually": 900,
+                    "calculation_type": "Fixed Amount"
+                }
+
+        if esi_enabled:
+            # ESI (Only if PF wage is <= 21000)
+            if basic_monthly <= 21000:
+                benefits["ESI"] = {
+                    "monthly": 0.0325 * pf_restricted_wage / 12,
+                    "annually": 0.0325 * pf_restricted_wage,
+                    "calculation_type": "Percentage (3.25%) of PF wage"
+                }
+            else:
+                benefits["ESI"] = {
+                    "monthly": 0,
+                    "annually": 0,
+                    "calculation_type": "Not Applicable"
+                }
 
         total_benefits = sum(item["annually"] for item in benefits.values())
 
@@ -1334,19 +1345,22 @@ def calculate_payroll(request):
 
         gross_salary = sum(item["annually"] for item in earnings)
 
-        # Compute Deductions
-        deductions = {
-            "EPF Employee Contribution": {
+        # Compute Deductions only if EPF, ESI are enabled
+        deductions = {}
+
+        if epf_enabled:
+            deductions["EPF Employee Contribution"] = {
                 "monthly": 0.12 * pf_restricted_wage / 12,
                 "annually": 0.12 * pf_restricted_wage,
                 "calculation_type": "Percentage (12%) of PF wage"
-            },
-            "ESI Employee Contribution": {
+            }
+
+        if esi_enabled:
+            deductions["ESI Employee Contribution"] = {
                 "monthly": (0.0075 * pf_restricted_wage / 12) if basic_monthly <= 21000 else 0,
                 "annually": (0.0075 * pf_restricted_wage) if basic_monthly <= 21000 else 0,
                 "calculation_type": "Percentage (0.75%) of PF wage" if basic_monthly <= 21000 else "Not Applicable"
             }
-        }
 
         total_deductions = sum(item["annually"] for item in deductions.values())
 
@@ -1379,6 +1393,7 @@ def calculate_payroll(request):
 
     except Exception as e:
         return Response({"errorMessage": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -2988,7 +3003,7 @@ def employee_monthly_salary_template(request):
             return Response({"error": "Financial year is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         if not employee_id:
-            return Response({"error": "Employee Id  is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Employee Id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         if current_day < 26 and month == today.month:
             return Response({"message": "Salary processing will be initiated between the 26th and 30th of the month."},
@@ -3012,13 +3027,12 @@ def employee_monthly_salary_template(request):
         lop_amount = per_day_salary * attendance.loss_of_pay
 
         # Extract Earnings from JSON
-        earnings = salary_record.earnings if isinstance(salary_record.earnings, list) else json.loads(
-            salary_record.earnings)
+        earnings = salary_record.earnings if isinstance(salary_record.earnings, list) else json.loads(salary_record.earnings)
 
         # Allowance Keys to Extract
         allowance_keys = [
             "Basic", "HRA", "Conveyance Allowance", "Travelling Allowance",
-            "Medical Allowance", "Internet Allowance", "Special Allowance", "Miscellaneous Allowance","Other Allowances"
+            "Medical Allowance", "Internet Allowance", "Special Allowance", "Miscellaneous Allowance", "Other Allowances"
         ]
 
         # Initialize Allowance Dictionary
@@ -3058,8 +3072,46 @@ def employee_monthly_salary_template(request):
                 key = component_name.lower().replace(" ", "_")
                 deduction_values[key] = item["monthly"]
 
-        # Calculate Total Deduction (Sum of Required Deductions)
-        total_deduction = sum(deduction_values.values())
+        # Initialize Total Deduction
+        total_deduction = 0
+
+        # Add EPF Deduction to Total Deduction only if EPF object exists and is enabled
+        if EPF.objects.filter(payroll=salary_record.employee.payroll).exists() and \
+           not EPF.objects.filter(payroll=salary_record.employee.payroll).first().is_disabled:
+            epf_deduction = deduction_values.get("epf_employee_contribution", 0)
+            total_deduction += epf_deduction
+
+        # Add ESI Deduction to Total Deduction only if ESI object exists and is enabled
+        if ESI.objects.filter(payroll=salary_record.employee.payroll).exists() and \
+           not ESI.objects.filter(payroll=salary_record.employee.payroll).first().is_disabled:
+            esi_deduction = deduction_values.get("esi_employee_contribution", 0)
+            total_deduction += esi_deduction
+
+        # Initialize PT Deduction (Fixed ₹200)
+        pt_deduction = 0
+
+        # Add PT Deduction only if both EPF and ESI are enabled
+        if EPF.objects.filter(payroll=salary_record.employee.payroll).exists() and \
+           ESI.objects.filter(payroll=salary_record.employee.payroll).exists() and \
+           not EPF.objects.filter(payroll=salary_record.employee.payroll).first().is_disabled and \
+           not ESI.objects.filter(payroll=salary_record.employee.payroll).first().is_disabled:
+            pt_deduction = 200  # Fixed PT Deduction as ₹200
+            deduction_values["pt"] = pt_deduction
+            total_deduction += pt_deduction
+
+        # Check for Advance Loan and Add EMI Deduction if Applicable
+        loan_deductions = AdvanceLoan.objects.filter(employee_id=employee_id)
+        loan_deduction_total = 0
+        for loan in loan_deductions:
+            # Check if the current month is within the loan start and end period
+            if loan.start_month <= today.replace(day=1) <= loan.end_month:
+                loan_deduction_total += loan.emi_amount  # Add EMI amount for loan to the total deduction
+                # Add EMI Deduction to Total Deductions
+                deduction_values["loan_emi"] = loan_deduction_total
+
+        total_deduction += loan_deduction_total
+
+        # Calculate Net Pay
         net_pay = earned_salary - total_deduction
         total_in_words = num2words(net_pay)
         total_in_words = total_in_words.capitalize()
@@ -3102,8 +3154,8 @@ def employee_monthly_salary_template(request):
             # Individual Deductions
             "epf": EPF.objects.filter(payroll=getattr(salary_record.employee,"payroll_id","")).exists(),
             "epf_contribution": format_with_commas(deduction_values.get("epf_employee_contribution", 0)),
-            "pt": PT.objects.filter(payroll=getattr(salary_record.employee,"payroll_id","")).exists(),
-            "professional_tax": format_with_commas(deduction_values.get("professional_tax",0)),
+            "pt": pt_deduction > 0,  # PT is included if enabled
+            "professional_tax": format_with_commas(deduction_values.get("pt", 0)),
             "income_tax": format_with_commas(deduction_values.get("income_tax", 0)),
             "esi": ESI.objects.filter(payroll=getattr(salary_record.employee,"payroll_id","")).exists(),
             "esi_employee_contribution": format_with_commas(deduction_values.get("esi_employee_contribution", 0)),
@@ -3114,6 +3166,13 @@ def employee_monthly_salary_template(request):
             "paid_days": total_working_days,
             "lop_days": attendance.loss_of_pay,
             "amount_in_words": total_in_words,  # Placeholder for number-to-words conversion
+
+            # Advance Loan Details in Context
+            "loan_emi": format_with_commas(loan_deduction_total),  # Add EMI to context
+            "loan_details": [
+                {"loan_type": loan.loan_type, "emi_amount": loan.emi_amount, "start_month": loan.start_month, "end_month": loan.end_month}
+                for loan in loan_deductions
+            ]
         }
 
         # Assuming you have a DocumentGenerator class that generates the PDF
