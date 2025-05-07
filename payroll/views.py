@@ -1256,9 +1256,22 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 
+
+def safe_sum(values):
+    """Safely sum a list of values, treating strings like 'NA' as 0."""
+    total = 0
+    for value in values:
+        if isinstance(value, (int, float)):  # If it's an integer or float, add it
+            total += value
+        elif value == "NA":  # If it's "NA", treat it as 0
+            total += 0
+    return total
+
+
 @api_view(['POST'])
 def calculate_payroll(request):
     try:
+        today = date.today()
         data = request.data
         annual_ctc = float(data["annual_ctc"])
 
@@ -1282,11 +1295,11 @@ def calculate_payroll(request):
         esi_enabled = payroll.esi_details.exists() and not payroll.esi_details.is_disabled if hasattr(payroll, 'esi_details') else False
         pt_enabled = payroll.pt_details.exists()  # Simply check if PT records exist
 
-        # Compute Benefits only if EPF, ESI, PT are enabled
+        # Initialize Benefits dictionary
         benefits = {}
 
+        # EPF Benefits
         if epf_enabled:
-            # EPF (Always applicable)
             benefits["EPF"] = {
                 "monthly": 0.12 * pf_restricted_wage / 12,
                 "annually": 0.12 * pf_restricted_wage,
@@ -1316,9 +1329,13 @@ def calculate_payroll(request):
                     "annually": 900,
                     "calculation_type": "Fixed Amount"
                 }
+        else:
+            benefits["EPF"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
+            benefits["EDLI"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
+            benefits["EPF admin charges"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
 
+        # ESI Benefits
         if esi_enabled:
-            # ESI (Only if PF wage is <= 21000)
             if basic_monthly <= 21000:
                 benefits["ESI"] = {
                     "monthly": 0.0325 * pf_restricted_wage / 12,
@@ -1331,11 +1348,13 @@ def calculate_payroll(request):
                     "annually": 0,
                     "calculation_type": "Not Applicable"
                 }
+        else:
+            benefits["ESI"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
 
-        total_benefits = sum(item["annually"] for item in benefits.values())
+        total_benefits = safe_sum(item["annually"] for item in benefits.values())
 
         # Adjust Fixed Allowance so that Gross Salary = Annual CTC - Benefits
-        total_earnings = sum(item["annually"] for item in earnings if item["component_name"] != "Fixed Allowance")
+        total_earnings = safe_sum(item["annually"] for item in earnings if item["component_name"] != "Fixed Allowance")
         fixed_allowance = annual_ctc - total_benefits - total_earnings
 
         for earning in earnings:
@@ -1343,28 +1362,58 @@ def calculate_payroll(request):
                 earning["annually"] = fixed_allowance
                 earning["monthly"] = fixed_allowance / 12
 
-        gross_salary = sum(item["annually"] for item in earnings)
+        gross_salary = safe_sum(item["annually"] for item in earnings)
 
-        # Compute Deductions only if EPF, ESI are enabled
+        # Initialize Deductions dictionary
         deductions = {}
 
+        # EPF Deductions
         if epf_enabled:
             deductions["EPF Employee Contribution"] = {
                 "monthly": 0.12 * pf_restricted_wage / 12,
                 "annually": 0.12 * pf_restricted_wage,
                 "calculation_type": "Percentage (12%) of PF wage"
             }
+        else:
+            deductions["EPF Employee Contribution"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
 
+        # ESI Deductions
         if esi_enabled:
             deductions["ESI Employee Contribution"] = {
                 "monthly": (0.0075 * pf_restricted_wage / 12) if basic_monthly <= 21000 else 0,
                 "annually": (0.0075 * pf_restricted_wage) if basic_monthly <= 21000 else 0,
                 "calculation_type": "Percentage (0.75%) of PF wage" if basic_monthly <= 21000 else "Not Applicable"
             }
+        else:
+            deductions["ESI Employee Contribution"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
 
-        total_deductions = sum(item["annually"] for item in deductions.values())
+        # PT Deduction (Fixed ₹200)
+        pt_deduction = 0
+        if epf_enabled and esi_enabled:
+            pt_deduction = 200  # Fixed PT Deduction as ₹200
+            deductions["PT"] = {
+                "monthly": pt_deduction,
+                "annually": pt_deduction * 12,
+                "calculation_type": "Fixed Amount (₹200)"
+            }
+        else:
+            deductions["PT"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
 
-        # Compute Net Salary
+        total_deductions = safe_sum(item["annually"] for item in deductions.values())
+
+        # Check for Advance Loan and Add EMI Deduction if Applicable
+        loan_deductions = AdvanceLoan.objects.filter(employee_id=data.get('employee_id'))
+        loan_deduction_total = 0
+        for loan in loan_deductions:
+            # Check if the current month is within the loan start and end period
+            if loan.start_month <= today.replace(day=1) <= loan.end_month:
+                loan_deduction_total += loan.emi_amount  # Add EMI amount for loan to the total deduction
+                # Add EMI Deduction to Total Deductions
+                deductions["loan_emi"] = loan_deduction_total
+
+        total_deductions += loan_deduction_total
+
+        # Calculate Net Salary
         net_salary = gross_salary - total_deductions
 
         # Compute Total CTC
@@ -1393,7 +1442,6 @@ def calculate_payroll(request):
 
     except Exception as e:
         return Response({"errorMessage": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
