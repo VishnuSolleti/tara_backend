@@ -97,10 +97,10 @@ def create_razorpay_order_for_services(request):
             raise ValueError("Razorpay order creation failed: no order ID returned.")
 
         serializer = ServicePaymentInfoSerializer(data={
-            'user': added_by,
+            'user': added_by_id,
             'service_request': service_request.id,
             'plan': plan.id,
-            'context':context,
+            'context':context_id,
             'amount': plan.amount,
             'razorpay_order_id': order_id,
             'status': 'initiated',
