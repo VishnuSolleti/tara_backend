@@ -1316,9 +1316,14 @@ def calculate_payroll(request):
         payroll = PayrollOrg.objects.get(id=payroll_id)
 
         # Check if EPF, ESI, PT are enabled for the payroll org
-        epf_enabled = hasattr(payroll, 'epf_details') and not payroll.epf_details.is_disabled if payroll.epf_details else False
-        esi_enabled = hasattr(payroll, 'esi_details') and not payroll.esi_details.is_disabled if payroll.esi_details else False
-        pt_enabled = payroll.pt_details.exists()  # Simply check if PT records exist
+        epf_enabled = False
+        if hasattr(payroll, 'epf_details') and payroll.epf_details:
+            epf_enabled = not payroll.epf_details.is_disabled
+
+        esi_enabled = False
+        if hasattr(payroll, 'esi_details') and payroll.esi_details:
+            esi_enabled = not payroll.esi_details.is_disabled
+        # pt_enabled = payroll.pt_details.exists()  # Simply check if PT records exist
 
         # Initialize Benefits dictionary
         benefits = {}
@@ -3095,6 +3100,7 @@ def employee_monthly_salary_template(request):
         # Calculate working days and per-day salary
         total_working_days = attendance.total_days_of_month - attendance.loss_of_pay
         gross_salary = salary_record.gross_salary.get("monthly", 0)  # Parse JSON string
+
         per_day_salary = gross_salary / attendance.total_days_of_month if attendance.total_days_of_month else 0
         earned_salary = per_day_salary * total_working_days
         lop_amount = per_day_salary * attendance.loss_of_pay
