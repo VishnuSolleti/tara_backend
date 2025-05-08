@@ -537,7 +537,7 @@ class ForgotPasswordView(APIView):
         # Generate reset token and link
         token = default_token_generator.make_token(user)
         uid = urlsafe_base64_encode(str(user.pk).encode())
-        reset_link = f"{Reference_link}/reset-password/{uid}/{token}/"
+        reset_link = f"{Reference_link}reset-password?uid={uid}&token={token}"
 
         # Send the email via Amazon SES
         try:
