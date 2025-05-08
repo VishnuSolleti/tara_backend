@@ -311,6 +311,31 @@ def update_payroll_org(request, business_id):
     return Response({"message": "Successfully updated"}, status=status.HTTP_200_OK)
 
 
+@api_view(['DELETE'])
+def clear_payroll_org_logo(request, pk):
+    """
+    Clear the logo field of a PayrollOrg instance.
+    """
+    try:
+        payroll_org = PayrollOrg.objects.get(pk=pk)
+    except PayrollOrg.DoesNotExist:
+        return Response({"error": "PayrollOrg not found for this business"}, status=status.HTTP_404_NOT_FOUND)
+
+    try:
+        # Clear the logo field
+        payroll_org.logo = None
+        payroll_org.save(update_fields=['logo'])
+
+        # Serialize the updated PayrollOrg instance
+        serializer = PayrollOrgSerializer(payroll_org)
+        return Response({
+            "message": "Logo cleared successfully",
+            "data": serializer.data
+        }, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 class PayrollOrgBusinessDetail(APIView):
     """
     Retrieve a payroll organization instance by its business ID.
