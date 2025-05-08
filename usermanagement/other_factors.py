@@ -1133,7 +1133,12 @@ def gst_details_list_create(request):
     List all GST details or create a new GST detail.
     """
     if request.method == 'POST':
-        serializer = GSTDetailsSerializer(data=request.data)
+        data = request.data.copy()
+        # Remove gst_document from data if it's not provided
+        if 'gst_document' not in request.FILES:
+            data.pop('gst_document', None)
+
+        serializer = GSTDetailsSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -1146,19 +1151,22 @@ def gst_details_detail(request, pk):
     """
     Retrieve, update or delete a GST detail by ID.
     """
-
-
     if request.method == 'GET':
         try:
             gst_detail = GSTDetails.objects.filter(business_id=pk)
-            serializer = GSTDetailsSerializer(gst_detail,many=True)
+            serializer = GSTDetailsSerializer(gst_detail, many=True)
             return Response(serializer.data)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method in ['PUT']:
         gst_detail = GSTDetails.objects.get(pk=pk)
-        serializer = GSTDetailsSerializer(gst_detail, data=request.data, partial=True)
+        data = request.data.copy()
+        # Remove gst_document from data if it's not provided
+        if 'gst_document' not in request.FILES:
+            data.pop('gst_document', None)
+            
+        serializer = GSTDetailsSerializer(gst_detail, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
