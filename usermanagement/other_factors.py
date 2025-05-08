@@ -584,34 +584,23 @@ class ForgotPasswordView(APIView):
 class ResetPasswordView(APIView):
     permission_classes = [AllowAny]
 
-    @swagger_auto_schema(
-        request_body=openapi.Schema(
-            type=openapi.TYPE_OBJECT,
-            properties={
-                'password': openapi.Schema(type=openapi.TYPE_STRING, description='New password'),
-            }
-        ),
-        manual_parameters=[
-            openapi.Parameter('uid', openapi.IN_PATH, description="User ID", type=openapi.TYPE_STRING),
-            openapi.Parameter('token', openapi.IN_PATH, description="Reset Token", type=openapi.TYPE_STRING)
-        ],
-        responses={
-            200: openapi.Response("Password has been successfully reset"),
-            400: openapi.Response("Invalid reset link or expired token"),
-        },
-        operation_description="Reset user's password using token and UID."
-    )
-    def post(self, request, uid, token, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         """
-        Reset user password.
+        Reset user password via query parameters (?uid=...&token=...)
         """
         password = request.data.get("password")
         if not password:
             logger.warning("Password not provided in the request.")
             raise ValidationError("Password is required.")
 
+        uid_b64 = request.query_params.get("uid")
+        token = request.query_params.get("token")
+
+        if not uid_b64 or not token:
+            return Response({"message": "Missing UID or token in query parameters."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            uid = urlsafe_base64_decode(uid).decode()
+            uid = urlsafe_base64_decode(uid_b64).decode()
             user = Users.objects.get(pk=uid)
             logger.info(f"User found for UID: {uid}")
         except (Users.DoesNotExist, ValueError, TypeError) as e:
@@ -626,6 +615,7 @@ class ResetPasswordView(APIView):
 
         logger.warning(f"Invalid or expired token for user: {user.email}")
         return Response({"message": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 # Refresh Token
