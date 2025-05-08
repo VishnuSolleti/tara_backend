@@ -1291,8 +1291,8 @@ def calculate_payroll(request):
         payroll = PayrollOrg.objects.get(id=payroll_id)
 
         # Check if EPF, ESI, PT are enabled for the payroll org
-        epf_enabled = payroll.epf_details.exists() and not payroll.epf_details.is_disabled if hasattr(payroll, 'epf_details') else False
-        esi_enabled = payroll.esi_details.exists() and not payroll.esi_details.is_disabled if hasattr(payroll, 'esi_details') else False
+        epf_enabled = hasattr(payroll, 'epf_details') and not payroll.epf_details.is_disabled if payroll.epf_details else False
+        esi_enabled = hasattr(payroll, 'esi_details') and not payroll.esi_details.is_disabled if payroll.esi_details else False
         pt_enabled = payroll.pt_details.exists()  # Simply check if PT records exist
 
         # Initialize Benefits dictionary
