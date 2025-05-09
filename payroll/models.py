@@ -345,8 +345,7 @@ class PaySchedule(BaseModel):
             self.sunday, self.monday, self.tuesday, self.wednesday, self.thursday,
             self.friday, self.saturday, self.second_saturday, self.fourth_saturday
         ])
-        if selected_days < 2:
-            raise ValidationError("At least two days must be selected for the pay schedule.")
+
 
     def save(self, *args, **kwargs):
         self.clean()

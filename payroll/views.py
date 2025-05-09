@@ -1577,8 +1577,6 @@ def pay_schedule_detail_update_delete(request, schedule_id):
                     'fourth_saturday'
                 ]
             ])
-            if days_selected < 2:
-                return Response({"error": "At least two days must be selected."}, status=status.HTTP_400_BAD_REQUEST)
             serializer.save()
             return Response({"data": serializer.data, "message": "Pay Schedule updated successfully."},
                             status=status.HTTP_200_OK)
