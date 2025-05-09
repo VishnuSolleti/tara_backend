@@ -368,8 +368,6 @@ class PayScheduleSerializer(serializers.ModelSerializer):
             data.get('wednesday', False), data.get('thursday', False), data.get('friday', False),
             data.get('saturday', False), data.get('second_saturday', False), data.get('fourth_saturday', False)
         ])
-        if selected_days < 2:
-            raise serializers.ValidationError("At least two days must be selected.")
         return data
 
     def create(self, validated_data):
