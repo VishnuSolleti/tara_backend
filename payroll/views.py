@@ -72,8 +72,12 @@ class PayrollOrgList(APIView):
 
     def post(self, request):
         try:
-            # Create a mutable copy of the data
-            data = request.data
+            # Check if logo is in request.FILES
+            if 'logo' in request.data:
+                data = request.data  # Use request.data directly if logo is present
+            else:
+                data = request.data.copy()  # Use copy if no logo
+
             file = request.FILES.get('logo') if 'logo' in request.FILES else None
             business_id = data.get('business')
             business_data = data.pop('business_details', None)
