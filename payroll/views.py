@@ -2510,6 +2510,8 @@ def generate_current_month_attendance(request):
         current_year = int(financial_year.split('-')[1]) if 1 <= current_month <= 3 else int(financial_year.split('-')[0])
 
     first_day_current_month = date(current_year, current_month, 1)
+    last_day_current_month = date(current_year, current_month, calendar.monthrange(current_year, current_month)[1])
+
 
     # Fetch all employees under the given payroll_id
     all_employees = EmployeeManagement.objects.filter(payroll=payroll_id)
@@ -2524,8 +2526,11 @@ def generate_current_month_attendance(request):
     )
 
     # Exclude exited employees manually
-    active_employees = [emp for emp in all_employees if emp.id not in exited_employees]
-
+    active_employees = [
+        emp for emp in all_employees
+        if emp.id not in exited_employees and
+           emp.doj <= last_day_current_month
+    ]
     if not active_employees:
         return Response({"error": "No active employees found for the given payroll ID."}, status=status.HTTP_404_NOT_FOUND)
 
