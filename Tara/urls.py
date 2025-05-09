@@ -48,6 +48,8 @@ urlpatterns = [
 
     path('msme/',include('msme_registration.urls')),
 
+    path('docwallet/',include('docwallet.urls')),
+
     path('tradelicense/',include('trade_license.urls')),
     # Token authentication URL
     path('token_auth/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
