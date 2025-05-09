@@ -2202,6 +2202,21 @@ def create_contact(request):
 
 
 @api_view(["GET"])
+@permission_classes([AllowAny])
+def list_contacts(request):
+    try:
+        contacts = Contact.objects.all().order_by('-created_date')
+        serializer = ContactSerializer(contacts, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": f"An error occurred while retrieving contacts: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["GET"])
 def list_contacts_by_date(request):
     """API to list contacts for a specific date"""
     date_str = request.GET.get("date")  # Get date from query parameters (YYYY-MM-DD)
@@ -2309,6 +2324,21 @@ def create_consultation(request):
                         status=status.HTTP_201_CREATED)
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def list_consultation(request):
+    try:
+        consultations = Consultation.objects.all().order_by('-created_date')
+        serializer = ConsultationSerializer(consultations, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": f"An error occurred while retrieving contacts: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 
 @api_view(["GET"])

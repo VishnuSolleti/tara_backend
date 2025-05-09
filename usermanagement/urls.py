@@ -219,7 +219,12 @@ urlpatterns = [
 
     path("contacts", other_factors.list_contacts_by_date, name="list_contacts_by_specific_day"),
 
+    path("list-contacts/", other_factors.list_contacts, name="list_contacts"),
+
     path("consultation", other_factors.create_consultation, name="create-consultation"),
+
+    path("list-consultations/", other_factors.list_consultation, name="list-consultations"),
+
     path("consultations", other_factors.list_consultations, name="list-consultations-by-date"),
 
     # Add Team members and invitation acceptance
