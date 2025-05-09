@@ -67,7 +67,8 @@ INSTALLED_APPS = [
     'gst',
     'labour_license',
     'msme_registration',
-    'trade_license'
+    'trade_license',
+    'docwallet',
 ]
 
 MIDDLEWARE = [
@@ -374,6 +375,8 @@ SANDBOX_API_VERSION = '1.0'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 
 AWS_STORAGE_BUCKET_NAME = "tarafirstdevelopment"
+
+AWS_PRIVATE_BUCKET_NAME = "taradevelopmentprivate"
 
 AWS_DEFAULT_ACL = 'private'
 AWS_S3_OBJECT_PARAMETERS = {
