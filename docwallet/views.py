@@ -9,7 +9,10 @@ from Tara.settings.default import AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCE
 from django.http import JsonResponse
 from urllib.parse import urlparse, unquote
 from django.shortcuts import get_object_or_404
+from django.http import HttpResponse
 # CRUD operations for DocWallet
+
+
 @api_view(['GET', 'POST'])
 def docwallet_list_create(request):
     if request.method == 'GET':
@@ -365,3 +368,44 @@ def retrieve_recent_files(request):
     serializer = DocumentSerializer(recent_files, many=True)
 
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+def fetch_document_data(request):
+    # Get the URL from the query parameters
+    document_url = request.GET.get('url', None)
+
+    if not document_url:
+        return JsonResponse({'error': 'URL parameter is required'}, status=400)
+
+    try:
+        # Parse the URL to extract the file name (Key)
+        parsed_url = urlparse(document_url)
+        file_key = unquote(parsed_url.path.lstrip('/'))  # Remove leading '/' and decode URL
+
+        # Initialize S3 client
+        s3_client = boto3.client(
+            's3',
+            region_name=AWS_REGION,
+            aws_access_key_id=AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+        )
+
+        # Fetch the file from S3
+        s3_object = s3_client.get_object(Bucket=AWS_PRIVATE_BUCKET_NAME, Key=file_key)
+
+        # Get the content of the file
+        file_data = s3_object['Body'].read()
+
+        # Get the content type (MIME type) of the file
+        content_type = s3_object.get('ContentType', 'application/octet-stream')
+
+        # Return the content as an HTTP response with appropriate content type
+        response = HttpResponse(file_data, content_type=content_type)
+
+        # Optionally, set a filename in the Content-Disposition header to suggest a filename
+        response['Content-Disposition'] = f'inline; filename="{file_key}"'
+
+        return response
+
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
