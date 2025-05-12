@@ -23,5 +23,5 @@ urlpatterns = [
     path('delete_folder/<int:folder_id>/', views.delete_folder, name='delete_folder'),
     path('remove_file/<int:file_id>/', views.remove_document, name='remove_file_from_folder'),
 
-    path('vault-info/', views.retrieve_docwallet_info, name='docwallet-info'),
+    path('wallet-info', views.retrieve_docwallet_info, name='docwallet-info'),
 ]
