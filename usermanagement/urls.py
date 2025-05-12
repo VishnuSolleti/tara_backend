@@ -306,4 +306,6 @@ urlpatterns = [
 
     path('services-by-type', service_views.get_services_by_type, name='get-services-by-type'),
 
+    path('happy-coder/', views.happy_coder, name='happy_coder'),
+
 ]
