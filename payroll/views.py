@@ -2631,10 +2631,13 @@ def calculate_employee_monthly_salary(request):
 
         # **Benefits Total**
         benefits_total = sum(
-            benefit["monthly"] for benefit in salary_record.benefits) if salary_record.benefits else 0
+            float(benefit["monthly"]) if isinstance(benefit["monthly"], (int, float)) else 0
+            for benefit in salary_record.benefits) if salary_record.benefits else 0
 
         # **Taxes**
-        taxes = sum(ded["monthly"] for ded in salary_record.deductions if "Tax" in ded["component_name"])
+        taxes = sum(
+            float(ded["monthly"]) if isinstance(ded["monthly"], (int, float)) else 0
+            for ded in salary_record.deductions if "Tax" in ded["component_name"])
 
         # **Advance Loan EMI Deduction (Filtered for Financial Year & Month)**
         advance_loan = getattr(employee, "employee_advance_loan", None)
@@ -2647,11 +2650,12 @@ def calculate_employee_monthly_salary(request):
             ).first()
 
             if active_loan:
-                emi_deduction = active_loan.emi_amount
+                emi_deduction = float(active_loan.emi_amount) if isinstance(active_loan.emi_amount, (int, float)) else 0
 
         # **Employee-Specific Deductions**
         employee_deductions = sum(
-            ded["monthly"] for ded in salary_record.deductions if
+            float(ded["monthly"]) if isinstance(ded["monthly"], (int, float)) else 0
+            for ded in salary_record.deductions if
             "component_name" in ded and "Tax" not in ded["component_name"]
         )
 
@@ -2807,7 +2811,7 @@ def detail_employee_monthly_salary(request):
                         end_month__gte=date(today.year, month, 1)
                     ).first()
                     if active_loan:
-                        emi_deduction = active_loan.emi_amount
+                        emi_deduction = float(active_loan.emi_amount) if isinstance(active_loan.emi_amount, (int, float)) else 0
 
                 exclude_earnings = {"basic", "hra", "special_allowance", "bonus"}
                 exclude_deductions = {"pf", "esi", "pt", "tds", "loan_emi"}
