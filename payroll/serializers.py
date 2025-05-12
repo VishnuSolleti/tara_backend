@@ -386,6 +386,9 @@ class PayScheduleSerializer(serializers.ModelSerializer):
 
 
 class LeaveManagementSerializer(serializers.ModelSerializer):
+    reset_leave_balance_type = serializers.CharField(allow_blank=True, allow_null=True)
+    max_carry_forward_days = serializers.CharField(allow_blank=True, allow_null=True)
+    encashment_days = serializers.CharField(allow_blank=True, allow_null=True)
     class Meta:
         model = LeaveManagement
         fields = '__all__'
