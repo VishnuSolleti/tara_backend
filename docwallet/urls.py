@@ -24,4 +24,6 @@ urlpatterns = [
     path('remove_file/<int:file_id>/', views.remove_document, name='remove_file_from_folder'),
 
     path('wallet-info', views.retrieve_docwallet_info, name='docwallet-info'),
+
+    path('fetch-document', views.fetch_document_data, name='fetch_document_data'),
 ]
