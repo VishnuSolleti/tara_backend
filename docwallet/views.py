@@ -315,7 +315,7 @@ def remove_document(request, file_id):
 def retrieve_docwallet_info(request):
     """
     Retrieves the Document Wallet information based on the context_id.
-    The user provides the context_id, and the API returns the folder structure.
+    The user provides the context_id, and the API returns only the parent folder structure (no subfolders).
     """
     context_id = request.query_params.get('context_id')
 
@@ -329,6 +329,9 @@ def retrieve_docwallet_info(request):
     except DocWallet.DoesNotExist:
         return Response({"error": "DocWallet not found for the given context_id."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Serialize the docwallet instance and return the data
-    serializer = DocWalletDocSerializer(docwallet)
+    # Retrieve the parent folders (root folders only) for the given DocWallet
+    root_folders = Folder.objects.filter(wallet=docwallet, parent=None)
+
+    # Serialize the root folders (parent folders) only
+    serializer = FolderSerializer(root_folders, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
