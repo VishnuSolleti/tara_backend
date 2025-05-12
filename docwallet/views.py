@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import DocWallet, Folder, Document
-from .serializers import DocWalletSerializer, FolderSerializer, DocumentSerializer
+from .serializers import DocWalletSerializer, FolderSerializer, DocumentSerializer, DocWalletDocSerializer
 from rest_framework.parsers import MultiPartParser, FormParser
 import boto3
 from Tara.settings.default import AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_PRIVATE_BUCKET_NAME
@@ -309,3 +309,26 @@ def remove_document(request, file_id):
         return Response({"error": "File not found"}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def retrieve_docwallet_info(request):
+    """
+    Retrieves the Document Wallet information based on the context_id.
+    The user provides the context_id, and the API returns the folder structure.
+    """
+    context_id = request.query_params.get('context_id')
+
+    # Check if context_id is provided
+    if not context_id:
+        return Response({"error": "context_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        # Retrieve the DocWallet object for the given context_id
+        docwallet = get_object_or_404(DocWallet, context_id=context_id)
+    except DocWallet.DoesNotExist:
+        return Response({"error": "DocWallet not found for the given context_id."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Serialize the docwallet instance and return the data
+    serializer = DocWalletDocSerializer(docwallet)
+    return Response(serializer.data, status=status.HTTP_200_OK)

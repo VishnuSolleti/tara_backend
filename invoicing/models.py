@@ -285,6 +285,7 @@ class Invoice(models.Model):
 def update_invoice_payment_status(sender, instance, **kwargs):
     instance.invoice.update_payment_status()
 
+
 @receiver(post_delete, sender=CustomerInvoiceReceipt)
 def update_invoice_payment_status_on_delete(sender, instance, **kwargs):
     """

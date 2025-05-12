@@ -470,7 +470,8 @@ def work_location_create(request):
                     serializer.save()
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
                 except Exception as e:
-                    return Response({"error": "A work location with this name already exists. Please enter a unique location name."},
+                    return Response({"error": "A work location with this name already exists."
+                                              " Please enter a unique location name."},
                                     status=status.HTTP_400_BAD_REQUEST)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
@@ -3122,7 +3123,8 @@ def employee_monthly_salary_template(request):
         # Allowance Keys to Extract
         allowance_keys = [
             "Basic", "HRA", "Conveyance Allowance", "Travelling Allowance",
-            "Medical Allowance", "Internet Allowance", "Special Allowance", "Miscellaneous Allowance", "Other Allowances"
+            "Medical Allowance", "Internet Allowance", "Special Allowance", "Miscellaneous Allowance",
+            "Other Allowances"
         ]
 
         # Initialize Allowance Dictionary
