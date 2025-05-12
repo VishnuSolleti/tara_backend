@@ -335,3 +335,33 @@ def retrieve_docwallet_info(request):
     # Serialize the root folders (parent folders) only
     serializer = FolderSerializer(root_folders, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def retrieve_recent_files(request):
+    """
+    Retrieves the 10 most recent files uploaded based on the context_id.
+    """
+    context_id = request.query_params.get('context_id')
+
+    if not context_id:
+        return Response({"error": "context_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Ensure the context_id exists in the DocWallet model
+    try:
+        docwallet = DocWallet.objects.get(context_id=context_id)
+    except DocWallet.DoesNotExist:
+        return Response({"error": "DocWallet not found for the given context_id."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Retrieve the 10 most recent documents uploaded for the given context_id
+    recent_files = Document.objects.filter(
+        folder__wallet=docwallet
+    ).order_by('-uploaded_at')[:10]
+
+    if not recent_files:
+        return Response({"message": "No files found for the given context_id."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Serialize the document data
+    serializer = DocumentSerializer(recent_files, many=True)
+
+    return Response(serializer.data, status=status.HTTP_200_OK)

@@ -18,7 +18,7 @@ urlpatterns = [
 
     path('generate_presigned_url', views.documents_view, name='generate_presigned_url'),
 
-    path('list_last_10_uploaded_files/', views.list_last_10_uploaded_files, name='list_last_10_uploaded_files'),
+    path('list_last_10_uploaded_files', views.retrieve_recent_files, name='list_last_10_uploaded_files'),
 
     path('delete_folder/<int:folder_id>/', views.delete_folder, name='delete_folder'),
     path('remove_file/<int:file_id>/', views.remove_document, name='remove_file_from_folder'),
