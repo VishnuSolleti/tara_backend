@@ -1481,6 +1481,13 @@ class VisaApplications(models.Model):
 
 
 class Contact(models.Model):
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('reviewed', 'Reviewed'),
+        ('resolved', 'Resolved'),
+    ]
+
     first_name = models.CharField(max_length=40)
     last_name = models.CharField(max_length=40)
     email = models.EmailField()  # No unique constraint
@@ -1494,6 +1501,7 @@ class Contact(models.Model):
         ]
     )
     message = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_date = models.DateField(auto_now_add=True)  # Stores only Date (YYYY-MM-DD)
     created_time = models.TimeField(auto_now_add=True)  # Stores only Time (HH:MM:SS)
 
@@ -1502,6 +1510,13 @@ class Contact(models.Model):
 
 
 class Consultation(models.Model):
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('reviewed', 'Reviewed'),
+        ('resolved', 'Resolved'),
+    ]
+
     name = models.CharField(max_length=40)
     email = models.EmailField()  # No unique constraint
     mobile_number = models.CharField(
@@ -1514,6 +1529,7 @@ class Consultation(models.Model):
         ]
     )
     message = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     date = models.DateField()
     time = models.TimeField()
     created_date = models.DateField(auto_now_add=True)  # Stores only Date (YYYY-MM-DD)
