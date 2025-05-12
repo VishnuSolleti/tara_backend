@@ -2216,6 +2216,34 @@ def list_contacts(request):
         )
 
 
+@api_view(["PUT", "DELETE"])
+@permission_classes([AllowAny])
+def contact_detail(request, pk):
+    try:
+        contact = Contact.objects.get(pk=pk)
+    except Contact.DoesNotExist:
+        return Response({"error": "Contact not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        try:
+            serializer = ContactSerializer(contact, data=request.data, partial=True)
+            if serializer.is_valid():
+                try:
+                    serializer.save()
+                    return Response(serializer.data)
+                except Exception as e:
+                    return Response({"error": f"Failed to update contact: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"Failed to update contact: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        try:
+            contact.delete()
+            return Response({"message": "Contact deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({"error": f"Failed to delete contact: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
 @api_view(["GET"])
 def list_contacts_by_date(request):
     """API to list contacts for a specific date"""
@@ -2354,8 +2382,37 @@ def list_consultations(request):
     serializer = ConsultationSerializer(consultations, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-# Add these functions at the end of the file
 
+@api_view(['PUT', 'DELETE'])
+@permission_classes([AllowAny])
+def consultation_detail(request, pk):
+    try:
+        consultation = Consultation.objects.get(pk=pk)
+    except Consultation.DoesNotExist:
+        return Response({"error": "Consultation not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'PUT':
+        try:
+            serializer = ConsultationSerializer(consultation, data=request.data, partial=True)
+            if serializer.is_valid():
+                try:
+                    serializer.save()
+                    return Response(serializer.data)
+                except Exception as e:
+                    return Response({"error": f"Failed to update consultation: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": f"Failed to update consultation: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        try:
+            consultation.delete()
+            return Response({"message": "Consultation deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({"error": f"Failed to delete consultation: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# Add these functions at the end of the file
 @api_view(['GET', 'PUT', 'DELETE'])
 @permission_classes([IsAuthenticated])
 def user_detail(request, pk):

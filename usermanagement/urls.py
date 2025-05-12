@@ -221,11 +221,15 @@ urlpatterns = [
 
     path("list-contacts/", other_factors.list_contacts, name="list_contacts"),
 
+    path("contact/<int:pk>", other_factors.contact_detail, name="get_contact_by_id"),
+
     path("consultation", other_factors.create_consultation, name="create-consultation"),
 
     path("list-consultations/", other_factors.list_consultation, name="list-consultations"),
 
     path("consultations", other_factors.list_consultations, name="list-consultations-by-date"),
+
+    path("consultation/<int:pk>", other_factors.consultation_detail, name="get-consultation-by-id"),
 
     # Add Team members and invitation acceptance
     path('team/invitation/accept/', add_team_business.accept_team_invitation, name='accept-team-invitation'),
