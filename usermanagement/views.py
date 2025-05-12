@@ -386,3 +386,8 @@ def delete_module_permission(request, permission_id):
     })
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def happy_coder(request):
+    return Response({"message": "Happy Coder"})
+
