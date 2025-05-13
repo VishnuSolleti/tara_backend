@@ -516,7 +516,7 @@ def bulk_work_location_upload(request):
     # Validate and Save Records
     errors = []
     for record in records:
-        record['payroll'] = payroll_org  # Add payroll to each record manually
+        record['payroll'] = payroll_id  # Add payroll to each record manually
         serializer = WorkLocationSerializer(data=record)
         if serializer.is_valid():
             serializer.save()
@@ -659,7 +659,7 @@ def bulk_department_upload(request):
     # Validate and save each record
     errors = []
     for record in records:
-        record['payroll'] = payroll_org  # Assign payroll org to each record
+        record['payroll'] = payroll_id  # Assign payroll org to each record
         serializer = DepartmentsSerializer(data=record)
         if serializer.is_valid():
             serializer.save()
@@ -787,7 +787,7 @@ def bulk_designation_upload(request):
     # Validate and save each record
     errors = []
     for record in records:
-        record['payroll'] = payroll_org  # Assign payroll org to each record
+        record['payroll'] = payroll_id  # Assign payroll org to each record
         serializer = DesignationSerializer(data=record)
         if serializer.is_valid():
             serializer.save()
