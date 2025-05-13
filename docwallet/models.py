@@ -71,7 +71,7 @@ def create_root_folders(sender, instance, created, **kwargs):
     if created:
         root_folder_names = [
             'PermanentWorkingPapers',
-            'CurrentWorkPapers',
+            'CurrentWorkingPapers',
             'OtherDocuments'
         ]
         for folder_name in root_folder_names:
