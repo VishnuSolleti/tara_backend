@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from urllib.parse import urlparse, unquote
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
+import re
 # CRUD operations for DocWallet
 
 
@@ -62,8 +63,33 @@ def folder_list_create(request):
     elif request.method == 'POST':
         serializer = FolderSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            new_folder = serializer.save()
+
+            parent = new_folder.parent
+            # Check if the parent folder is "CurrentWorkPapers"
+            if parent and parent.name == 'CurrentWorkingPapers':
+                fy_folder_name = new_folder.name.strip()
+
+                # Regex: matches patterns like '2023-24', '2020-21'
+                # NOTE FOR FUTURE DEVELOPERS:
+                # This logic assumes financial years are in the format 20XX-YY and only valid till 2098-2099.
+                # If you're working in or beyond the year 2099, follow the below Line
+                # update this regex and logic to support formats like '2099-00', '2100-01', etc.
+                if re.fullmatch(r'20\d{2}-\d{2}', fy_folder_name):
+                    subfolder_names = [
+                        'Financial Statements',
+                        'Bank Statements',
+                        'Income Tax Filings',
+                        'Payroll'
+                    ]
+                    for name in subfolder_names:
+                        Folder.objects.create(
+                            name=name,
+                            wallet=new_folder.wallet,
+                            parent=new_folder
+                        )
+
+            return Response(FolderSerializer(new_folder).data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
