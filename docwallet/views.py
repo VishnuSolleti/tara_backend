@@ -150,7 +150,7 @@ def document_list_create(request):
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@api_view(['GET', 'PUT', 'DELETE'])
+@api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
 def document_detail(request, pk):
     try:
         document = Document.objects.get(pk=pk)
@@ -161,8 +161,9 @@ def document_detail(request, pk):
         serializer = DocumentSerializer(document)
         return Response(serializer.data)
 
-    elif request.method == 'PUT':
-        serializer = DocumentSerializer(document, data=request.data)
+    elif request.method in ['PUT', 'PATCH']:
+        partial = request.method == 'PATCH'
+        serializer = DocumentSerializer(document, data=request.data, partial=partial)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
