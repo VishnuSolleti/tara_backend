@@ -494,17 +494,16 @@ class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):
         model = EmployeePersonalDetails
         fields = '__all__'
 
-    def validate_pan(self, value):
-        # Check if the PAN number already exists
-        if EmployeePersonalDetails.objects.filter(pan=value).exists():
+    def create(self, validated_data):
+        # Check for duplicate PAN
+        if EmployeePersonalDetails.objects.filter(pan=validated_data.get('pan')).exists():
             raise serializers.ValidationError("A record with this PAN already exists.")
-        return value
-
-    def validate_aadhar(self, value):
-        # Check if the Aadhar number already exists
-        if EmployeePersonalDetails.objects.filter(aadhar=value).exists():
+        
+        # Check for duplicate Aadhar
+        if EmployeePersonalDetails.objects.filter(aadhar=validated_data.get('aadhar')).exists():
             raise serializers.ValidationError("A record with this Aadhar already exists.")
-        return value
+            
+        return super().create(validated_data)
 
 
 class EmployeeBankDetailsSerializer(serializers.ModelSerializer):
