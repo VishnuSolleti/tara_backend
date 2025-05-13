@@ -1,7 +1,7 @@
 from django.db import models
 from usermanagement.models import Context
 import os
-from django.db.models.signals import post_save
+from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 from storages.backends.s3boto3 import S3Boto3Storage
 from Tara.settings.default import AWS_PRIVATE_BUCKET_NAME
@@ -80,6 +80,36 @@ def create_root_folders(sender, instance, created, **kwargs):
                 wallet=instance,
                 parent=None  # Root folders have no parent
             )
+
+
+@receiver(pre_save, sender=Document)
+def update_file_name_in_s3(sender, instance, **kwargs):
+    if not instance.pk:
+        return  # New file, nothing to rename
+
+    try:
+        old_instance = Document.objects.get(pk=instance.pk)
+    except Document.DoesNotExist:
+        return  # No old file
+
+    # If the name has changed, but not the folder or file content
+    old_name_root, old_ext = os.path.splitext(old_instance.name)
+    new_name_root, _ = os.path.splitext(instance.name)
+
+    if old_name_root != new_name_root:
+        # Build new file path (preserving original extension)
+        new_filename = new_name_root + old_ext
+        new_path = folder_path(instance, new_filename)
+
+        storage = instance.file.storage
+        old_path = old_instance.file.name
+
+        if storage.exists(old_path):
+            with storage.open(old_path, 'rb') as file_content:
+                storage.save(new_path, file_content)
+            storage.delete(old_path)
+            instance.file.name = new_path  # Update DB path
+            instance.name = new_filename
 
 
 
