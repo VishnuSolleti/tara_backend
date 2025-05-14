@@ -26,6 +26,8 @@ from django.http import HttpResponse
 import pdfkit
 from django.http import JsonResponse
 from django.db.models import OuterRef, Subquery, Q
+from datetime import datetime
+import io
 
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
@@ -480,53 +482,71 @@ def work_location_create(request):
 
 @api_view(['POST'])
 def bulk_work_location_upload(request):
-    # Get payroll_id from form data
     payroll_id = request.data.get('payroll_id')
     if not payroll_id:
         return Response({"error": "Payroll ID is required in the form data."}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        # Fetch PayrollOrg based on payroll_id
         payroll_org = PayrollOrg.objects.get(id=payroll_id)
     except PayrollOrg.DoesNotExist:
         return Response({"error": "PayrollOrg not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Check if file is provided
     file = request.FILES.get('file')
     if not file:
         return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Check file format (CSV or Excel)
-    if file.name.endswith('.csv'):
-        try:
+    # Read and parse file
+    try:
+        if file.name.endswith('.csv'):
             data = csv.DictReader(TextIOWrapper(file, encoding='utf-8'))
             records = list(data)
-        except Exception as e:
-            return Response({"error": f"CSV file reading failed: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-    elif file.name.endswith('.xlsx'):
-        try:
+        elif file.name.endswith('.xlsx'):
             df = pd.read_excel(file)
             records = df.to_dict(orient='records')
-        except Exception as e:
-            return Response({"error": f"Excel file reading failed: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-    else:
-        return Response({"error": "Unsupported file format. Please upload CSV or Excel."},
-                        status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"error": "Unsupported file format. Use CSV or XLSX."}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({"error": f"Failed to read file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validate and Save Records
     errors = []
-    for record in records:
-        record['payroll'] = payroll_id  # Add payroll to each record manually
+    seen_in_file = set()
+    valid_data = []
+
+    for idx, record in enumerate(records):
+        location_name = record.get('location_name')
+
+        if not location_name:
+            errors.append({"row": idx + 2, "error": "Missing location_name"})
+            continue
+
+        # Check for duplicate in uploaded file
+        key_in_file = (location_name.lower().strip())
+        if key_in_file in seen_in_file:
+            errors.append({"row": idx + 2, "error": f"Duplicate location_name '{location_name}' in file"})
+            continue
+        seen_in_file.add(key_in_file)
+
+        # Check for duplicates in DB
+        if WorkLocations.objects.filter(payroll_id=payroll_id, location_name__iexact=location_name).exists():
+            errors.append({"row": idx + 2, "error": f"location_name '{location_name}' already exists in database"})
+            continue
+
+        # Inject payroll ID
+        record['payroll'] = payroll_id
         serializer = WorkLocationSerializer(data=record)
         if serializer.is_valid():
-            serializer.save()
+            valid_data.append(serializer)
         else:
-            errors.append({"record": record, "errors": serializer.errors})
+            errors.append({"row": idx + 2, "error": serializer.errors})
 
     if errors:
-        return Response({"message": "Partial success", "errors": errors}, status=status.HTTP_207_MULTI_STATUS)
+        return Response({"status": "failed", "errors": errors}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response({"message": "All locations uploaded successfully."}, status=status.HTTP_201_CREATED)
+    # Save all records in bulk
+    for serializer in valid_data:
+        serializer.save()
+
+    return Response({"status": "success", "message": f"{len(valid_data)} locations uploaded successfully."}, status=status.HTTP_201_CREATED)
 
 
 # Retrieve a specific WorkLocation by ID
@@ -635,41 +655,92 @@ def parse_file(file):
 
 @api_view(['POST'])
 def bulk_department_upload(request):
-    # Validate payroll_id
+    # Validate required fields
     payroll_id = request.data.get('payroll_id')
-    if not payroll_id:
-        return Response({"error": "Payroll ID is required in the form data."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Fetch PayrollOrg
-    try:
-        payroll_org = PayrollOrg.objects.get(id=payroll_id)
-    except PayrollOrg.DoesNotExist:
-        return Response({"error": "PayrollOrg not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    # Check for file in request
     file = request.FILES.get('file')
+
+    if not payroll_id:
+        return Response({"error": "Payroll ID is required"}, status=status.HTTP_400_BAD_REQUEST)
     if not file:
-        return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Parse file based on format (CSV or Excel)
-    records, parse_error = parse_file(file)
-    if parse_error:
-        return Response({"error": parse_error}, status=status.HTTP_400_BAD_REQUEST)
+    # Validate file format
+    if not file.name.endswith(('.csv', '.xlsx')):
+        return Response({"error": "Unsupported file format. Use CSV or XLSX"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validate and save each record
-    errors = []
-    for record in records:
-        record['payroll'] = payroll_id  # Assign payroll org to each record
-        serializer = DepartmentsSerializer(data=record)
-        if serializer.is_valid():
-            serializer.save()
-        else:
-            errors.append({"record": record, "errors": serializer.errors})
+    try:
+        # Get payroll org and validate it exists
+        payroll_org = PayrollOrg.objects.get(id=payroll_id)
 
-    if errors:
-        return Response({"message": "Partial success", "errors": errors}, status=status.HTTP_207_MULTI_STATUS)
+        # Read file based on format
+        if file.name.endswith('.csv'):
+            records = list(csv.DictReader(TextIOWrapper(file, encoding='utf-8')))
+        else:  # xlsx
+            records = pd.read_excel(file).to_dict(orient='records')
 
-    return Response({"message": "All departments uploaded successfully."}, status=status.HTTP_201_CREATED)
+        errors = []
+        valid_departments = []
+        seen_in_file = set()
+
+        # Get existing departments for duplicate checking
+        existing_departments = Departments.objects.filter(payroll_id=payroll_id)
+        existing_dept_names = {dept.dept_name.lower() for dept in existing_departments}
+        existing_dept_codes = {dept.dept_code.lower() for dept in existing_departments}
+
+        # Process records
+        for idx, record in enumerate(records):
+            dept_name = record.get('dept_name', '').strip()
+            dept_code = record.get('dept_code', '').strip()
+
+            if not dept_name:
+                errors.append({"row": idx + 2, "error": "Missing department name"})
+                continue
+            if not dept_code:
+                errors.append({"row": idx + 2, "error": "Missing department code"})
+                continue
+
+            # Check for duplicate in uploaded file
+            key_in_file = (dept_name.lower(), dept_code.lower())
+            if key_in_file in seen_in_file:
+                errors.append({"row": idx + 2,
+                               "error": f"Duplicate department (name: '{dept_name}', code: '{dept_code}') in file"})
+                continue
+            seen_in_file.add(key_in_file)
+
+            # Check for duplicates in DB
+            if dept_name.lower() in existing_dept_names:
+                errors.append({"row": idx + 2, "error": f"Department name '{dept_name}' already exists in database"})
+                continue
+            if dept_code.lower() in existing_dept_codes:
+                errors.append({"row": idx + 2, "error": f"Department code '{dept_code}' already exists in database"})
+                continue
+
+            # Create model instance
+            valid_departments.append(Departments(
+                payroll=payroll_org,
+                dept_name=dept_name,
+                dept_code=dept_code
+            ))
+
+        if errors:
+            return Response({"status": "failed", "errors": errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Bulk create valid departments
+        if valid_departments:
+            Departments.objects.bulk_create(valid_departments)
+
+        return Response({
+            "status": "success",
+            "message": f"{len(valid_departments)} departments uploaded successfully"
+        }, status=status.HTTP_201_CREATED)
+
+    except PayrollOrg.DoesNotExist:
+        return Response({"error": "PayrollOrg not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            "error": "Failed to process file",
+            "details": str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 # Retrieve, update or delete a specific department
@@ -763,41 +834,85 @@ def designation_detail(request, pk):
 
 @api_view(['POST'])
 def bulk_designation_upload(request):
-    # Validate payroll_id
+    # Validate required fields
     payroll_id = request.data.get('payroll_id')
-    if not payroll_id:
-        return Response({"error": "Payroll ID is required in the form data."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Fetch PayrollOrg
-    try:
-        payroll_org = PayrollOrg.objects.get(id=payroll_id)
-    except PayrollOrg.DoesNotExist:
-        return Response({"error": "PayrollOrg not found."}, status=status.HTTP_404_NOT_FOUND)
-
-    # Check for file in request
     file = request.FILES.get('file')
+
+    if not payroll_id:
+        return Response({"error": "Payroll ID is required"}, status=status.HTTP_400_BAD_REQUEST)
     if not file:
-        return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": "No file provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Parse file based on format (CSV or Excel)
-    records, parse_error = parse_file(file)
-    if parse_error:
-        return Response({"error": parse_error}, status=status.HTTP_400_BAD_REQUEST)
+    # Validate file format
+    if not file.name.endswith(('.csv', '.xlsx')):
+        return Response({"error": "Unsupported file format. Use CSV or XLSX"}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Validate and save each record
-    errors = []
-    for record in records:
-        record['payroll'] = payroll_id  # Assign payroll org to each record
-        serializer = DesignationSerializer(data=record)
-        if serializer.is_valid():
-            serializer.save()
-        else:
-            errors.append({"record": record, "errors": serializer.errors})
+    try:
+        # Get payroll org and validate it exists
+        payroll_org = PayrollOrg.objects.get(id=payroll_id)
 
-    if errors:
-        return Response({"message": "Partial success", "errors": errors}, status=status.HTTP_207_MULTI_STATUS)
+        # Read file based on format
+        if file.name.endswith('.csv'):
+            records = list(csv.DictReader(TextIOWrapper(file, encoding='utf-8')))
+        else:  # xlsx
+            records = pd.read_excel(file).to_dict(orient='records')
 
-    return Response({"message": "All departments uploaded successfully."}, status=status.HTTP_201_CREATED)
+        errors = []
+        valid_designations = []
+        seen_in_file = set()
+
+        # Get existing designations for duplicate checking
+        existing_designations = set(
+            Designation.objects.filter(payroll_id=payroll_id)
+            .values_list('designation_name', flat=True)
+        )
+
+        # Process records
+        for idx, record in enumerate(records):
+            designation_name = record.get('designation_name', '').strip()
+
+            if not designation_name:
+                errors.append({"row": idx + 2, "error": "Missing designation name"})
+                continue
+
+            # Check for duplicate in uploaded file
+            key_in_file = designation_name.lower()
+            if key_in_file in seen_in_file:
+                errors.append({"row": idx + 2, "error": f"Duplicate designation name '{designation_name}' in file"})
+                continue
+            seen_in_file.add(key_in_file)
+
+            # Check for duplicates in DB
+            if designation_name.lower() in {name.lower() for name in existing_designations}:
+                errors.append(
+                    {"row": idx + 2, "error": f"Designation name '{designation_name}' already exists in database"})
+                continue
+
+            # Create model instance
+            valid_designations.append(Designation(
+                payroll=payroll_org,
+                designation_name=designation_name
+            ))
+
+        if errors:
+            return Response({"status": "failed", "errors": errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Bulk create valid designations
+        if valid_designations:
+            Designation.objects.bulk_create(valid_designations)
+
+        return Response({
+            "status": "success",
+            "message": f"{len(valid_designations)} designations uploaded successfully"
+        }, status=status.HTTP_201_CREATED)
+
+    except PayrollOrg.DoesNotExist:
+        return Response({"error": "PayrollOrg not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({
+            "error": "Failed to process file",
+            "details": str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
 
 
 # List and create EPF details
@@ -3651,3 +3766,124 @@ def active_employee_salaries(request):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
+@api_view(['GET'])
+def download_template_xlsx(request):
+    try:
+        template_type = request.query_params.get('type', 'work_location').lower()
+        
+        if template_type == 'work_location':
+            template_data = {
+                'location_name': ['Example Location 1', 'Example Location 2'],
+                'address_line1': ['123 Main Street', '456 Park Avenue'],
+                'address_line2': ['Suite 100', 'Floor 5'],
+                'address_state': ['Karnataka', 'Maharashtra'],
+                'address_city': ['Bangalore', 'Mumbai'],
+                'address_pincode': ['560001', '400001']
+            }
+            filename = "work_location_template"
+        elif template_type == 'department':
+            template_data = {
+                'dept_code': ['DEPT001', 'DEPT002'],
+                'dept_name': ['Human Resources', 'Information Technology'],
+                'description': ['HR Department', 'IT Department']
+            }
+            filename = "department_template"
+        elif template_type == 'designation':
+            template_data = {
+                'designation_name': ['Software Engineer', 'Project Manager', 'HR Executive']
+            }
+            filename = "designation_template"
+        else:
+            return Response({
+                "error": "Invalid template type. Supported types are 'work_location', 'department', and 'designation'"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        df = pd.DataFrame(template_data)
+        output = io.BytesIO()
+
+        writer = pd.ExcelWriter(output, engine='xlsxwriter')
+        df.to_excel(writer, index=False, sheet_name='Template')
+
+        workbook = writer.book
+        worksheet = writer.sheets['Template']
+
+        header_format = workbook.add_format({
+            'bold': True,
+            'bg_color': '#D9E1F2',
+            'border': 1
+        })
+
+        for col_num, value in enumerate(df.columns.values):
+            worksheet.write(0, col_num, value, header_format)
+            worksheet.set_column(col_num, col_num, 20)
+
+        if template_type == 'work_location':
+            worksheet.data_validation('F2:F1000', {
+                'validate': 'integer',
+                'criteria': 'between',
+                'minimum': 100000,
+                'maximum': 999999
+            })
+
+        writer.close()
+        output.seek(0)
+
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+        return response
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+def download_template_csv(request):
+    try:
+        template_type = request.query_params.get('type', 'work_location').lower()
+        
+        if template_type == 'work_location':
+            template_data = {
+                'location_name': ['Example Location 1', 'Example Location 2'],
+                'address_line1': ['123 Main Street', '456 Park Avenue'],
+                'address_line2': ['Suite 100', 'Floor 5'],
+                'address_state': ['Karnataka', 'Maharashtra'],
+                'address_city': ['Bangalore', 'Mumbai'],
+                'address_pincode': ['560001', '400001']
+            }
+            filename = "work_location_template"
+        elif template_type == 'department':
+            template_data = {
+                'dept_code': ['DEPT001', 'DEPT002'],
+                'dept_name': ['Human Resources', 'Information Technology'],
+                'description': ['HR Department', 'IT Department']
+            }
+            filename = "department_template"
+        elif template_type == 'designation':
+            template_data = {
+                'designation_name': ['Software Engineer', 'Project Manager', 'HR Executive']
+            }
+            filename = "designation_template"
+        else:
+            return Response({
+                "error": "Invalid template type. Supported types are 'work_location', 'department', and 'designation'"
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        df = pd.DataFrame(template_data)
+        output = io.BytesIO()
+        
+        # Write the actual data
+        df.to_csv(output, index=False)
+        output.seek(0)
+
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='text/csv'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
+        return response
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
