@@ -38,6 +38,10 @@ urlpatterns = [
     # URL for deleting a specific WorkLocation by its ID
     path('work-locations/delete/<int:pk>/', views.work_location_delete, name='work_location_delete'),
 
+    # URL for downloading templates
+    path('download-template/xlsx', views.download_template_xlsx, name='download-template-xlsx'),
+    path('download-template/csv', views.download_template_csv, name='download-template-csv'),
+
     # URL for listing and creating Department instances
     path('departments/', views.department_list, name='department_list'),
 

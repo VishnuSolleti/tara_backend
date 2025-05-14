@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'user_management',
     'drf_yasg',
+    'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'invoicing',
@@ -193,6 +194,9 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',  # Only JSON response, no HTML
+    ]
 }
 
 
