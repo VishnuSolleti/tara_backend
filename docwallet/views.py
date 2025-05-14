@@ -386,7 +386,7 @@ def retrieve_recent_files(request):
     # Retrieve the 10 most recent documents uploaded for the given context_id
     recent_files = Document.objects.filter(
         folder__wallet=docwallet
-    ).order_by('-uploaded_at')[:10]
+    ).order_by('-accessed_at')[:10]
 
     if not recent_files:
         return Response({"message": "No files found for the given context_id."}, status=status.HTTP_404_NOT_FOUND)
