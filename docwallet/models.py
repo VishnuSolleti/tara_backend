@@ -55,6 +55,7 @@ class Document(models.Model):
     file = models.FileField(upload_to=folder_path, null=True, blank=True, storage=PrivateS3Storage())
     folder = models.ForeignKey(Folder, on_delete=models.CASCADE, related_name='documents')
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    accessed_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
         # Automatically assign the filename from the uploaded file if 'name' is not provided
