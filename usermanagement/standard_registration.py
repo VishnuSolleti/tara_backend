@@ -185,9 +185,6 @@ def select_context(request):
             if not business_name:
                 return Response({"error": "Missing nameOfBusiness in business_details."}, status=status.HTTP_400_BAD_REQUEST)
 
-            if Business.objects.filter(nameOfBusiness=business_name).exists():
-                return Response({"error": "Business with this name already exists."}, status=status.HTTP_400_BAD_REQUEST)
-
             # Validate Business Data
             business_data_with_client = {**business_data, 'client': user.id}
             business_serializer = BusinessSerializer(data=business_data_with_client)

@@ -1275,7 +1275,7 @@ class Business(BaseModel):
     ]
 
     client = models.ForeignKey(Users, on_delete=models.CASCADE, related_name='business_clients_id')
-    nameOfBusiness = models.CharField(max_length=200, unique=True, db_index=True)
+    nameOfBusiness = models.CharField(max_length=200, db_index=True)
     registrationNumber = models.CharField(max_length=120, null=True, blank=True, default=None)
     entityType = models.CharField(max_length=50, null=True, blank=True, default=None)
     headOffice = JSONField(default=dict, null=True, blank=True)
