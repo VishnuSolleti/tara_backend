@@ -104,11 +104,10 @@ def add_team_member_to_business(request):
     authenticated_user = request.user
 
     # Validate required fields
-    if not all([context_id, email, first_name, last_name, mobile_number]):
+    if not all([context_id, email,role_id]):
         return Response(
             {
-                "error": "Missing required fields. Please provide context_id, email, "
-                         "first_name, last_name, and mobile_number."},
+                "error": "Missing required fields. Please provide context_id, email, role_id."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -236,6 +235,11 @@ def add_team_member_to_business(request):
                 is_new_user = False
             except Users.DoesNotExist:
                 # Create new user if they don't exist
+                if not all([first_name, last_name, mobile_number]):
+                    return Response(
+                        {"error": "New user must provide first_name, last_name, and mobile_number."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 user = Users.objects.create(
                     email=email,
                     first_name=first_name,

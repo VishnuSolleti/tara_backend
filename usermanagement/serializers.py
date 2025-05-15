@@ -303,12 +303,12 @@ class ContextDetailSerializer(ContextSerializer):
 
 
 class AddressSerializer(serializers.Serializer):
-    address_line1 = serializers.CharField(max_length=255, required=False)
-    address_line2 = serializers.CharField(max_length=255, required=False,allow_null=True,allow_blank=True)
+    address_line1 = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    address_line2 = serializers.CharField(max_length=255, required=False, allow_blank=True)
     address_line3 = serializers.CharField(max_length=255, required=False, allow_blank=True)
     pincode = serializers.IntegerField(required=False, allow_null=True)
-    state = serializers.CharField(max_length=20, required=False)
-    city = serializers.CharField(max_length=20, required=False)
+    state = serializers.CharField(max_length=20, required=False, allow_blank=True)
+    city = serializers.CharField(max_length=20, required=False, allow_blank=True)
     country = serializers.CharField(max_length=20, required=False)
 
 
