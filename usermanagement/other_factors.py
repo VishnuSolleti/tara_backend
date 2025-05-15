@@ -710,7 +710,7 @@ class UsersKYCDetailView(APIView):
         """
         try:
             user_details = UserKYC.objects.get(pk=pk, user=request.user)
-            serializer = UsersKYCSerializer(user_details, data=request.data)
+            serializer = UsersKYCSerializer(user_details, data=request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
                 return Response({"detail": "User details updated successfully."}, status=status.HTTP_200_OK)
