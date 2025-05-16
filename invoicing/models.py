@@ -79,7 +79,7 @@ class InvoiceFormat(models.Model):
         null=True
     )
     gstin = models.CharField(max_length=20, null=True, blank=False)
-    invoice_format = models.JSONField(default=dict)
+    invoice_format = JSONField(default=dict)
 
     def __str__(self):
         return f"Customer: {self.invoicing_profile.business_name}"

@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import *
 from django.core.files.storage import FileSystemStorage
 from usermanagement.serializers import *
-
+import json
 
 class CustomerProfileSerializers(serializers.Serializer):
     invoicing_profile = serializers.PrimaryKeyRelatedField(
@@ -510,6 +510,7 @@ class InvoicesSerializer(serializers.ModelSerializer):
 
 
 class InvoiceFormatData(serializers.ModelSerializer):
+    invoice_format = serializers.JSONField()
     class Meta:
         model = InvoiceFormat
         exclude = ['invoicing_profile']
