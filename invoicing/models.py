@@ -74,15 +74,24 @@ class InvoicingProfile(BaseModel):
 class InvoiceFormat(models.Model):
     invoicing_profile = models.ForeignKey(
         'InvoicingProfile',
-        related_name='invoice_formats',  # Plural for better convention
+        related_name='Invoice_formats',
         on_delete=models.CASCADE,
         null=True
     )
     gstin = models.CharField(max_length=20, null=True, blank=False)
-    invoice_format = JSONField(default=dict)
+    prefix = models.CharField(max_length=20, blank=True, null=True)
+    series_code = models.CharField(max_length=10, blank=True, null=True)
+    running_number_start = models.IntegerField(default=1)
+    include_branch_code = models.BooleanField(default=False)
+    include_financial_year = models.BooleanField(default=True)
+    include_series_code = models.BooleanField(default=False)
+    include_running_number = models.BooleanField(default=True)
+    reset_every_fy = models.BooleanField(default=True)
+    maintain_sequence_per_branch = models.BooleanField(default=False)
+    maintain_sequence_per_gstin = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Customer: {self.invoicing_profile.business_name}"
+        return f"Invoice Format for {self.invoicing_profile.gst_registered} [{self.gstin}]"
 
     def clean(self):
         # Check if the combination of invoicing_profile and gstin already exists

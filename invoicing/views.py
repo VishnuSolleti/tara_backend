@@ -34,6 +34,8 @@ from django.shortcuts import get_object_or_404
 from usermanagement.utils import *
 from usermanagement.decorators import *
 from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+from datetime import date
+
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
@@ -1869,65 +1871,74 @@ def get_invoice_by_id(request, id):
 @permission_classes([AllowAny])
 def latest_invoice_id(request, invoicing_profile_id):
     try:
-        # Fetch the invoicing profile
+        # Step 1: Fetch Invoicing Profile
         invoicing_profile = get_object_or_404(InvoicingProfile, id=invoicing_profile_id)
 
-        # Fetch the InvoiceFormat using gstin from the InvoicingProfile
-        invoice_format = InvoiceFormat.objects.get(gstin=invoicing_profile.gstin,
-                                                   invoicing_profile_id=invoicing_profile_id)
-
-        # Get the current format version
-        current_format_version = invoice_format.invoice_format.get("format_version")
-
-        # Fetch the latest invoice for the given invoicing_profile_id and gstin
-        latest_invoice = (
-            Invoice.objects.filter(
-                invoicing_profile_id=invoicing_profile_id,
-                gstin=invoicing_profile.gstin
-            )
-            .order_by('-id')  # Sort by ID to get the latest
-            .first()
+        # Step 2: Get Invoice Format for the profile
+        invoice_format = InvoiceFormat.objects.get(
+            invoicing_profile_id=invoicing_profile_id,
+            gstin=invoicing_profile.gstin
         )
 
-        # Initialize new_invoice_number
-        new_invoice_number = None
+        # Step 3: Calculate the financial year
+        today = date.today()
+        fy_start = today.year if today.month > 3 else today.year - 1
+        fy_string = f"{str(fy_start)[-2:]}-{str(fy_start + 1)[-2:]}" if invoice_format.include_financial_year else ""
+
+        # Optional: Branch code from query param or default
+        branch_code = request.GET.get("branch_code", "") if invoice_format.include_branch_code else ""
+
+        # Series code
+        series_code = invoice_format.series_code if invoice_format.include_series_code else ""
+
+        # Step 4: Determine running number
+        print(invoicing_profile.gstin)
+        invoices_qs = Invoice.objects.filter(
+            invoicing_profile_id=invoicing_profile_id,
+            gstin=invoicing_profile.gstin,
+        )
+
+        if invoice_format.maintain_sequence_per_branch and branch_code:
+            invoices_qs = invoices_qs.filter(branch_code=branch_code)
+
+        if invoice_format.maintain_sequence_per_gstin:
+            invoices_qs = invoices_qs.filter(gstin=invoicing_profile.gstin)
+
+        if invoice_format.reset_every_fy:
+            invoices_qs = invoices_qs.filter(financial_year=fy_string)
+
+        latest_invoice = invoices_qs.order_by('-id').first()
 
         if latest_invoice:
-            # Check if the format version matches
-            if latest_invoice.format_version == current_format_version:
-                # Split the invoice_number into prefix, number, and suffix
-                parts = latest_invoice.invoice_number.split('-')
-                if len(parts) == 3:
-                    prefix, number, suffix = parts
-                    new_number = int(number) + 1  # Increment the numeric part
-                    new_invoice_number = f"{prefix}-{new_number:03d}-{suffix}"
-                else:
-                    return JsonResponse(
-                        {"error": "Existing invoice format is invalid."},
-                        status=400
-                    )
-            else:
-                # Format version has changed, start with the new format
-                prefix = invoice_format.invoice_format.get("prefix")
-                starting_number = invoice_format.invoice_format.get("startingNumber", 1)
-                suffix = invoice_format.invoice_format.get("suffix")
-                starting_number = int(starting_number)
-                new_invoice_number = f"{prefix}-{starting_number:03d}-{suffix}"
+            last_part = latest_invoice.invoice_number.split('-')[-1]
+            running_number = int(last_part) + 1
         else:
-            # No previous invoices, start with the new format
-            prefix = invoice_format.invoice_format.get("prefix")
-            starting_number = invoice_format.invoice_format.get("startingNumber")
-            suffix = invoice_format.invoice_format.get("suffix")
+            running_number = invoice_format.running_number_start or 1
 
-            # Ensure starting_number is an integer before formatting
-            starting_number = int(starting_number)
+        # Step 5: Build invoice number
+        parts = []
 
-            new_invoice_number = f"{prefix}-{starting_number:03d}-{suffix}"
+        if invoice_format.prefix:
+            parts.append(invoice_format.prefix)
 
-        # Return the new invoice number along with the format version
+        if invoice_format.include_branch_code and branch_code:
+            parts.append(branch_code)
+
+        if invoice_format.include_financial_year:
+            parts.append(fy_string)
+
+        if invoice_format.include_series_code and series_code:
+            parts.append(series_code)
+
+        if invoice_format.include_running_number:
+            parts.append(str(running_number).zfill(4))  # 0001, 0002, ...
+
+        new_invoice_number = '-'.join(parts)
+
         return JsonResponse({
             "latest_invoice_number": new_invoice_number,
-            "format_version": current_format_version
+            "financial_year": fy_string,
+            "running_number": running_number
         })
 
     except InvoiceFormat.DoesNotExist:
@@ -1936,8 +1947,8 @@ def latest_invoice_id(request, invoicing_profile_id):
         }, status=404)
 
     except Exception as e:
-        # Return error response if an exception occurs
         return JsonResponse({"error": str(e)}, status=500)
+
 
 @swagger_auto_schema(
     method='get',  # Keeping GET method
@@ -2405,7 +2416,17 @@ def invoice_format_list(request):
 
     # POST Method - Create a new Invoice Format
     elif request.method == 'POST':
-        serializer = InvoiceFormatSerializer(data=request.data)
+        profile_id = request.data.get("invoicing_profile")
+        if not profile_id:
+            return Response({"error": "invoicing_profile is required."}, status=400)
+
+        profile = get_object_or_404(InvoicingProfile, id=profile_id)
+
+        # Replace FK ID with instance (optional, DRF should handle it, but safe)
+        data = request.data.copy()
+        data['invoicing_profile'] = profile.id
+
+        serializer = InvoiceFormatSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
