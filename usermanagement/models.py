@@ -1290,6 +1290,7 @@ class Business(BaseModel):
     is_msme_registered = models.CharField(max_length=5, choices=YES_NO_CHOICES, default='no')
     msme_registration_type = models.CharField(max_length=100, null=True, blank=True)
     msme_registration_number = models.CharField(max_length=100, null=True, blank=True)
+    is_multiple_branches = models.CharField(max_length=5, choices=YES_NO_CHOICES, default='no')
 
     def clean(self):
         """Validate model data before saving"""
@@ -1308,6 +1309,16 @@ class Business(BaseModel):
 
     def __str__(self):
         return str(self.nameOfBusiness)
+
+
+# Branch model to represent multiple branches of a business
+class Branch(BaseModel):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='branches')
+    branch_name = models.CharField(max_length=100, null=True, blank=True)
+    branch_code = models.CharField(max_length=30, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.branch_name} - {self.business.nameOfBusiness}"
 
 
 # Signals to maintain Context-Business relationship

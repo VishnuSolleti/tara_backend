@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Users, Context, Module, Role, UserContextRole,
-    UserFeaturePermission, SubscriptionPlan, ModuleSubscription,
+    UserFeaturePermission, SubscriptionPlan, ModuleSubscription,Branch
 )
 from .models import *
 from django.utils.timezone import now
@@ -464,6 +464,13 @@ class GSTDetailsSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
+class BranchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Branch
+        fields = '__all__'
+
+
 class TDSDetailsSerializer(serializers.ModelSerializer):
     authorized_personal_Details = serializers.JSONField(required=False, allow_null=True)
     income_tax_details = serializers.JSONField(required=False, allow_null=True)
@@ -685,6 +692,7 @@ class BusinessUserSerializer(serializers.ModelSerializer):
     pan = serializers.CharField(max_length=15, required=True)
     headOffice = serializers.JSONField(default=dict)
     gst_details = GSTDetailsSerializer(many=True, read_only=True)
+    branches = BranchSerializer(many=True, read_only=True)
 
     class Meta:
         model = Business
