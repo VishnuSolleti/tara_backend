@@ -78,7 +78,7 @@ class InvoiceFormat(models.Model):
         on_delete=models.CASCADE,
         null=True
     )
-    is_common_format = models.BooleanField(
+    is_common_format_for_all_gstin = models.BooleanField(
         default=False,
         help_text="Indicates if this format applies to all GSTINs under the invoicing profile"
     )
