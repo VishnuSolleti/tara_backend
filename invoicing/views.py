@@ -1917,7 +1917,19 @@ def latest_invoice_id(request, invoicing_profile_id):
 
         latest_invoice = invoices_qs.order_by('-id').first()
 
+
         # Step 6: Determine next running number
+
+        latest_invoice_format = InvoiceFormat.objects.filter(
+            invoicing_profile=invoicing_profile,
+            gstin=invoicing_profile.gstin
+        ).order_by('-format_version').first()
+
+        latest_invoice = Invoice.objects.filter(
+            format_version=latest_invoice_format.format_version,
+        ).order_by('-id').first()
+
+
         if latest_invoice:
             last_part = latest_invoice.invoice_number.split('-')[-1]
             running_number = int(last_part) + 1

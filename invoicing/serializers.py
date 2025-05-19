@@ -282,9 +282,28 @@ class CustomerProfileGetSerializers(serializers.ModelSerializer):
         exclude = ['invoicing_profile']
 
 
+class InvoiceFormatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvoiceFormat
+        fields = '__all__'
+
+    def validate(self, data):
+        invoicing_profile = data.get('invoicing_profile')
+        gstin = data.get('gstin')
+
+        # Check if the combination of invoicing_profile and gstin already exists
+        if gstin and InvoiceFormat.objects.filter(
+                invoicing_profile=invoicing_profile,
+                gstin=gstin
+        ).exclude(id=self.instance.id if self.instance else None).exists():
+            raise serializers.ValidationError("GSTIN already exists for this Invoicing Profile.")
+
+        return data
+
+
 class InvoicingProfileSerializers(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
-    invoice_format = serializers.JSONField()
+    invoice_formats = InvoiceFormatSerializer(many=True, source='invoice_formats')
 
     class Meta:
         model = InvoicingProfile
@@ -328,25 +347,6 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
             'business',
             'goods_and_services',  # Nested goods and services
         ]
-
-
-class InvoiceFormatSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = InvoiceFormat
-        fields = '__all__'
-
-    def validate(self, data):
-        invoicing_profile = data.get('invoicing_profile')
-        gstin = data.get('gstin')
-
-        # Check if the combination of invoicing_profile and gstin already exists
-        if gstin and InvoiceFormat.objects.filter(
-                invoicing_profile=invoicing_profile,
-                gstin=gstin
-        ).exclude(id=self.instance.id if self.instance else None).exists():
-            raise serializers.ValidationError("GSTIN already exists for this Invoicing Profile.")
-
-        return data
 
 
 class InvoicingExistsBusinessSerializers(serializers.ModelSerializer):
@@ -510,7 +510,6 @@ class InvoicesSerializer(serializers.ModelSerializer):
 
 
 class InvoiceFormatData(serializers.ModelSerializer):
-    invoice_format = serializers.JSONField()
     class Meta:
         model = InvoiceFormat
         exclude = ['invoicing_profile']

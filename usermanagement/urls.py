@@ -306,6 +306,9 @@ urlpatterns = [
 
     path('services-by-type', service_views.get_services_by_type, name='get-services-by-type'),
 
+    path('branches/', other_factors.branch_list_create, name='branch-list-create'),
+    path('branches/<int:pk>/', other_factors.branch_detail, name='branch-detail'),
+
     path('happy-coder/', views.happy_coder, name='happy_coder'),
 
 ]
