@@ -1310,6 +1310,16 @@ class Business(BaseModel):
         return str(self.nameOfBusiness)
 
 
+# Branch model to represent multiple branches of a business
+class Branch(BaseModel):
+    business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='branches')
+    branch_name = models.CharField(max_length=100, null=True, blank=True)
+    branch_code = models.CharField(max_length=30, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.branch_name} - {self.business.nameOfBusiness}"
+
+
 # Signals to maintain Context-Business relationship
 @receiver(post_save, sender=Context)
 def create_or_update_business(sender, instance, created, **kwargs):

@@ -74,7 +74,7 @@ class InvoicingProfile(BaseModel):
 class InvoiceFormat(models.Model):
     invoicing_profile = models.ForeignKey(
         'InvoicingProfile',
-        related_name='Invoice_formats',
+        related_name='invoice_formats',
         on_delete=models.CASCADE,
         null=True
     )
@@ -89,6 +89,7 @@ class InvoiceFormat(models.Model):
     reset_every_fy = models.BooleanField(default=True)
     maintain_sequence_per_branch = models.BooleanField(default=False)
     maintain_sequence_per_gstin = models.BooleanField(default=False)
+    format_version = models.PositiveIntegerField(default=1)
 
     def __str__(self):
         return f"Invoice Format for {self.invoicing_profile.gst_registered} [{self.gstin}]"

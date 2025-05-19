@@ -1388,6 +1388,43 @@ def kmp_detail(request, pk):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+@api_view(['GET', 'POST'])
+def branch_list_create(request):
+    if request.method == 'GET':
+        branches = Branch.objects.all()
+        serializer = BranchSerializer(branches, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'POST':
+        serializer = BranchSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def branch_detail(request, pk):
+
+    if request.method == 'GET':
+        branch = Branch.objects.filter(business_id=pk)
+        serializer = BranchSerializer(branch, many=True)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        branch = Branch.objects.get(pk=pk)
+        serializer = BranchSerializer(branch, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        branch = Branch.objects.get(pk=pk)
+        branch.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 def documents_view(request):
     # Get the URL from the query parameters
     document_url = request.GET.get('url', None)
