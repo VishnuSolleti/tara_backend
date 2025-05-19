@@ -1290,7 +1290,6 @@ class Business(BaseModel):
     is_msme_registered = models.CharField(max_length=5, choices=YES_NO_CHOICES, default='no')
     msme_registration_type = models.CharField(max_length=100, null=True, blank=True)
     msme_registration_number = models.CharField(max_length=100, null=True, blank=True)
-    is_multiple_branches = models.CharField(max_length=5, choices=YES_NO_CHOICES, default='no')
 
     def clean(self):
         """Validate model data before saving"""
