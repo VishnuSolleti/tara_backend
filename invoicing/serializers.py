@@ -333,7 +333,7 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
 class InvoiceFormatSerializer(serializers.ModelSerializer):
     class Meta:
         model = InvoiceFormat
-        fields = ['id', 'invoicing_profile', 'gstin', 'invoice_format']
+        fields = '__all__'
 
     def validate(self, data):
         invoicing_profile = data.get('invoicing_profile')
