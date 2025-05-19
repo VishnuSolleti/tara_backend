@@ -1874,34 +1874,42 @@ def latest_invoice_id(request, invoicing_profile_id):
         # Step 1: Fetch Invoicing Profile
         invoicing_profile = get_object_or_404(InvoicingProfile, id=invoicing_profile_id)
 
-        # Step 2: Get Invoice Format for the profile
-        invoice_format = InvoiceFormat.objects.get(
-            invoicing_profile_id=invoicing_profile_id,
-            gstin=invoicing_profile.gstin
-        )
+        # Step 2: Get Invoice Format
+        try:
+            # First try to get common format
+            invoice_format = InvoiceFormat.objects.get(
+                invoicing_profile_id=invoicing_profile_id,
+                is_common_format=True
+            )
+            use_common_format = True
+        except InvoiceFormat.DoesNotExist:
+            # Fallback to GSTIN-specific format
+            invoice_format = InvoiceFormat.objects.get(
+                invoicing_profile_id=invoicing_profile_id,
+                gstin=invoicing_profile.gstin,
+                is_common_format=False
+            )
+            use_common_format = False
 
-        # Step 3: Calculate the financial year
+        # Step 3: Calculate financial year
         today = date.today()
         fy_start = today.year if today.month > 3 else today.year - 1
         fy_string = f"{str(fy_start)[-2:]}-{str(fy_start + 1)[-2:]}" if invoice_format.include_financial_year else ""
 
-        # Optional: Branch code from query param or default
+        # Step 4: Branch code and series code handling
         branch_code = request.GET.get("branch_code", "") if invoice_format.include_branch_code else ""
-
-        # Series code
         series_code = invoice_format.series_code if invoice_format.include_series_code else ""
 
-        # Step 4: Determine running number
-        print(invoicing_profile.gstin)
-        invoices_qs = Invoice.objects.filter(
-            invoicing_profile_id=invoicing_profile_id,
-            gstin=invoicing_profile.gstin,
-        )
+        # Step 5: Filter invoices
+        invoices_qs = Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id)
+
+        if not use_common_format:
+            invoices_qs = invoices_qs.filter(gstin=invoicing_profile.gstin)
 
         if invoice_format.maintain_sequence_per_branch and branch_code:
             invoices_qs = invoices_qs.filter(branch_code=branch_code)
 
-        if invoice_format.maintain_sequence_per_gstin:
+        if invoice_format.maintain_sequence_per_gstin and not use_common_format:
             invoices_qs = invoices_qs.filter(gstin=invoicing_profile.gstin)
 
         if invoice_format.reset_every_fy:
@@ -1909,13 +1917,14 @@ def latest_invoice_id(request, invoicing_profile_id):
 
         latest_invoice = invoices_qs.order_by('-id').first()
 
+        # Step 6: Determine next running number
         if latest_invoice:
             last_part = latest_invoice.invoice_number.split('-')[-1]
             running_number = int(last_part) + 1
         else:
             running_number = invoice_format.running_number_start or 1
 
-        # Step 5: Build invoice number
+        # Step 7: Build invoice number
         parts = []
 
         if invoice_format.prefix:
@@ -1931,7 +1940,7 @@ def latest_invoice_id(request, invoicing_profile_id):
             parts.append(series_code)
 
         if invoice_format.include_running_number:
-            parts.append(str(running_number).zfill(4))  # 0001, 0002, ...
+            parts.append(str(running_number).zfill(4))
 
         new_invoice_number = '-'.join(parts)
 
@@ -1943,50 +1952,14 @@ def latest_invoice_id(request, invoicing_profile_id):
 
     except InvoiceFormat.DoesNotExist:
         return JsonResponse({
-            "error": "No Invoice Format found for the provided GSTIN."
+            "error": "No Invoice Format found for the provided profile."
         }, status=404)
 
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@swagger_auto_schema(
-    method='get',  # Keeping GET method
-    operation_description="Filter invoices based on provided filters.",
-    tags=["Invoices"],
-    responses={
-        200: openapi.Response(
-            description="Filtered invoices retrieved successfully.",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    'invoice_id': openapi.Schema(type=openapi.TYPE_INTEGER, description="Invoice ID"),
-                    'invoice_date': openapi.Schema(type=openapi.TYPE_STRING, description="Invoice Date"),
-                    'invoice_number': openapi.Schema(type=openapi.TYPE_STRING, description="Invoice Number"),
-                    'customer': openapi.Schema(type=openapi.TYPE_STRING, description="Customer name or ID"),
-                    'total_amount': openapi.Schema(type=openapi.TYPE_NUMBER, format=openapi.FORMAT_FLOAT, description="Total Amount"),
-                    'pending_amount': openapi.Schema(type=openapi.TYPE_NUMBER, format=openapi.FORMAT_FLOAT, description="Pending Amount"),
-                    'payment_status': openapi.Schema(type=openapi.TYPE_STRING, description="Payment Status"),
-                    'due_date': openapi.Schema(type=openapi.TYPE_STRING, description="Due Date"),
-                }
-            )
-        ),
-        400: openapi.Response(description="Bad request - Missing or invalid data."),
-        500: openapi.Response(description="Internal server error.")
-    },
-    manual_parameters=[
-        openapi.Parameter('invoicing_profile_id', openapi.IN_QUERY, description="Invoicing profile ID", type=openapi.TYPE_INTEGER, required=True),
-        openapi.Parameter('financial_year', openapi.IN_QUERY, description="Financial year", type=openapi.TYPE_STRING, required=True),
-        openapi.Parameter('invoice_id', openapi.IN_QUERY, description="Invoice ID", type=openapi.TYPE_INTEGER, required=False),
-        openapi.Parameter('payment_status', openapi.IN_QUERY, description="Payment status (e.g., Paid, Pending, Overdue)", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('due_date', openapi.IN_QUERY, description="Due date of the invoice (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('invoice_date', openapi.IN_QUERY, description="Date of the invoice (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('invoice_number', openapi.IN_QUERY, description="Invoice number", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('customer', openapi.IN_QUERY, description="Customer name or ID", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('total_amount', openapi.IN_QUERY, description="Total amount", type=openapi.TYPE_NUMBER, required=False),
-        openapi.Parameter('invoice_status', openapi.IN_QUERY, description="Invoice status", type=openapi.TYPE_NUMBER, required=False),
-    ]
-)
+
 @api_view(['GET'])  # Keeping GET method
 def filter_invoices(request):
     try:
