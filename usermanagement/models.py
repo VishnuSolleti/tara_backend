@@ -127,6 +127,7 @@ class Context(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     metadata = models.JSONField(default=dict, blank=True)
+    is_platform_context = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.name} - {self.context_type}"

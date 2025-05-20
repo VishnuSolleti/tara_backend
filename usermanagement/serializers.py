@@ -7,6 +7,7 @@ from .models import *
 from django.utils.timezone import now
 import re
 
+
 class UserSerializer(serializers.ModelSerializer):
     """Serializer for the Users model"""
 
@@ -35,7 +36,7 @@ class ContextSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Context
-        fields = ['id', 'name', 'context_type', 'status', 'profile_status']
+        fields = ['id', 'name', 'context_type', 'status', 'profile_status', 'is_platform_context']
 
 
 class ModuleSerializer(serializers.ModelSerializer):
