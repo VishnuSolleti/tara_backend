@@ -47,4 +47,4 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceRequest
         fields = ['id', 'user', 'service', 'service_name', 'plan', 'plan_name', 
-                  'context', 'status', 'payment_order_id', 'created_at', 'updated_at']
+                  'context', 'status', 'payment_order_id', 'created_at', 'updated_at', 'assignee', 'reviewer']

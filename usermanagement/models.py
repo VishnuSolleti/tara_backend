@@ -435,6 +435,10 @@ class ServiceRequest(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='service_request_assignee', default=None)
+    reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='service_request_reviewer', default=None)
 
     def is_personal(self):
         return self.context is None
