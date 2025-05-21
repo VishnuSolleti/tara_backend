@@ -1878,7 +1878,7 @@ def latest_invoice_id(request, invoicing_profile_id):
             return JsonResponse({
                 "error": "Invoicing Profile not found."
             }, status=404)
-        gstin = request.data.get("gstin", "NA")
+        gstin = request.query_params.get("gstin", "NA")
 
         # Step 2: Get Invoice Format
         try:
@@ -1903,7 +1903,7 @@ def latest_invoice_id(request, invoicing_profile_id):
         fy_string = f"{str(fy_start)[-2:]}-{str(fy_start + 1)[-2:]}" if invoice_format.include_financial_year else ""
 
         # Step 4: Branch code and series code handling
-        branch_code = request.data.get("branch_code", "") if invoice_format.include_branch_code else ""
+        branch_code = request.query_params.get("branch_code", "") if invoice_format.include_branch_code else ""
         series_code = invoice_format.series_code if invoice_format.include_series_code else ""
 
         # Step 5: Filter invoices
