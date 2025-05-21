@@ -218,6 +218,7 @@ class Invoice(models.Model):
         blank=True
     )
     gstin = models.CharField(max_length=100, null=True, blank=True)
+    branch_code = models.CharField(max_length=100, null=True, blank=True, default="NA")
     total_amount = models.FloatField(null=True, blank=False)
     subtotal_amount = models.FloatField(null=True, blank=False)
     shipping_amount = models.FloatField(null=True, blank=False)

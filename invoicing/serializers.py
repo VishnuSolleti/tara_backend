@@ -167,6 +167,7 @@ class InvoiceSerializer(serializers.Serializer):
         default=[],
     )
     gstin = serializers.CharField(max_length=60, allow_null=True)
+    branch_code = serializers.CharField(max_length=60, allow_null=True)
     total_amount = serializers.FloatField(allow_null=True)
     subtotal_amount = serializers.FloatField(allow_null=True)
     shipping_amount = serializers.FloatField(allow_null=True)
