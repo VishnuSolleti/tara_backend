@@ -290,6 +290,10 @@ urlpatterns = [
 
     path('service-request/create/', create_service_request.create_new_service_request, name='create-service-request'),
 
+    path('service-request/<int:service_request_id>/assignment/',
+         create_service_request.manage_service_request_assignment,
+         name='service-request-assignment'),
+
     # User detail
     path('users/<int:pk>/', other_factors.user_detail, name='user-detail'),
 

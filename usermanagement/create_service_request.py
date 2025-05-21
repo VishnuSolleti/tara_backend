@@ -7,7 +7,7 @@ from .serializers import *
 import razorpay
 from Tara.settings.default import RAZORPAY_CLIENT_ID, RAZORPAY_CLIENT_SECRET
 from .service_serializers import *  # Optional if using serializer
-
+from django.shortcuts import get_object_or_404
 # Initialize Razorpay client
 client = razorpay.Client(auth=(RAZORPAY_CLIENT_ID, RAZORPAY_CLIENT_SECRET))
 
@@ -140,3 +140,69 @@ def create_new_service_request(request):
         import traceback
         print(traceback.format_exc())
         return Response({'error': str(e)}, status=500)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def manage_service_request_assignment(request, service_request_id):
+    """
+    GET: Returns the assignee and reviewer for a service request.
+    PUT: Updates the assignee and/or reviewer fields.
+         Expected JSON body: {"assignee_id": <int or null>, "reviewer_id": <int or null>}
+    DELETE: Removes (nullifies) the assignee and reviewer fields.
+    """
+
+    service_request = get_object_or_404(ServiceRequest, id=service_request_id)
+
+    # GET - Retrieve assignee and reviewer
+    if request.method == 'GET':
+        return Response({
+            "id": service_request.id,
+            "assignee": {
+                "id": service_request.assignee.id,
+                "email": service_request.assignee.email,
+                "name": f"{service_request.assignee.first_name} {service_request.assignee.last_name}"
+            } if service_request.assignee else None,
+            "reviewer": {
+                "id": service_request.reviewer.id,
+                "email": service_request.reviewer.email,
+                "name": f"{service_request.reviewer.first_name} {service_request.reviewer.last_name}"
+            } if service_request.reviewer else None
+        }, status=status.HTTP_200_OK)
+
+    # PUT - Update assignee and/or reviewer
+    elif request.method == 'PUT':
+        assignee_id = request.data.get('assignee_id')
+        reviewer_id = request.data.get('reviewer_id')
+
+        # Validate and set assignee
+        if assignee_id is not None:
+            if assignee_id == "":
+                service_request.assignee = None
+            else:
+                assignee = Users.objects.filter(id=assignee_id).first()
+                if not assignee:
+                    return Response({"error": "Assignee user not found."}, status=status.HTTP_400_BAD_REQUEST)
+                service_request.assignee = assignee
+
+        # Validate and set reviewer
+        if reviewer_id is not None:
+            if reviewer_id == "":
+                service_request.reviewer = None
+            else:
+                reviewer = Users.objects.filter(id=reviewer_id).first()
+                if not reviewer:
+                    return Response({"error": "Reviewer user not found."}, status=status.HTTP_400_BAD_REQUEST)
+                service_request.reviewer = reviewer
+
+        service_request.save(update_fields=['assignee', 'reviewer'])
+        return Response({"message": "Assignment updated successfully."}, status=status.HTTP_200_OK)
+
+    # DELETE - Unassign assignee and reviewer
+    elif request.method == 'DELETE':
+        service_request.assignee = None
+        service_request.reviewer = None
+        service_request.save(update_fields=['assignee', 'reviewer'])
+        return Response(
+            {"message": "Assignee and reviewer removed successfully."},
+            status=status.HTTP_200_OK
+        )
