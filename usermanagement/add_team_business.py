@@ -128,11 +128,11 @@ def add_team_member_to_business(request):
             status__in=['active', 'trial']
         ).values_list('module_id', flat=True)
 
-        if not active_subscriptions:
-            return Response(
-                {"error": "This context has no active module subscriptions."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # if not active_subscriptions:
+        #     return Response(
+        #         {"error": "This context has no active module subscriptions."},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
 
         # Get the role
         if role_id:
@@ -245,9 +245,9 @@ def add_team_member_to_business(request):
                     first_name=first_name,
                     last_name=last_name,
                     mobile_number=mobile_number,
-                    status='pending',
-                    registration_flow='invited',
-                    registration_completed=False,
+                    status='invited',
+                    registration_flow='standard',
+                    registration_completed='no',
                     is_active='no',
                     created_by=authenticated_user,
                 )

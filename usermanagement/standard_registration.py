@@ -62,9 +62,9 @@ def initial_registration(request):
         # Create user
         user = User.objects.create(
             email=email,
-            status='pending',
+            status='invited',
             registration_flow='standard',
-            registration_completed=False,
+            registration_completed='no',
             is_active='no'
         )
         user.set_password(password)

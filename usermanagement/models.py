@@ -324,8 +324,6 @@ class Users(AbstractBaseUser):
     )
     first_name = models.CharField(max_length=40, null=True, blank=True, default=None)
     last_name = models.CharField(max_length=40, null=True, blank=True, default=None)
-    is_super_user = models.BooleanField(default=False,
-                                        help_text="Marks whether the user is a super user with full access.")
 
     objects = CustomAccountManager()
 
