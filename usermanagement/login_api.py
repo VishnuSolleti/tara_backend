@@ -170,7 +170,6 @@ def login_user(request):
             "created_at": user.created_at,
             "last_login": user.last_login,
             "user_context_role": user_context_role_id,
-            "is_super_user": user.is_super_user
         }
 
         if active_user_context_role:
