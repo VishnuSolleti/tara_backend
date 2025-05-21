@@ -5,10 +5,13 @@ from django.http import JsonResponse
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from .serializers import *
 import json
+from .helpers import IsPlatformOrAssociatedUser
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 
 
 # 1. Entrepreneur Details Views
 @api_view(['GET', 'POST'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_identity_structure_list(request):
     if request.method == 'GET':
@@ -24,6 +27,7 @@ def business_identity_structure_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_identity_structure_detail(request, pk):
     try:
@@ -47,6 +51,7 @@ def business_identity_structure_detail(request, pk):
 
 # 2. Establishment Details Views
 @api_view(['GET', 'POST'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def signatory_details_list(request):
     if request.method == 'GET':
@@ -68,6 +73,7 @@ def signatory_details_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def signatory_details_detail(request, pk):
     try:
@@ -96,6 +102,7 @@ def signatory_details_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_location_proofs_list(request):
     if request.method == 'GET':
@@ -117,6 +124,7 @@ def business_location_proofs_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_location_proofs_detail(request, pk):
     try:
@@ -145,6 +153,7 @@ def business_location_proofs_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def additional_space_business_list(request):
     if request.method == 'GET':
@@ -166,6 +175,7 @@ def additional_space_business_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def additional_space_business_detail(request, pk):
     try:
@@ -194,6 +204,7 @@ def additional_space_business_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_registration_documents_list(request):
     if request.method == 'GET':
@@ -209,6 +220,7 @@ def business_registration_documents_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_registration_documents_detail(request, pk):
     try:
@@ -231,6 +243,7 @@ def business_registration_documents_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def review_filing_certificate_list(request):
     if request.method == 'GET':
@@ -246,6 +259,7 @@ def review_filing_certificate_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def review_filing_certificate_detail(request, pk):
     try:
