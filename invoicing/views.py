@@ -1872,22 +1872,28 @@ def get_invoice_by_id(request, id):
 def latest_invoice_id(request, invoicing_profile_id):
     try:
         # Step 1: Fetch Invoicing Profile
-        invoicing_profile = get_object_or_404(InvoicingProfile, id=invoicing_profile_id)
+        try:
+            invoicing_profile = InvoicingProfile.objects.get(id=invoicing_profile_id)
+        except InvoicingProfile.DoesNotExist:
+            return JsonResponse({
+                "error": "Invoicing Profile not found."
+            }, status=404)
+        gstin = request.data.get("gstin", "NA")
 
         # Step 2: Get Invoice Format
         try:
             # First try to get common format
             invoice_format = InvoiceFormat.objects.get(
                 invoicing_profile_id=invoicing_profile_id,
-                is_common_format=True
+                is_common_format='yes'
             )
             use_common_format = True
         except InvoiceFormat.DoesNotExist:
             # Fallback to GSTIN-specific format
             invoice_format = InvoiceFormat.objects.get(
                 invoicing_profile_id=invoicing_profile_id,
-                gstin=invoicing_profile.gstin,
-                is_common_format=False
+                gstin=gstin,
+                is_common_format='no'
             )
             use_common_format = False
 
@@ -1897,7 +1903,7 @@ def latest_invoice_id(request, invoicing_profile_id):
         fy_string = f"{str(fy_start)[-2:]}-{str(fy_start + 1)[-2:]}" if invoice_format.include_financial_year else ""
 
         # Step 4: Branch code and series code handling
-        branch_code = request.GET.get("branch_code", "") if invoice_format.include_branch_code else ""
+        branch_code = request.data.get("branch_code", "") if invoice_format.include_branch_code else ""
         series_code = invoice_format.series_code if invoice_format.include_series_code else ""
 
         # Step 5: Filter invoices
@@ -1917,18 +1923,28 @@ def latest_invoice_id(request, invoicing_profile_id):
 
         latest_invoice = invoices_qs.order_by('-id').first()
 
+        if use_common_format:
+            latest_invoice_format = InvoiceFormat.objects.filter(
+                invoicing_profile=invoicing_profile,
+                gstin='NA'
+            ).order_by('-format_version').first()
 
-        # Step 6: Determine next running number
+            latest_invoice = Invoice.objects.filter(
+                invoicing_profile=invoicing_profile,
+                format_version=latest_invoice_format.format_version,
+                gstin='NA',
+            ).order_by('-id').first()
+        else:
+            latest_invoice_format = InvoiceFormat.objects.filter(
+                invoicing_profile=invoicing_profile,
+                gstin=gstin
+            ).order_by('-format_version').first()
 
-        latest_invoice_format = InvoiceFormat.objects.filter(
-            invoicing_profile=invoicing_profile,
-            gstin=invoicing_profile.gstin
-        ).order_by('-format_version').first()
-
-        latest_invoice = Invoice.objects.filter(
-            format_version=latest_invoice_format.format_version,
-        ).order_by('-id').first()
-
+            latest_invoice = Invoice.objects.filter(
+                invoicing_profile=invoicing_profile,
+                format_version=latest_invoice_format.format_version,
+                gstin=gstin,
+            ).order_by('-id').first()
 
         if latest_invoice:
             last_part = latest_invoice.invoice_number.split('-')[-1]
