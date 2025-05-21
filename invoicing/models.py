@@ -78,10 +78,11 @@ class InvoiceFormat(models.Model):
         on_delete=models.CASCADE,
         null=True
     )
-    is_common_format = models.BooleanField(
-        default=False,
-        help_text="Indicates if this format applies to all GSTINs under the invoicing profile"
-    )
+    # is_common_format = models.BooleanField(
+    #     default=False,
+    #     help_text="Indicates if this format applies to all GSTINs under the invoicing profile"
+    # )
+    is_common_format = models.CharField(max_length=10, choices=[('yes', 'Yes'), ('no', 'No')], default='yes')
     gstin = models.CharField(max_length=20, null=True, blank=False)
     prefix = models.CharField(max_length=20, blank=True, null=True)
     series_code = models.CharField(max_length=10, blank=True, null=True)
