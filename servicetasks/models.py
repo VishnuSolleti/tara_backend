@@ -11,6 +11,12 @@ class ServiceTask(models.Model):
         ('sent for approval', 'Sent for Approval'),
         ('revoked', 'Revoked'),
     ]
+    PRIORITY_STATUS_CHOICES = [
+        ('critical', 'Critical'),
+        ('medium', 'Medium'),
+        ('low', 'Low'),
+        ('high', 'High'),
+    ]
 
     service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE, related_name='service_tasks')
     service_type = models.CharField(max_length=50)
@@ -25,6 +31,8 @@ class ServiceTask(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in progress')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    due_date = models.DateField(default=None, null=True)
+    priority = models.CharField(max_length=20, choices=PRIORITY_STATUS_CHOICES, default='low')
 
     def __str__(self):
         return f"{self.service_type} - {self.category_name} (Request #{self.service_request.id})"
