@@ -294,6 +294,9 @@ urlpatterns = [
          create_service_request.manage_service_request_assignment,
          name='service-request-assignment'),
 
+    path('user-service-requests/', create_service_request.user_service_requests, name='user-service-requests'),
+    path('admin-service-requests/', create_service_request.superadmin_service_requests, name='superadmin-service-requests'),
+
     # User detail
     path('users/<int:pk>/', other_factors.user_detail, name='user-detail'),
 

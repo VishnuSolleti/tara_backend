@@ -2,14 +2,26 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import ServiceTask
+from servicetasks.models import ServiceTask
 from .serializers import ServiceTaskSerializer
+from django.db import models
 
 
 @api_view(['GET'])
 def service_task_list(request):
-    tasks = ServiceTask.objects.all()
+    user = request.user
+
+    if getattr(user, 'is_super_admin', False):  # ✅ Safe check
+        tasks = ServiceTask.objects.all()
+    else:
+        tasks = ServiceTask.objects.filter(
+            models.Q(assignee=user) |
+            models.Q(reviewer=user) |
+            models.Q(client=user)
+        ).distinct()
+
     serializer = ServiceTaskSerializer(tasks, many=True)
-    return Response(serializer.data)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
@@ -48,10 +60,17 @@ def service_task_update(request, pk):
 
 @api_view(['DELETE'])
 def service_task_delete(request, pk):
+    user = request.user
+
+    # ✅ Check if user is super admin
+    if not getattr(user, 'is_super_admin', False):
+        return Response({'error': 'You do not have permission to delete this task.'}, status=status.HTTP_403_FORBIDDEN)
+
     try:
         task = ServiceTask.objects.get(pk=pk)
     except ServiceTask.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
     task.delete()
-    return Response(status=status.HTTP_204_NO_CONTENT)
+    return Response({'message': 'Task deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
+

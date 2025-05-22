@@ -13,3 +13,30 @@ def license_document_upload_path(instance, filename):
     business_name = instance.business.nameOfBusiness.replace(' ', '_')
     # Construct the upload path
     return os.path.join(business_name, 'license_documents', filename)
+
+
+SERVICE_TASK_MAP = {
+    "labour-license": [
+        "Business Identity Structure",
+        "Signatory Details",
+        "Business Location Proofs",
+        "Business Registration Documents",
+        "Review Filing Certificate"
+    ],
+    "msme-registration": [
+        "Business Identity",
+        "Business Classification Inputs",
+        "Turnover And InvestmentDeclaration",
+        "Registered Address",
+        "Review Filing Certificate"
+    ],
+    "trade-license": [
+        "Business Identity",
+        "Applicant Details",
+        "Signatory Details",
+        "Business Location",
+        "Trade License Details",
+        "Business Document Details",
+        "Review Filing Certificate"
+    ]
+}
