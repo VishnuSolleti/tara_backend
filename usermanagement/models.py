@@ -324,6 +324,7 @@ class Users(AbstractBaseUser):
     )
     first_name = models.CharField(max_length=40, null=True, blank=True, default=None)
     last_name = models.CharField(max_length=40, null=True, blank=True, default=None)
+    is_super_admin = models.BooleanField(default=False, editable=False)
 
     objects = CustomAccountManager()
 
