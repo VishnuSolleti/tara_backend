@@ -132,6 +132,7 @@ class CustomerProfile(models.Model):
     email = models.CharField(max_length=100, null=True, blank=True)
     mobile_number = models.CharField(max_length=15, null=True, blank=True)
     opening_balance = models.IntegerField(null=True)
+    entity_type = models.CharField(max_length=100, null=True, blank=True, default=None)
 
     def __str__(self):
         return f"Customer: {self.name}"

@@ -21,6 +21,7 @@ class CustomerProfileSerializers(serializers.Serializer):
     email = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
     mobile_number = serializers.CharField(max_length=15, allow_null=True, allow_blank=True)
     opening_balance = serializers.IntegerField(allow_null=True)
+    entity_type = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
 
     def create(self, validated_data):
         """
