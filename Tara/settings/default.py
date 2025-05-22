@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'msme_registration',
     'trade_license',
     'docwallet',
+    'servicetasks',
 ]
 
 MIDDLEWARE = [
