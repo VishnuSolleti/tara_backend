@@ -1900,7 +1900,7 @@ def latest_invoice_id(request, invoicing_profile_id):
         # Step 3: Calculate financial year
         today = date.today()
         fy_start = today.year if today.month > 3 else today.year - 1
-        fy_string = f"{str(fy_start)[-2:]}-{str(fy_start + 1)[-2:]}" if invoice_format.include_financial_year else ""
+        fy_string = f"{str(fy_start)}-{str(fy_start + 1)[-2:]}" if invoice_format.include_financial_year else ""
 
         # Step 4: Branch code and series code handling
         branch_code = request.query_params.get("branch_code", "") if invoice_format.include_branch_code else ""
@@ -1947,7 +1947,7 @@ def latest_invoice_id(request, invoicing_profile_id):
             ).order_by('-id').first()
 
         if latest_invoice:
-            last_part = latest_invoice.invoice_number.split('-')[-1]
+            last_part = latest_invoice.invoice_number.split('/')[-1]
             running_number = int(last_part) + 1
         else:
             running_number = invoice_format.running_number_start or 1
@@ -1970,7 +1970,7 @@ def latest_invoice_id(request, invoicing_profile_id):
         if invoice_format.include_running_number:
             parts.append(str(running_number).zfill(4))
 
-        new_invoice_number = '-'.join(parts)
+        new_invoice_number = '/'.join(parts)
 
         return JsonResponse({
             "latest_invoice_number": new_invoice_number,
