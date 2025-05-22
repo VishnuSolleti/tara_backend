@@ -33,6 +33,7 @@ class ServiceTask(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     due_date = models.DateField(default=None, null=True)
     priority = models.CharField(max_length=20, choices=PRIORITY_STATUS_CHOICES, default='low')
+    completion_percentage = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.service_type} - {self.category_name} (Request #{self.service_request.id})"

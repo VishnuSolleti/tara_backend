@@ -5,6 +5,8 @@ from djongo.models import ArrayField, EmbeddedField, JSONField
 from .helpers import *
 from usermanagement.models import ServiceRequest, Users
 from servicetasks.models import ServiceTask
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
 class BusinessIdentityStructure(models.Model):
@@ -265,6 +267,37 @@ class ReviewFilingCertificate(models.Model):
     def __str__(self):
         return self.review_certificate_status or "No Review Status"
 
+
+def calculate_completion_percentage(instance, exclude_fields=None):
+    exclude_fields = exclude_fields or ['id', 'created_at', 'updated_at', 'service_request', 'service_task']
+    total_fields = 0
+    filled_fields = 0
+
+    for field in instance._meta.fields:
+        if field.name in exclude_fields:
+            continue
+        total_fields += 1
+        value = getattr(instance, field.name)
+        if value not in [None, '', []]:
+            filled_fields += 1
+
+    if total_fields == 0:
+        return 0
+    return round((filled_fields / total_fields) * 100)
+
+
+@receiver(post_save, sender=BusinessIdentityStructure)
+def sync_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
 
 
 
