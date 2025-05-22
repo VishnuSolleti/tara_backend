@@ -8,6 +8,8 @@ import razorpay
 from Tara.settings.default import RAZORPAY_CLIENT_ID, RAZORPAY_CLIENT_SECRET
 from .service_serializers import *  # Optional if using serializer
 from django.shortcuts import get_object_or_404
+from servicetasks.models import ServiceTask
+from django.db.models import Q
 # Initialize Razorpay client
 client = razorpay.Client(auth=(RAZORPAY_CLIENT_ID, RAZORPAY_CLIENT_SECRET))
 
@@ -174,7 +176,10 @@ def manage_service_request_assignment(request, service_request_id):
         assignee_id = request.data.get('assignee_id')
         reviewer_id = request.data.get('reviewer_id')
 
-        # Validate and set assignee
+        original_assignee = service_request.assignee
+        original_reviewer = service_request.reviewer
+
+        # Validate and assign assignee
         if assignee_id is not None:
             if assignee_id == "":
                 service_request.assignee = None
@@ -184,7 +189,7 @@ def manage_service_request_assignment(request, service_request_id):
                     return Response({"error": "Assignee user not found."}, status=status.HTTP_400_BAD_REQUEST)
                 service_request.assignee = assignee
 
-        # Validate and set reviewer
+        # Validate and assign reviewer
         if reviewer_id is not None:
             if reviewer_id == "":
                 service_request.reviewer = None
@@ -195,7 +200,31 @@ def manage_service_request_assignment(request, service_request_id):
                 service_request.reviewer = reviewer
 
         service_request.save(update_fields=['assignee', 'reviewer'])
-        return Response({"message": "Assignment updated successfully."}, status=status.HTTP_200_OK)
+
+        # Condition: Status must be "paid" and new assignee or reviewer is added
+        if service_request.status == "paid" and (service_request.assignee or service_request.reviewer):
+            slug = service_request.service.name.lower()
+            task_names = SERVICE_TASK_MAP.get(slug, [])
+
+            for task_name in task_names:
+                # Prevent duplicates: only create if task with same name and service_request doesn't exist
+                if not ServiceTask.objects.filter(
+                        service_request=service_request,
+                        service_type=slug,
+                        category_name=task_name
+                ).exists():
+                    ServiceTask.objects.create(
+                        service_request=service_request,
+                        service_type=slug,
+                        category_name=task_name,
+                        client=service_request.user,
+                        assignee=service_request.assignee,
+                        reviewer=service_request.reviewer,
+                        status='yet to be started'
+                    )
+
+        return Response({"message": "Assignment updated successfully and tasks created if eligible."},
+                        status=status.HTTP_200_OK)
 
     # DELETE - Unassign assignee and reviewer
     elif request.method == 'DELETE':
@@ -206,3 +235,42 @@ def manage_service_request_assignment(request, service_request_id):
             {"message": "Assignee and reviewer removed successfully."},
             status=status.HTTP_200_OK
         )
+
+
+@api_view(['GET'])
+def user_service_requests(request):
+    user = request.user
+
+    service_requests = ServiceRequest.objects.filter(
+        Q(user=user) |
+        Q(assignee=user) |
+        Q(reviewer=user)
+    ).distinct()
+
+    serializer = ServiceRequestSerializer(service_requests, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+def superadmin_service_requests(request):
+    user = request.user
+
+    if not user.is_super_admin:
+        return Response({"error": "You are not authorized to view this."}, status=status.HTTP_403_FORBIDDEN)
+
+    assigned_param = request.query_params.get('assigned')
+    if assigned_param is None:
+        return Response(
+            {"error": "Query param 'assigned' is required (true or false)."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    assigned = assigned_param.lower() == 'true'
+
+    if assigned:
+        queryset = ServiceRequest.objects.filter(assignee__isnull=False, reviewer__isnull=False)
+    else:
+        queryset = ServiceRequest.objects.filter(models.Q(assignee__isnull=True) | models.Q(reviewer__isnull=True))
+
+    serializer = ServiceRequestSerializer(queryset, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

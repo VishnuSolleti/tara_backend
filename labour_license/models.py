@@ -3,7 +3,8 @@ from Tara.settings.default import *
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from djongo.models import ArrayField, EmbeddedField, JSONField
 from .helpers import *
-from usermanagement.models import *
+from usermanagement.models import ServiceRequest, Users
+from servicetasks.models import ServiceTask
 
 
 class BusinessIdentityStructure(models.Model):
@@ -14,7 +15,8 @@ class BusinessIdentityStructure(models.Model):
         default="Labour License",
         editable=False
     )
-    task_stage = models.CharField(max_length=3, default="001", editable=False)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_business_identity')
     classification_of_establishment = models.CharField(max_length=255, null=False, blank=False)
     category_of_establishment = models.CharField(max_length=255, null=False, blank=False)
     legal_name_of_business = models.CharField(max_length=255, null=False, blank=False)
@@ -50,7 +52,8 @@ class SignatoryDetails(models.Model):
         default="Labour License",
         editable=False
     )
-    task_stage = models.CharField(max_length=3, default="002", editable=False)
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_signatory_details')
     name = models.CharField(max_length=255, null=False, blank=False)
     aadhar_image = models.FileField(upload_to=signatory_details_aadhar_image,
                                     null=True, blank=True)
@@ -91,7 +94,8 @@ class BusinessLocationProofs(models.Model):
         default="Labour License",
         editable=False
     )
-    task_stage = models.CharField(max_length=3, default="003", editable=False)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_business_locations_proof')
     principal_place_of_business = JSONField(default=dict)
     nature_of_possession = models.CharField(max_length=255, null=False, blank=False)
     address_proof = models.FileField(
@@ -151,7 +155,8 @@ class BusinessRegistrationDocuments(models.Model):
         default="Labour License",
         editable=False
     )
-    task_stage = models.CharField(max_length=3, default="004", editable=False)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_business_registration')
     certificate_of_incorporation = models.FileField(
         upload_to=business_registration_documents_certificate_of_incorporation,
         null=False, blank=False)
@@ -216,11 +221,8 @@ class ReviewFilingCertificate(models.Model):
         editable=False
     )
 
-    task_stage = models.CharField(
-        max_length=3,
-        default="005",
-        editable=False
-    )
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_review_filing_certificate')
 
     review_certificate = models.FileField(upload_to=review_filing_certificate,
                                           null=True, blank=True)
