@@ -1,0 +1,57 @@
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .models import ServiceTask
+from .serializers import ServiceTaskSerializer
+
+
+@api_view(['GET'])
+def service_task_list(request):
+    tasks = ServiceTask.objects.all()
+    serializer = ServiceTaskSerializer(tasks, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def service_task_detail(request, pk):
+    try:
+        task = ServiceTask.objects.get(pk=pk)
+    except ServiceTask.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ServiceTaskSerializer(task)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+def service_task_create(request):
+    serializer = ServiceTaskSerializer(data=request.data)
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['PUT', 'PATCH'])
+def service_task_update(request, pk):
+    try:
+        task = ServiceTask.objects.get(pk=pk)
+    except ServiceTask.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ServiceTaskSerializer(task, data=request.data, partial=(request.method == 'PATCH'))
+    if serializer.is_valid():
+        serializer.save()
+        return Response(serializer.data)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+def service_task_delete(request, pk):
+    try:
+        task = ServiceTask.objects.get(pk=pk)
+    except ServiceTask.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    task.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

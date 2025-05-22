@@ -46,6 +46,8 @@ urlpatterns = [
 
     path('labourlicense/',include('labour_license.urls')),
 
+    path('servicetasks/',include('servicetasks.urls')),
+
     path('msme/',include('msme_registration.urls')),
 
     path('docwallet/',include('docwallet.urls')),
