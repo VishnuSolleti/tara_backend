@@ -220,7 +220,10 @@ def manage_service_request_assignment(request, service_request_id):
                         client=service_request.user,
                         assignee=service_request.assignee,
                         reviewer=service_request.reviewer,
-                        status='yet to be started'
+                        status='yet to be started',
+                        due_date=service_request.due_date,
+                        priority=service_request.priority
+
                     )
 
         return Response({"message": "Assignment updated successfully and tasks created if eligible."},

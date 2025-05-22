@@ -423,6 +423,12 @@ class ServiceRequest(models.Model):
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
     ]
+    PRIORITY_STATUS_CHOICES = [
+        ('critical', 'Critical'),
+        ('medium', 'Medium'),
+        ('low', 'Low'),
+        ('high', 'High'),
+    ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     service = models.ForeignKey(Service, on_delete=models.CASCADE)  # ✅ actual field
@@ -438,6 +444,8 @@ class ServiceRequest(models.Model):
                                  related_name='service_request_assignee', default=None)
     reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='service_request_reviewer', default=None)
+    due_date = models.DateField(default=None, null=True)
+    priority = models.CharField(max_length=20, choices=PRIORITY_STATUS_CHOICES, default='low')
 
     def is_personal(self):
         return self.context is None

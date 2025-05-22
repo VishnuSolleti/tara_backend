@@ -28,26 +28,26 @@ urlpatterns = [
     path('review-filing/', views.review_filing_certificate_list, name='review_filing_list'),
     path('review-filing/<int:pk>/', views.review_filing_certificate_detail, name='review_filing_detail'),
 
-    path('business-identity/by-request-or-task/<int:service_request_id>/', views.get_business_identity_structure,
+    path('business-identity/by-request-or-task', views.get_business_identity_structure,
          name='business_identity_by_request_or_task'),
 
 
     # Signatory Details
-    path('signatory-details/by-request/<int:service_request_id>/', views.get_signatory_details,
+    path('signatory-details/by-request', views.get_signatory_details,
          name='signatory_by_request'),
 
 
     # Business Location Proofs
-    path('business-location/by-request-or-task/<int:id>/', views.get_business_location_proofs,
+    path('business-location/by-request-or-task', views.get_business_location_proofs,
          name='business_location_by_request_or_task'),
 
 
     # Business Registration Documents
-    path('registration-documents/by-request-or-task/<int:id>/', views.get_business_registration_documents,
+    path('registration-documents/by-request-or-task', views.get_business_registration_documents,
          name='registration_documents_by_request_or_task'),
 
 
     # Review Filing Certificate
-    path('review-filing/by-request-or-task/<int:id>/', views.get_review_filing_certificate,
+    path('review-filing/by-request-or-task', views.get_review_filing_certificate,
          name='review_filing_by_request_or_task'),
 ]
