@@ -2480,4 +2480,55 @@ def user_detail(request, pk):
         return Response({"message": "User deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def upload_business_logo(request):
+    """
+    Upload a logo for the user.
+    """
+    if request.method == 'POST':
+        serializer = LogoSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+    elif request.method == 'GET':
+        logos = BusinessLogo.objects.all()
+        serializer = LogoSerializer(logos, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def business_logo_detail(request, pk):
+    """
+    Get, update or delete a logo by ID.
+    """
+    if request.method == 'GET':
+        try:
+            logo = BusinessLogo.objects.get(business_id=pk)
+        except BusinessLogo.DoesNotExist:
+            return Response({"error": "Logo not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = LogoSerializer(logo)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        try:
+            logo = BusinessLogo.objects.get(pk=pk)
+        except BusinessLogo.DoesNotExist:
+            return Response({"error": "Logo not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = LogoSerializer(logo, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        try:
+            logo = BusinessLogo.objects.get(pk=pk)
+        except BusinessLogo.DoesNotExist:
+            return Response({"error": "Logo not found"}, status=status.HTTP_404_NOT_FOUND)
+        logo.delete()
+        return Response({"message": "Logo deleted successfully"}, status=status.HTTP_204_NO_CONTENT)

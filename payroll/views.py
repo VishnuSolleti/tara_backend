@@ -74,13 +74,7 @@ class PayrollOrgList(APIView):
 
     def post(self, request):
         try:
-            # Check if logo is in request.FILES
-            if 'logo' in request.data:
-                data = request.data  # Use request.data directly if logo is present
-            else:
-                data = request.data.copy()  # Use copy if no logo
-
-            file = request.FILES.get('logo') if 'logo' in request.FILES else None
+            data = request.data.copy()  # Use copy if no logo
             business_id = data.get('business')
             business_data = data.pop('business_details', None)
 
@@ -105,11 +99,6 @@ class PayrollOrgList(APIView):
                 else:
                     return Response(business_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            # Remove logo from data to avoid validation errors
-            if file:
-                if 'logo' in data:
-                    data.pop('logo')
-
             try:
                 payroll_org = PayrollOrg.objects.get(business_id=business_id)
                 serializer = PayrollOrgSerializer(payroll_org, data=data, partial=True)
@@ -117,18 +106,12 @@ class PayrollOrgList(APIView):
                 serializer = PayrollOrgSerializer(data=data)
 
             # Validate and save PayrollOrg
-            if serializer.is_valid():
-                payroll_org = serializer.save()
-
-                # Handle the file upload separately after the model is saved
-                try:
-                    if file:
-                        payroll_org.logo = file
-                        payroll_org.save(update_fields=['logo'])
-                except Exception as e:
-                    return Response({"error": f"Error uploading file: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-                return Response(PayrollOrgSerializer(payroll_org).data, status=status.HTTP_201_CREATED)
+            try:
+                if serializer.is_valid():
+                    serializer.save()
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
