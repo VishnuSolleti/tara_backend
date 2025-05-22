@@ -11,7 +11,6 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 
 # 1. Entrepreneur Details Views
 @api_view(['GET', 'POST'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_identity_structure_list(request):
     if request.method == 'GET':
@@ -26,8 +25,35 @@ def business_identity_structure_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def get_business_identity_structure(request):
+    """
+    Retrieve BusinessIdentityStructure based on either service_request_id or service_task_id (query param).
+    Query Params: ?service_request_id=<id> or ?service_task_id=<id>
+    """
+    service_request_id = request.query_params.get('service_request_id')
+    service_task_id = request.query_params.get('service_task_id')
+
+    if not service_request_id and not service_task_id:
+        return Response(
+            {"error": "Provide either 'service_request_id' or 'service_task_id' as a query parameter."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        if service_request_id:
+            instance = BusinessIdentityStructure.objects.get(service_request_id=service_request_id)
+        else:
+            instance = BusinessIdentityStructure.objects.get(service_task_id=service_task_id)
+    except BusinessIdentityStructure.DoesNotExist:
+        return Response({"error": "No matching BusinessIdentityStructure found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = BusinessIdentityStructureSerializer(instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 @api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_identity_structure_detail(request, pk):
     try:
@@ -51,7 +77,6 @@ def business_identity_structure_detail(request, pk):
 
 # 2. Establishment Details Views
 @api_view(['GET', 'POST'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def signatory_details_list(request):
     if request.method == 'GET':
@@ -72,8 +97,63 @@ def signatory_details_list(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['GET'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def get_signatory_details(request):
+    """
+    Retrieve SignatoryDetails based on either service_request_id or service_task_id.
+    Query Params: ?service_request_id=<id> or ?service_task_id=<id>
+    """
+    service_request_id = request.query_params.get('service_request_id')
+    service_task_id = request.query_params.get('service_task_id')
+
+    if not service_request_id and not service_task_id:
+        return Response(
+            {"error": "Provide either 'service_request_id' or 'service_task_id' as a query parameter."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        if service_request_id:
+            instance = SignatoryDetails.objects.get(service_request_id=service_request_id)
+        else:
+            instance = SignatoryDetails.objects.get(service_task_id=service_task_id)
+    except SignatoryDetails.DoesNotExist:
+        return Response({"error": "No matching SignatoryDetails found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = SignatoryDetailsSerializer(instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def get_business_location_proofs(request):
+    """
+    Retrieve BusinessLocationProofs based on either service_request_id or service_task_id.
+    Query Params: ?service_request_id=<id> or ?service_task_id=<id>
+    """
+    service_request_id = request.query_params.get('service_request_id')
+    service_task_id = request.query_params.get('service_task_id')
+
+    if not service_request_id and not service_task_id:
+        return Response(
+            {"error": "Provide either 'service_request_id' or 'service_task_id' as a query parameter."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        if service_request_id:
+            instance = BusinessLocationProofs.objects.get(service_request_id=service_request_id)
+        else:
+            instance = BusinessLocationProofs.objects.get(service_task_id=service_task_id)
+    except BusinessLocationProofs.DoesNotExist:
+        return Response({"error": "No matching BusinessLocationProofs found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = BusinessLocationProofsSerializer(instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 @api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def signatory_details_detail(request, pk):
     try:
@@ -102,7 +182,6 @@ def signatory_details_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_location_proofs_list(request):
     if request.method == 'GET':
@@ -124,7 +203,6 @@ def business_location_proofs_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_location_proofs_detail(request, pk):
     try:
@@ -152,8 +230,34 @@ def business_location_proofs_detail(request, pk):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['GET'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def get_business_registration_documents(request):
+    """
+    Retrieve BusinessRegistrationDocuments based on either service_request_id or service_task_id.
+    """
+    service_request_id = request.query_params.get('service_request_id')
+    service_task_id = request.query_params.get('service_task_id')
+
+    if not service_request_id and not service_task_id:
+        return Response(
+            {"error": "Provide either 'service_request_id' or 'service_task_id' as a query parameter."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        if service_request_id:
+            instance = BusinessRegistrationDocuments.objects.get(service_request_id=service_request_id)
+        else:
+            instance = BusinessRegistrationDocuments.objects.get(service_task_id=service_task_id)
+    except BusinessRegistrationDocuments.DoesNotExist:
+        return Response({"error": "No matching BusinessRegistrationDocuments found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = BusinessRegistrationDocumentsSerializer(instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 @api_view(['GET', 'POST'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def additional_space_business_list(request):
     if request.method == 'GET':
@@ -175,7 +279,6 @@ def additional_space_business_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def additional_space_business_detail(request, pk):
     try:
@@ -204,7 +307,6 @@ def additional_space_business_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_registration_documents_list(request):
     if request.method == 'GET':
@@ -220,7 +322,6 @@ def business_registration_documents_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_registration_documents_detail(request, pk):
     try:
@@ -243,7 +344,6 @@ def business_registration_documents_detail(request, pk):
 
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def review_filing_certificate_list(request):
     if request.method == 'GET':
@@ -259,7 +359,6 @@ def review_filing_certificate_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsPlatformOrAssociatedUser])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def review_filing_certificate_detail(request, pk):
     try:
@@ -279,3 +378,30 @@ def review_filing_certificate_detail(request, pk):
     elif request.method == 'DELETE':
         record.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def get_review_filing_certificate(request):
+    """
+    Retrieve ReviewFilingCertificate based on either service_request_id or service_task_id.
+    """
+    service_request_id = request.query_params.get('service_request_id')
+    service_task_id = request.query_params.get('service_task_id')
+
+    if not service_request_id and not service_task_id:
+        return Response(
+            {"error": "Provide either 'service_request_id' or 'service_task_id' as a query parameter."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        if service_request_id:
+            instance = ReviewFilingCertificate.objects.get(service_request_id=service_request_id)
+        else:
+            instance = ReviewFilingCertificate.objects.get(service_task_id=service_task_id)
+    except ReviewFilingCertificate.DoesNotExist:
+        return Response({"error": "No matching ReviewFilingCertificate found."}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = ReviewFilingCertificateSerializer(instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)

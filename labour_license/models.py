@@ -34,10 +34,10 @@ class BusinessIdentityStructure(models.Model):
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
-        if not self.assignee and self.service_request.assignee:
-            self.assignee = self.service_request.assignee
-        if not self.reviewer and self.service_request.reviewer:
-            self.reviewer = self.service_request.reviewer
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -76,10 +76,10 @@ class SignatoryDetails(models.Model):
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
-        if not self.assignee and self.service_request.assignee:
-            self.assignee = self.service_request.assignee
-        if not self.reviewer and self.service_request.reviewer:
-            self.reviewer = self.service_request.reviewer
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -121,10 +121,10 @@ class BusinessLocationProofs(models.Model):
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
-        if not self.assignee and self.service_request.assignee:
-            self.assignee = self.service_request.assignee
-        if not self.reviewer and self.service_request.reviewer:
-            self.reviewer = self.service_request.reviewer
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -179,10 +179,10 @@ class BusinessRegistrationDocuments(models.Model):
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
-        if not self.assignee and self.service_request.assignee:
-            self.assignee = self.service_request.assignee
-        if not self.reviewer and self.service_request.reviewer:
-            self.reviewer = self.service_request.reviewer
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -256,10 +256,10 @@ class ReviewFilingCertificate(models.Model):
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
-        if not self.assignee and self.service_request.assignee:
-            self.assignee = self.service_request.assignee
-        if not self.reviewer and self.service_request.reviewer:
-            self.reviewer = self.service_request.reviewer
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
         super().save(*args, **kwargs)
 
     def __str__(self):
