@@ -115,13 +115,13 @@ def get_signatory_details(request):
 
     try:
         if service_request_id:
-            instance = SignatoryDetails.objects.get(service_request_id=service_request_id)
+            instance = SignatoryDetails.objects.filter(service_request_id=service_request_id)
         else:
-            instance = SignatoryDetails.objects.get(service_task_id=service_task_id)
+            instance = SignatoryDetails.objects.filter(service_task_id=service_task_id)
     except SignatoryDetails.DoesNotExist:
         return Response({"error": "No matching SignatoryDetails found."}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = SignatoryDetailsSerializer(instance)
+    serializer = SignatoryDetailsSerializer(instance, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
