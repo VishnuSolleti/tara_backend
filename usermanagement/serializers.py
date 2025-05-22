@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Users, Context, Module, Role, UserContextRole,
-    UserFeaturePermission, SubscriptionPlan, ModuleSubscription,Branch
+    UserFeaturePermission, SubscriptionPlan, ModuleSubscription,Branch, BusinessLogo
 )
 from .models import *
 from django.utils.timezone import now
@@ -423,6 +423,30 @@ class BusinessSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Business
+        fields = '__all__'
+
+    def create(self, validated_data):
+        """
+        Create and return a new `Business` instance, given the validated data.
+        """
+        instance = self.Meta.model(**validated_data)
+        instance.save()
+        return instance
+
+    def update(self, instance, validated_data):
+        """
+        Update and return an existing `Business` instance, given the validated data.
+        """
+        [setattr(instance, k, v) for k, v in validated_data.items()]
+        instance.save()
+        return instance
+
+
+class LogoSerializer(serializers.ModelSerializer):
+    logo = serializers.FileField(allow_null=True, required=False)
+
+    class Meta:
+        model = BusinessLogo
         fields = '__all__'
 
     def create(self, validated_data):

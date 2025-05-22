@@ -1314,6 +1314,14 @@ class Business(BaseModel):
         return str(self.nameOfBusiness)
 
 
+class BusinessLogo(BaseModel):
+    business = models.OneToOneField(Business, on_delete=models.CASCADE, related_name='logos')
+    logo = models.FileField(upload_to=logo_upload_path, null=True, blank=True)
+
+    def __str__(self):
+        return f"Logo for {self.business.nameOfBusiness}"
+
+
 # Branch model to represent multiple branches of a business
 class Branch(BaseModel):
     business = models.ForeignKey(Business, on_delete=models.CASCADE, related_name='branches')

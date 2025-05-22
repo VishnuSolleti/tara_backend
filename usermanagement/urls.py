@@ -318,4 +318,8 @@ urlpatterns = [
 
     path('happy-coder/', views.happy_coder, name='happy_coder'),
 
+    # Business Logo Upload Api
+    path('business-logo/', other_factors.upload_business_logo, name='upload_business_logo'),
+    path('business-logo/<int:pk>/', other_factors.business_logo_detail, name='business_logo_detail'),
+
 ]

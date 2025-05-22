@@ -1,5 +1,6 @@
 from django.core.validators import RegexValidator
 from django.db import models
+from .helpers import *
 from djongo.models import ArrayField, EmbeddedField, JSONField
 from usermanagement.models import Users, Business
 from django.core.exceptions import ValidationError
@@ -63,7 +64,7 @@ class InvoicingProfile(BaseModel):
     account_number = models.BigIntegerField(validators=[validate_account_number])
     ifsc_code = models.CharField(max_length=50)
     swift_code = models.CharField(max_length=50, null=True, blank=True)
-    signature = models.ImageField(upload_to="signatures/", null=True, blank=True)
+    signature = models.ImageField(upload_to=signatures_upload_path, null=True, blank=True)
     gst_registered = models.BooleanField()
     gstin = models.CharField(max_length=120, null=True, blank=True)
 
