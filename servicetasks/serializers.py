@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import ServiceTask
+from datetime import date
 from usermanagement.models import Users  # Adjust the import path if necessary
 
 class UserDisplaySerializer(serializers.ModelSerializer):
@@ -19,10 +20,16 @@ class ServiceTaskDetailedSerializer(serializers.ModelSerializer):
     client = UserDisplaySerializer(read_only=True)
     assignee = UserDisplaySerializer(read_only=True)
     reviewer = UserDisplaySerializer(read_only=True)
+    ageing = serializers.SerializerMethodField()
 
     class Meta:
         model = ServiceTask
         fields = '__all__'
+
+    def get_ageing(self, obj):
+        if obj.created_at:
+            return (date.today() - obj.created_at.date()).days
+        return None
 
 
 class ServiceTaskSerializer(serializers.ModelSerializer):
