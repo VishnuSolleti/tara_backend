@@ -250,7 +250,8 @@ def add_team_member_to_business(request):
                     registration_completed='no',
                     is_active='no',
                     created_by=authenticated_user,
-                    is_super_admin=False
+                    is_super_admin=False,
+                    active_context=context
                 )
                 is_new_user = True
 
