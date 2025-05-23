@@ -59,23 +59,23 @@ class SalaryIncomeSerializer(serializers.ModelSerializer):
         ]
 
 
-class OtherIncomeDetailFileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OtherIncomeDetailsData
-        fields = [
-            'id',
-            'other_income',
-            'details',
-            'amount',
-            'file',
-            'notes',
-            'uploaded_at',
-        ]
-        read_only_fields = ['id', 'uploaded_at']
+# class OtherIncomeDetailFileSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = OtherIncomeDetailsData
+#         fields = [
+#             'id',
+#             'other_income',
+#             'details',
+#             'amount',
+#             'file',
+#             'notes',
+#             'uploaded_at',
+#         ]
+#         read_only_fields = ['id', 'uploaded_at']
 
 
 class OtherIncomeDetailsSerializer(serializers.ModelSerializer):
-    documents = OtherIncomeDetailFileSerializer(many=True, read_only=True)
+
 
     class Meta:
         model = OtherIncomeDetails

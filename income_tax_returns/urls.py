@@ -5,6 +5,8 @@ from . import salary_income_views
 from . import other_income_views
 from . import house_property_income_views
 from . import interest_income_views
+from . import dividend_views
+from . import family_pension_views
 
 urlpatterns = [
     # Unified POST and PUT API for TaxPaidDetails and document uploads
@@ -27,17 +29,17 @@ urlpatterns = [
          name='personal_information_detail'),
 
     # Salary Income Details
-    path('salary-income/', salary_income_views.salary_income_list_create,
+    path('salary-income/', salary_income_views.salary_income_list,
          name='salary_income_list_create'),
-    path('salary-income/<int:pk>/', salary_income_views.salary_income_detail_update,
+    path('salary-income/<int:pk>/', salary_income_views.salary_income_detail,
          name='salary_income_detail_update'),
-    path('salary-documents/<int:pk>/', salary_income_views.delete_salary_document_file,
+    path('salary-documents/<int:pk>/', salary_income_views.delete_salary_document,
          name='delete_salary_document_file'),
     path('salary-documents-count/<int:service_request_id>/', salary_income_views.salary_document_summary,
          name='salary_document_summary'),
 
-    path('other-income-details/', views.other_income_details_list, name='other_income_details_list'),
-    path('other-income-details/<int:pk>/', views.other_income_details_detail, name='other_income_details_detail'),
+    path('other-income-details/', other_income_views.other_income_details_list, name='other_income_details_list'),
+    path('other-income-details/<int:pk>/', other_income_views.other_income_details_detail, name='other_income_details_detail'),
 
     path('other-income-documents/', other_income_views.add_other_income_document,
          name='add_other_income_document'),
@@ -64,28 +66,28 @@ urlpatterns = [
     path('interest-income-doc/<int:document_id>/update/', interest_income_views.update_interest_income_document,
          name='update_interest_income_document'),
 
-    path('dividend-income/', views.upsert_dividend_income, name='upsert_dividend_income'),  # POST create or update
-    path('dividend-income/view/', views.get_dividend_income, name='get_dividend_income'),   # GET by service_request
+    path('dividend-income/', dividend_views.upsert_dividend_income, name='upsert_dividend_income'),  # POST create or update
+    path('dividend-income/view/', dividend_views.get_dividend_income, name='get_dividend_income'),   # GET by service_request
 
     # DividendIncomeDocument APIs
-    path('dividend-income/document/add/', views.add_dividend_income_document,
+    path('dividend-income/document/add/', dividend_views.add_dividend_income_document,
          name='add_dividend_income_document'),  # POST add doc
-    path('dividend-income/document/<int:document_id>/update/', views.update_dividend_income_document,
+    path('dividend-income/document/<int:document_id>/update/', dividend_views.update_dividend_income_document,
          name='update_dividend_income_document'),  # PUT update doc
-    path('dividend-income/document/<int:document_id>/delete/', views.delete_dividend_income_document,
+    path('dividend-income/document/<int:document_id>/delete/', dividend_views.delete_dividend_income_document,
          name='delete_dividend_income_document'),  # DELETE doc
 
-    path('family-pension-income/', views.upsert_family_pension_income,
+    path('family-pension-income/', family_pension_views.upsert_family_pension_income,
          name='upsert_family_pension_income'),  # POST (create or update)
-    path('family-pension-income/get/', views.get_family_pension_income,
+    path('family-pension-income/get/', family_pension_views.get_family_pension_income,
          name='get_family_pension_income'),     # GET (retrieve)
 
     # Family Pension Income Documents
-    path('family-pension-income-documents/', views.add_family_pension_income_document,
+    path('family-pension-income-documents/', family_pension_views.add_family_pension_income_document,
          name='add_family_pension_income_document'),  # POST (create)
-    path('family-pension-income-documents/<int:document_id>/', views.update_family_pension_income_document,
+    path('family-pension-income-documents/<int:document_id>/', family_pension_views.update_family_pension_income_document,
          name='update_family_pension_income_document'),  # PUT (update)
-    path('family-pension-income-documents/<int:document_id>/delete/', views.delete_family_pension_income_document,
+    path('family-pension-income-documents/<int:document_id>/delete/', family_pension_views.delete_family_pension_income_document,
          name='delete_family_pension_income_document'),  # DELETE
 
 ]

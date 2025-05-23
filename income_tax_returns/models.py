@@ -133,7 +133,7 @@ class SalaryIncome(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='tax_paid_details_assigned'
+        related_name='salary_income_assigned'
     )
 
     reviewer = models.ForeignKey(
@@ -141,7 +141,7 @@ class SalaryIncome(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='tax_paid_details_reviewed'
+        related_name='salary_income_reviewed'
     )
 
     def save(self, *args, **kwargs):
@@ -201,7 +201,7 @@ class OtherIncomeDetails(models.Model):
         related_name='other_income_details_reviewed'
     )
     details = models.CharField(max_length=255, null=True, blank=True)
-    amount = models.IntegerField(max_digits=10, decimal_places=2, null=True, blank=True)
+    amount = models.IntegerField()
     file = models.FileField(upload_to=salary_income_details_file,
                             null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
@@ -376,7 +376,7 @@ class InterestIncomeDocument(models.Model):
                                                              ('Recurring Deposit', 'Recurring Deposit'),
                                                              ('NRO Account', 'NRO Account'),
                                                              ('NRE Account', 'NRE Account'),
-                                                             ('Other', 'Other')
+                                                             ('Other', 'Other'),
                                                              ('Fixed Deposit', 'Fixed Deposit')])
     interest_earned = models.IntegerField(null=True, blank=True)
     bank_name = models.CharField(max_length=255, null=True, blank=True)
@@ -390,7 +390,7 @@ class InterestIncomeDocument(models.Model):
 
 class DividendIncome(models.Model):
     service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
-                                        related_name='other_income')
+                                        related_name='dividend_income')
     service_type = models.CharField(
         max_length=20,
         default="Income Tax Returns",
@@ -405,7 +405,7 @@ class DividendIncome(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='other_income_assigned'
+        related_name='dividend_income_assigned'
     )
 
     reviewer = models.ForeignKey(
@@ -413,7 +413,7 @@ class DividendIncome(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='other_income_reviewed'
+        related_name='dividend_income_reviewed'
     )
     dividend_income = models.CharField(max_length=255, null=False, blank=False,
                                        choices=[('Applicable', 'Applicable'), ('Not Applicable', 'Not Applicable')])
@@ -542,7 +542,7 @@ class FamilyPensionIncome(models.Model):
 
 class FamilyPensionIncomeDocuments(models.Model):
     family_pension = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
-                                        related_name='family_pension_income')
+                                        related_name='family_pension_income_docs')
     type_of_income = models.CharField(max_length=30, choices=[('Divident', 'Divident'),
                                                               ('Interest', 'Interest'),
                                                               ('Others', 'Others')])
