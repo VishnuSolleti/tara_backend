@@ -71,6 +71,7 @@ INSTALLED_APPS = [
     'trade_license',
     'docwallet',
     'servicetasks',
+    'income_tax_returns',
 ]
 
 MIDDLEWARE = [
