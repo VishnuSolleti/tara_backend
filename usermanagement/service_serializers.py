@@ -57,7 +57,9 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     service_name = serializers.ReadOnlyField(source='service.name')
     plan_name = serializers.ReadOnlyField(source='plan.name')
     user = UserDisplaySerializer(read_only=True)
-    
+    assignee = UserDisplaySerializer(read_only=True)
+    reviewer = UserDisplaySerializer(read_only=True)
+
     class Meta:
         model = ServiceRequest
         fields = ['id', 'user', 'service', 'service_name', 'plan', 'plan_name', 
