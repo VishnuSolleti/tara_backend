@@ -18,12 +18,16 @@ class SignatoryDetailsSerializer(serializers.ModelSerializer):
 
 
 class BusinessLocationProofsSerializer(serializers.ModelSerializer):
+    principal_place_of_business = serializers.JSONField()
+
     class Meta:
         model = BusinessLocationProofs
         fields = '__all__'
 
 
 class AdditionalSpaceBusinessSerializer(serializers.ModelSerializer):
+    address = serializers.JSONField()
+
     class Meta:
         model = AdditionalSpaceBusiness
         fields = '__all__'

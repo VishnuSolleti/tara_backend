@@ -123,7 +123,7 @@ def business_location_bank_statement(instance, filename):
 def additional_business_space_address_proof(instance, filename):
     # Get the name of the business, replace spaces with underscores
     business_location_proof_id = str(instance.business_location_proofs.id)
-    service_request_id = str(instance.business_location_proofs.service_requestid)
+    service_request_id = str(instance.business_location_proofs.service_request_id)
     # Construct the upload path
     return os.path.join('service_requests',  'Labour License', service_request_id, business_location_proof_id,
                         'additional_business_space_address_proof', filename)
@@ -132,7 +132,7 @@ def additional_business_space_address_proof(instance, filename):
 def additional_business_space_rental_agreement(instance, filename):
     # Get the name of the business, replace spaces with underscores
     business_location_proof_id = str(instance.business_location_proofs.id)
-    service_request_id = str(instance.business_location_proofs.service_requestid)
+    service_request_id = str(instance.business_location_proofs.service_request_id)
     # Construct the upload path
     return os.path.join('service_requests',  'Labour License', service_request_id, business_location_proof_id,
                         'additional_business_space_rental_agreement', filename)
@@ -143,7 +143,7 @@ def business_registration_documents_certificate_of_incorporation(instance, filen
     service_request_id = str(instance.service_request.id)
     # Construct the upload path
     return os.path.join('service_requests',  'Labour License', service_request_id,
-                        'business_registration_documents_certificate_of_incorporation', filename)
+                        'business_documents_certificate_of_incorporation', filename)
 
 
 def business_registration_documents_memorandum_of_articles(instance, filename):
@@ -151,7 +151,7 @@ def business_registration_documents_memorandum_of_articles(instance, filename):
     service_request_id = str(instance.service_request.id)
     # Construct the upload path
     return os.path.join('service_requests',  'Labour License', service_request_id,
-                        'business_registration_documents_memorandum_of_articles', filename)
+                        'business_documents_memorandum_of_articles', filename)
 
 
 def business_registration_documents_local_language_name_board_photo_business(instance, filename):
@@ -159,7 +159,7 @@ def business_registration_documents_local_language_name_board_photo_business(ins
     service_request_id = str(instance.service_request.id)
     # Construct the upload path
     return os.path.join('service_requests',  'Labour License', service_request_id,
-                        'business_registration_documents_local_language_name_board_photo_business', filename)
+                        'business_documents_name_board_photo_business', filename)
 
 
 def business_registration_documents_authorization_letter(instance, filename):
@@ -167,7 +167,7 @@ def business_registration_documents_authorization_letter(instance, filename):
     service_request_id = str(instance.service_request.id)
     # Construct the upload path
     return os.path.join('service_requests',  'Labour License', service_request_id,
-                        'business_registration_documents_authorization_letter', filename)
+                        'business_documents_authorization_letter', filename)
 
 
 def review_filing_certificate(instance, filename):

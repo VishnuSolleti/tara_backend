@@ -66,7 +66,7 @@ class SignatoryDetails(models.Model):
     email = models.EmailField(null=False, blank=False)
     residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
                                            null=False, blank=False)
-    address = JSONField(default=dict)
+    address = models.TextField(null=True, blank=True)
 
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),

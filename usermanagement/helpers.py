@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta, date
 
 
 def gst_document_upload_path(instance, filename):
@@ -45,4 +46,14 @@ SERVICE_TASK_MAP = {
         "Business Document Details",
         "Review Filing Certificate"
     ]
+}
+
+
+due_dates = {
+    "labour-license": date.today() + timedelta(days=1),
+    "trade-license": date.today() + timedelta(days=1),
+    "itr-filing": date.today() + timedelta(days=1),
+    "registration": date.today() + timedelta(days=7),
+    "msme-registration": date.today() + timedelta(days=1),
+    "private-limited": date.today() + timedelta(days=15),
 }

@@ -84,13 +84,7 @@ def signatory_details_list(request):
         serializer = SignatoryDetailsSerializer(records, many=True)
         return Response(serializer.data)
     elif request.method == 'POST':
-        data = request.data.copy()
-        if 'address' in data and isinstance(data['address'], str):
-            try:
-                data['address'] = json.loads(data['address'])
-            except json.JSONDecodeError:
-                return Response({"error": "Invalid JSON for address"}, status=status.HTTP_400_BAD_REQUEST)
-        serializer = SignatoryDetailsSerializer(data=data)
+        serializer = SignatoryDetailsSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -165,13 +159,7 @@ def signatory_details_detail(request, pk):
         serializer = SignatoryDetailsSerializer(record)
         return Response(serializer.data)
     elif request.method == 'PUT':
-        data = request.data.copy()
-        if 'address' in data and isinstance(data['address'], str):
-            try:
-                data['address'] = json.loads(data['address'])
-            except json.JSONDecodeError:
-                return Response({"error": "Invalid JSON for address"}, status=status.HTTP_400_BAD_REQUEST)
-        serializer = SignatoryDetailsSerializer(record, data=data, partial=True)
+        serializer = SignatoryDetailsSerializer(record, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -192,9 +180,10 @@ def business_location_proofs_list(request):
         data = request.data.copy()
         if 'principal_place_of_business' in data and isinstance(data['principal_place_of_business'], str):
             try:
-                data['principal_place_of_business'] = json.loads(data['principal_place_of_business'])
+                address = json.loads(data['principal_place_of_business'])
             except json.JSONDecodeError:
                 return Response({"error": "Invalid JSON"}, status=status.HTTP_400_BAD_REQUEST)
+        data['principal_place_of_business'] = json.dumps(address)
         serializer = BusinessLocationProofsSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
@@ -217,9 +206,10 @@ def business_location_proofs_detail(request, pk):
         data = request.data.copy()
         if 'principal_place_of_business' in data and isinstance(data['principal_place_of_business'], str):
             try:
-                data['principal_place_of_business'] = json.loads(data['principal_place_of_business'])
+                address = json.loads(data['principal_place_of_business'])
             except json.JSONDecodeError:
                 return Response({"error": "Invalid JSON"}, status=status.HTTP_400_BAD_REQUEST)
+        data['principal_place_of_business'] = json.dumps(address)
         serializer = BusinessLocationProofsSerializer(record, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
@@ -268,9 +258,11 @@ def additional_space_business_list(request):
         data = request.data.copy()
         if 'address' in data and isinstance(data['address'], str):
             try:
-                data['address'] = json.loads(data['address'])
+                address = json.loads(data['address'])  # convert string to dict
             except json.JSONDecodeError:
-                return Response({"error": "Invalid JSON"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response({"address": ["Value must be valid JSON."]}, status=status.HTTP_400_BAD_REQUEST)
+            data['address'] = json.dumps(address)  # convert dict back to string for storage
+
         serializer = AdditionalSpaceBusinessSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
@@ -293,9 +285,10 @@ def additional_space_business_detail(request, pk):
         data = request.data.copy()
         if 'address' in data and isinstance(data['address'], str):
             try:
-                data['address'] = json.loads(data['address'])
+                address = json.loads(data['address'])
             except json.JSONDecodeError:
                 return Response({"error": "Invalid JSON"}, status=status.HTTP_400_BAD_REQUEST)
+        data['address'] = json.dumps(address)
         serializer = AdditionalSpaceBusinessSerializer(record, data=data, partial=True)
         if serializer.is_valid():
             serializer.save()
