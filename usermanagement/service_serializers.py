@@ -40,9 +40,23 @@ class ServiceRequestCreateSerializer(serializers.Serializer):
         )
 
 
+class UserDisplaySerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Users
+        fields = ['id', 'full_name']
+
+    def get_full_name(self, obj):
+        parts = [obj.first_name, obj.last_name]
+        # Filter out None or empty strings, then join with space
+        return " ".join(part for part in parts if part).strip()
+
+
 class ServiceRequestSerializer(serializers.ModelSerializer):
     service_name = serializers.ReadOnlyField(source='service.name')
     plan_name = serializers.ReadOnlyField(source='plan.name')
+    user = UserDisplaySerializer(read_only=True)
     
     class Meta:
         model = ServiceRequest
