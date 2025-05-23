@@ -65,7 +65,8 @@ def initial_registration(request):
             status='invited',
             registration_flow='standard',
             registration_completed='no',
-            is_active='no'
+            is_active='no',
+            is_super_admin=False,
         )
         user.set_password(password)
         user.save()
