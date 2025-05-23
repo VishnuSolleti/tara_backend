@@ -198,8 +198,9 @@ def manage_service_request_assignment(request, service_request_id):
                 if not reviewer:
                     return Response({"error": "Reviewer user not found."}, status=status.HTTP_400_BAD_REQUEST)
                 service_request.reviewer = reviewer
-
-        service_request.save(update_fields=['assignee', 'reviewer'])
+        service_name = service_request.service.name.lower()
+        service_request.due_date = due_dates.get(service_name)
+        service_request.save(update_fields=['assignee', 'reviewer','due_date'])
 
         # Condition: Status must be "paid" and new assignee or reviewer is added
         if service_request.status == "paid" and (service_request.assignee or service_request.reviewer):

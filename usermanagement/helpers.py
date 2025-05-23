@@ -46,3 +46,13 @@ SERVICE_TASK_MAP = {
         "Review Filing Certificate"
     ]
 }
+
+
+due_dates = {
+    "labour-license": "1 day",
+    "trade-license": "1 day",
+    "itr-filing": "1 day",
+    "registration": "7 day",
+    "msme-registration": "1 day",
+    "private-limited": "15 day",
+}

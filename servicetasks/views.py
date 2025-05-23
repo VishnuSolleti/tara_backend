@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import ServiceTask
 from servicetasks.models import ServiceTask
-from .serializers import ServiceTaskSerializer
+from .serializers import ServiceTaskSerializer, ServiceTaskDetailedSerializer
 from django.db import models
 
 
@@ -20,7 +20,7 @@ def service_task_list(request):
             models.Q(client=user)
         ).distinct()
 
-    serializer = ServiceTaskSerializer(tasks, many=True)
+    serializer = ServiceTaskDetailedSerializer(tasks, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -31,7 +31,7 @@ def service_task_detail(request, pk):
     except ServiceTask.DoesNotExist:
         return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = ServiceTaskSerializer(task)
+    serializer = ServiceTaskDetailedSerializer(task)
     return Response(serializer.data)
 
 
