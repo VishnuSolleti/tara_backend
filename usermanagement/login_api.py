@@ -100,6 +100,7 @@ def login_user(request):
                 "profile_status": active_context.profile_status,
                 "created_at": active_context.created_at,
                 "business_id": active_context.business_id,
+                "is_platform_context": active_context.is_platform_context,
             }
 
             try:

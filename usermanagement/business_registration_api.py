@@ -86,7 +86,8 @@ def register_business(request):
                 status='active',
                 registration_flow='module',  # Set registration flow to 'module'
                 registration_completed=False,
-                is_active='no'  # Set is_active to 'yes'
+                is_active='no' ,
+                is_super_admin=False # Set is_active to 'yes'
             )
 
             # 2. Create business context
