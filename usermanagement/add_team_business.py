@@ -511,7 +511,7 @@ def accept_team_invitation(request):
         logger.info("User context role activated successfully")
 
         # For new users, update their status
-        if user.status in ['pending', 'invited'] and user.registration_flow == 'invited':
+        if user.status in ['pending', 'invited'] and user.registration_flow in ['invited', 'standard']:
             user.status = 'active'
             user.registration_completed = True
             user.is_active = 'yes'
