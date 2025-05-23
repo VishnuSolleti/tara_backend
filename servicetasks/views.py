@@ -74,3 +74,11 @@ def service_task_delete(request, pk):
     task.delete()
     return Response({'message': 'Task deleted successfully.'}, status=status.HTTP_204_NO_CONTENT)
 
+
+@api_view(['GET'])
+def service_task_list_by_service_request_id(request, service_request_id):
+    tasks = ServiceTask.objects.filter(service_request_id=service_request_id)
+    serializer = ServiceTaskSerializer(tasks, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
