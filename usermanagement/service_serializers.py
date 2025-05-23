@@ -55,6 +55,7 @@ class UserDisplaySerializer(serializers.ModelSerializer):
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
     service_name = serializers.ReadOnlyField(source='service.name')
+    service_label = serializers.ReadOnlyField(source='service.label')
     plan_name = serializers.ReadOnlyField(source='plan.name')
     user = UserDisplaySerializer(read_only=True)
     assignee = UserDisplaySerializer(read_only=True)
@@ -63,4 +64,4 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
     class Meta:
         model = ServiceRequest
         fields = ['id', 'user', 'service', 'service_name', 'plan', 'plan_name', 
-                  'context', 'status', 'payment_order_id', 'created_at', 'updated_at', 'assignee', 'reviewer']
+                  'context', 'status', 'payment_order_id', 'created_at', 'updated_at', 'assignee', 'reviewer', 'service_label']
