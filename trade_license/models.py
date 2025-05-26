@@ -68,7 +68,8 @@ class ApplicantDetails(models.Model):
     residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
                                            null=False, blank=False)
     address = models.TextField(blank=True, null=True)
-
+    mobile_number = models.BigIntegerField(blank=False, null=False)
+    email = models.EmailField(blank=False, null=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in progress')
     service_type = models.CharField(max_length=100, default='Trade License', editable=False)
     assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
