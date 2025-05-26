@@ -1,7 +1,7 @@
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import FamilyPensionIncome, FamilyPensionIncomeDocuments
+from .models import FamilyPensionIncome, FamilyPensionIncomeInfo
 from .serializers import FamilyPensionIncomeSerializer, FamilyPensionIncomeDocumentsSerializer
 
 # FamilyPensionIncome APIs
@@ -53,8 +53,8 @@ def add_family_pension_income_document(request):
 @api_view(['PUT'])
 def update_family_pension_income_document(request, document_id):
     try:
-        document = FamilyPensionIncomeDocuments.objects.get(pk=document_id)
-    except FamilyPensionIncomeDocuments.DoesNotExist:
+        document = FamilyPensionIncomeInfo.objects.get(pk=document_id)
+    except FamilyPensionIncomeInfo.DoesNotExist:
         return Response({"error": "Document not found"}, status=status.HTTP_404_NOT_FOUND)
 
     serializer = FamilyPensionIncomeDocumentsSerializer(document, data=request.data, partial=True)
@@ -67,10 +67,10 @@ def update_family_pension_income_document(request, document_id):
 @api_view(['DELETE'])
 def delete_family_pension_income_document(request, document_id):
     try:
-        document = FamilyPensionIncomeDocuments.objects.get(pk=document_id)
+        document = FamilyPensionIncomeInfo.objects.get(pk=document_id)
         document.delete()
         return Response({"message": "Family Pension Income Document deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-    except FamilyPensionIncomeDocuments.DoesNotExist:
+    except FamilyPensionIncomeInfo.DoesNotExist:
         return Response({"error": "Document not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
@@ -80,8 +80,8 @@ def get_family_pension_income_documents(request):
     if not family_pension_id:
         return Response({"error": "Missing family_pension_id"}, status=status.HTTP_400_BAD_REQUEST)
     try:
-        documents = FamilyPensionIncomeDocuments.objects.filter(family_pension_id=family_pension_id)
+        documents = FamilyPensionIncomeInfo.objects.filter(family_pension_id=family_pension_id)
         serializer = FamilyPensionIncomeDocumentsSerializer(documents, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-    except FamilyPensionIncomeDocuments.DoesNotExist:
+    except FamilyPensionIncomeInfo.DoesNotExist:
         return Response({"error": "No documents found for the given family_pension_id"}, status=status.HTTP_404_NOT_FOUND)

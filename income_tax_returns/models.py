@@ -512,7 +512,8 @@ class FamilyPensionIncome(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_family_pension_income')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                     related_name='service_task_family_pension_income')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -546,9 +547,64 @@ class FamilyPensionIncome(models.Model):
         return f"{self.service_request.id} - Family Pension Income Details"
 
 
-class FamilyPensionIncomeDocuments(models.Model):
-    family_pension = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
-                                        related_name='family_pension_income_docs')
+class FamilyPensionIncomeInfo(models.Model):
+    family_pension = models.ForeignKey(FamilyPensionIncome, on_delete=models.CASCADE,
+                                       related_name='family_pension_income_docs')
+    source = models.CharField(max_length=30, choices=[('Government', 'Government'),
+                                                      ('Private', 'Private'),
+                                                      ('Others', 'Others')])
+    amount = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.family_pension.service_request.id}- {self.source}"
+
+
+class ForeignIncome(models.Model):
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+                                        related_name='foreign_income')
+    service_type = models.CharField(
+        max_length=20,
+        default="Income Tax Returns",
+        editable=False
+    )
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                     related_name='service_task_foreign_income')
+    status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')], null=False, blank=False)
+    assignee = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='foreign_income_assigned'
+    )
+
+    reviewer = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='foreign_income_reviewed'
+    )
+    foreign_income = models.CharField(max_length=255, null=False, blank=False,
+                                   choices=[('Applicable', 'Applicable'), ('Not Applicable', 'Not Applicable')])
+
+    def save(self, *args, **kwargs):
+        # Default to service_request values if not set
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.service_request.id} - Family Pension Income Details"
+
+
+class ForeignIncomeInfo(models.Model):
+    foreign_income = models.ForeignKey(ForeignIncome, on_delete=models.CASCADE,
+                                       related_name='foreign_income_docs')
     type_of_income = models.CharField(max_length=30, choices=[('Divident', 'Divident'),
                                                               ('Interest', 'Interest'),
                                                               ('Others', 'Others')])
@@ -557,7 +613,251 @@ class FamilyPensionIncomeDocuments(models.Model):
     amount = models.IntegerField()
 
     def __str__(self):
-        return f"{self.family_pension.service_request.id}- {self.type_of_income}"
+        return f"{self.foreign_income.service_request.id}- {self.type_of_income}"
+
+
+class WinningIncome(models.Model):
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+                                        related_name='winnings')
+    service_type = models.CharField(
+        max_length=20,
+        default="Income Tax Returns",
+        editable=False
+    )
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                     related_name='service_task_winnings_income')
+    status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')], null=False, blank=False)
+    assignee = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='winnings_income_assigned'
+    )
+
+    reviewer = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='winnings_income_reviewed'
+    )
+    winning_income = models.CharField(max_length=255, null=False, blank=False,
+                                   choices=[('Applicable', 'Applicable'), ('Not Applicable', 'Not Applicable')])
+
+    def save(self, *args, **kwargs):
+        # Default to service_request values if not set
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.service_request.id} - Winning Income Details"
+
+
+class WinningIncomeDocument(models.Model):
+    winning_income = models.ForeignKey(WinningIncome, on_delete=models.CASCADE, related_name='winnings_income_docs')
+    source = models.CharField(max_length=30, choices=[('Lottery', 'Lottery'),
+                                                      ('Game Show', 'Game Show'),
+                                                      ('amount', 'amount')])
+    amount = models.IntegerField()
+    file = models.FileField(upload_to=dividend_income_file,
+                            null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.winning_income.service_request.id}- {self.received_from}"
+
+
+class AgricultureIncome(models.Model):
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+                                        related_name='agriculture_income')
+    service_type = models.CharField(
+        max_length=20,
+        default="Income Tax Returns",
+        editable=False
+    )
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                     related_name='service_task_agriculture_income')
+    status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')], null=False, blank=False)
+    assignee = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agriculture_income_assigned'
+    )
+
+    reviewer = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='agriculture_incomereviewed'
+    )
+    agriculture = models.CharField(max_length=255, null=False, blank=False,
+                                   choices=[('Applicable', 'Applicable'), ('Not Applicable', 'Not Applicable')])
+
+    def save(self, *args, **kwargs):
+        # Default to service_request values if not set
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.service_request.id} - Winning Income Details"
+
+
+class AgricultureIncomeDocument(models.Model):
+    winning_income = models.ForeignKey(AgricultureIncome, on_delete=models.CASCADE,
+                                       related_name='agriculture_income_docs')
+    amount = models.IntegerField()
+    file = models.FileField(upload_to=dividend_income_file,
+                            null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.winning_income.service_request.id}- {self.amount}"
+
+
+class Deductions(models.Model):
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+                                        related_name='deductions')
+    service_type = models.CharField(
+        max_length=20,
+        default="Income Tax Returns",
+        editable=False
+    )
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                     related_name='service_task_deductions')
+    status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')], null=False, blank=False)
+    assignee = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='deductions_assigned'
+    )
+
+    reviewer = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='deductions_reviewed'
+    )
+
+    def save(self, *args, **kwargs):
+        # Default to service_request values if not set
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.service_request.id} - Deductions Details"
+
+
+class Section80G(models.Model):
+    deductions = models.ForeignKey(Deductions, on_delete=models.CASCADE, related_name='section_80g')
+    name = models.CharField(max_length=255, null=True, blank=True)
+    amount = models.IntegerField(null=True, blank=True)
+    mode = models.CharField(max_length=50, null=True, blank=True,choices=[('Cash', 'Cash'),
+                                                                          ('Cheque', 'Cheque'),
+                                                                          ('Online Transfer', 'Online Transfer')])
+    file = models.FileField(upload_to=section_80g_file, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.deductions.service_request.id} - Section 80G Donation"
+
+
+class Section80ETTATTBU(models.Model):
+    deductions = models.OneToOneField(Deductions, on_delete=models.CASCADE, related_name='section_80ettattbu')
+    amount = models.IntegerField(null=True, blank=True)
+    education_of = models.CharField(max_length=50, null=True, blank=True, choices=[('self', 'self'),
+                                                                                   ('spouse', 'spouse'),
+                                                                                   ('children', 'children'),
+                                                                                   ('dependent', 'dependent')])
+    borrower_name = models.CharField(max_length=50, null=True, blank=True)
+    is_it_approved_bank = models.BooleanField(default=False)
+    total_saving_interest = models.IntegerField(null=True, blank=True)
+    total_fd_interest = models.IntegerField(null=True, blank=True)
+    nature_of_disability = models.CharField(max_length=50, null=True, blank=True,
+                                            choices=[('Blindness', 'Blindness'),
+                                                     ('Deaf and Dumb', 'Deaf and Dumb'),
+                                                     ('Low Vision', 'Low Vision'),
+                                                     ('Leprosy Cured', 'Leprosy Cured'),
+                                                     ('Hearing Impairment', 'Hearing Impairment'),
+                                                     ('Locomotor Disability', 'Locomotor Disability'),
+                                                     ('Mental Illness', 'Mental Illness'),
+                                                     ('Mental Retardation', 'Mental Retardation'),
+                                                     ('Multiple Disabilities', 'Multiple Disabilities'),
+                                                     ('others', 'others')]
+                                            )
+    severity = models.CharField(max_length=50, null=True, blank=True, choices=[('40-80%', '40-80%'),('>80%', '>80%')])
+    deduction_amount = models.IntegerField(null=True, blank=True)
+
+    deduction_file = models.FileField(upload_to=section_80ettattbu_file, null=True, blank=True)
+    pay_rent_without_recieving_hra = models.BooleanField(default=False)
+    pay_rent_amount = models.IntegerField(null=True, blank=True)
+    are_you_first_time_homebuyer = models.BooleanField(default=False)
+    amount_of_interest_paid = models.IntegerField(null=True, blank=True)
+    date_of_loan_sanctioned = models.DateField(null=True, blank=True)
+    donation_made_to_political_party = models.BooleanField(default=False)
+    donation_amount = models.IntegerField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.deductions.service_request.id} - Section 80ETTAU Donation"
+
+
+class Section80C(models.Model):
+    deductions = models.ForeignKey(Deductions, on_delete=models.CASCADE, related_name='section_80c')
+    investment = models.CharField(max_length=50, null=True, blank=True,choices=[('ppf', 'ppf'),
+                                                                                ('nsc', 'nsc'),
+                                                                                ('elss', 'elss'),
+                                                                                ('life insurance', 'life insurance'),
+                                                                                ('tution fees', 'tution fees'),
+                                                                                ('others', 'others')])
+    amount = models.IntegerField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.deductions.service_request.id} - Section 80c Donation"
+
+
+class Section80D(models.Model):
+    deductions = models.OneToOneField(Deductions, on_delete=models.CASCADE, related_name='section_80d')
+    self_family_non_senior_citizen = models.IntegerField(null=True, blank=True)
+    parents_senior_citizen = models.IntegerField(null=True, blank=True)
+    parents_non_senior_citizen = models.IntegerField(null=True, blank=True)
+    self_senior_citizen = models.IntegerField(null=True, blank=True)
+    preventive_health_checkup = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.deductions.service_request.id} - Section 80c Donation"
+
+
+class Section80DFile(models.Model):
+
+    section_80d = models.ForeignKey(TaxPaidDetails, on_delete=models.CASCADE, related_name='section_80d_documents')
+    file = models.FileField(upload_to=section_80d_file, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.section_80d.deductions.service_request.id} - {self.uploaded_at}"
 
 
 class ReviewFilingCertificate(models.Model):
