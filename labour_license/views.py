@@ -255,7 +255,7 @@ def additional_space_business_list(request):
         serializer = AdditionalSpaceBusinessSerializer(records, many=True)
         return Response(serializer.data)
     elif request.method == 'POST':
-        data = request.data.copy()
+        data = request.data
         if 'address' in data and isinstance(data['address'], str):
             try:
                 address = json.loads(data['address'])  # convert string to dict
@@ -303,7 +303,7 @@ def additional_space_business_detail(request, pk):
 def get_additional_space_business_details(request):
     business_location_proofs_id = request.query_params.get('business_location_proofs')
     if not business_location_proofs_id:
-        return Response({'error':"Provide either 'business_location_proofs_id' as a query parameter."})
+        return Response({'error': "Provide either 'business_location_proofs_id' as a query parameter."})
 
     try:
         instance = AdditionalSpaceBusiness.objects.filter(business_location_proofs_id=business_location_proofs_id)
@@ -312,7 +312,6 @@ def get_additional_space_business_details(request):
 
     serializer = AdditionalSpaceBusinessSerializer(instance, many=True)
     return Response(serializer.data)
-
 
 
 @api_view(['GET', 'POST'])
