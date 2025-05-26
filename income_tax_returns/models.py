@@ -181,7 +181,7 @@ class OtherIncomeDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_other_income_details')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_other_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -286,7 +286,7 @@ class HousePropertyIncomeDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_house_property_details')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_house_property_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -342,7 +342,7 @@ class InterestIncome(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_other_income')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_other_income')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -402,7 +402,7 @@ class DividendIncome(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_dividend_income')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_dividend_income')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -456,7 +456,7 @@ class GiftIncomeDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_gift_income_details')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_gift_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -512,7 +512,7 @@ class FamilyPensionIncome(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_family_pension_income')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_family_pension_income')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
