@@ -17,16 +17,15 @@ class PersonalInformation(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_personal_information')
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_personal_information')
     first_name = models.CharField(max_length=255, null=False, blank=False)
     middle_name = models.CharField(max_length=255, null=False, blank=False)
     last_name = models.CharField(max_length=255, null=False, blank=False)
     gender = models.CharField(max_length=255, null=False, blank=False)
     residentail_status = models.CharField(max_length=255, null=False, blank=False)
-    pan = models.FileField(upload_to=personal_information_pan,
-                                    null=True, blank=True)
-    aadhar = models.FileField(upload_to=personal_information_aadhar,
-                           null=True, blank=True)
+    pan = models.FileField(upload_to=personal_information_pan, null=True, blank=True)
+    aadhar = models.FileField(upload_to=personal_information_aadhar, null=True, blank=True)
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)

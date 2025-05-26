@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .models import FamilyPensionIncome, FamilyPensionIncomeInfo
-from .serializers import FamilyPensionIncomeSerializer, FamilyPensionIncomeDocumentsSerializer
+from .serializers import *
 
 # FamilyPensionIncome APIs
 
@@ -43,7 +43,7 @@ def get_family_pension_income(request):
 
 @api_view(['POST'])
 def add_family_pension_income_document(request):
-    serializer = FamilyPensionIncomeDocumentsSerializer(data=request.data)
+    serializer = FamilyPensionIncomeInfoSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
         return Response({"message": "Family Pension Income Document added successfully"}, status=status.HTTP_201_CREATED)
@@ -57,7 +57,7 @@ def update_family_pension_income_document(request, document_id):
     except FamilyPensionIncomeInfo.DoesNotExist:
         return Response({"error": "Document not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = FamilyPensionIncomeDocumentsSerializer(document, data=request.data, partial=True)
+    serializer = FamilyPensionIncomeInfoSerializer(document, data=request.data, partial=True)
     if serializer.is_valid():
         serializer.save()
         return Response({"message": "Family Pension Income Document updated successfully"}, status=status.HTTP_200_OK)
@@ -81,7 +81,7 @@ def get_family_pension_income_documents(request):
         return Response({"error": "Missing family_pension_id"}, status=status.HTTP_400_BAD_REQUEST)
     try:
         documents = FamilyPensionIncomeInfo.objects.filter(family_pension_id=family_pension_id)
-        serializer = FamilyPensionIncomeDocumentsSerializer(documents, many=True)
+        serializer = FamilyPensionIncomeInfoSerializer(documents, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except FamilyPensionIncomeInfo.DoesNotExist:
         return Response({"error": "No documents found for the given family_pension_id"}, status=status.HTTP_404_NOT_FOUND)

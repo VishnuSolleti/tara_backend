@@ -4,7 +4,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Section80D, Section80DFile
-from .serializers import Section80DWithFilesSerializer, Section80DSerializer, Section80DFileSerializer
+from .serializers import *
 
 
 @api_view(['POST', 'PUT'])
@@ -16,7 +16,7 @@ def upsert_section_80d_with_files(request):
           (requires 'id' field in form data to locate existing record)
     """
     if request.method == 'POST':
-        serializer = Section80DWithFilesSerializer(data=request.data)
+        serializer = Section80DFileSerializer(data=request.data)
     else:  # PUT
         section_id = request.data.get('id')
         if not section_id:
@@ -25,12 +25,12 @@ def upsert_section_80d_with_files(request):
             instance = Section80D.objects.get(pk=section_id)
         except Section80D.DoesNotExist:
             return Response({"error": "Section80D not found"}, status=status.HTTP_404_NOT_FOUND)
-        serializer = Section80DWithFilesSerializer(instance, data=request.data, partial=True)
+        serializer = Section80DFileSerializer(instance, data=request.data, partial=True)
 
     if serializer.is_valid():
         section = serializer.save()
         return Response(
-            Section80DWithFilesSerializer(section).data,
+            Section80DFileSerializer(section).data,
             status=(status.HTTP_201_CREATED if request.method=='POST' else status.HTTP_200_OK)
         )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -51,7 +51,7 @@ def get_section_80d(request):
     except Section80D.DoesNotExist:
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = Section80DWithFilesSerializer(entry)
+    serializer = Section80DFileSerializer(entry)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
