@@ -107,7 +107,7 @@ class SignatoryDetails(models.Model):
                                  related_name='assigned_signatory_detail')
     reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='reviewed_signatory_detail')
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='signatory_task', null=False, blank=False)
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='signatory_task', null=False, blank=False)
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
