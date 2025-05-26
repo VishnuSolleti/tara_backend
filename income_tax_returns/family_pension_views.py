@@ -72,3 +72,16 @@ def delete_family_pension_income_document(request, document_id):
         return Response({"message": "Family Pension Income Document deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     except FamilyPensionIncomeDocuments.DoesNotExist:
         return Response({"error": "Document not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+def get_family_pension_income_documents(request):
+    family_pension_id = request.query_params.get('family_pension_id')
+    if not family_pension_id:
+        return Response({"error": "Missing family_pension_id"}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        documents = FamilyPensionIncomeDocuments.objects.filter(family_pension_id=family_pension_id)
+        serializer = FamilyPensionIncomeDocumentsSerializer(documents, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except FamilyPensionIncomeDocuments.DoesNotExist:
+        return Response({"error": "No documents found for the given family_pension_id"}, status=status.HTTP_404_NOT_FOUND)

@@ -7,6 +7,7 @@ from . import house_property_income_views
 from . import interest_income_views
 from . import dividend_views
 from . import family_pension_views
+from . import gift_income_views
 
 urlpatterns = [
     # Unified POST and PUT API for TaxPaidDetails and document uploads
@@ -28,6 +29,8 @@ urlpatterns = [
     path('personal-information/<int:pk>/', views.personal_information_detail,
          name='personal_information_detail'),
 
+    path('personal-information/by-request-or-task', views.personal_information_by_service_request, name='personal_information_by_service_request'),
+
     # Salary Income Details
     path('salary-income/', salary_income_views.salary_income_list,
          name='salary_income_list_create'),
@@ -35,11 +38,13 @@ urlpatterns = [
          name='salary_income_detail_update'),
     path('salary-documents/<int:pk>/', salary_income_views.delete_salary_document,
          name='delete_salary_document_file'),
-    path('salary-documents-count/<int:service_request_id>/', salary_income_views.salary_document_summary,
+    path('salary-documents-count/<int:income_id>/', salary_income_views.salary_document_summary,
          name='salary_document_summary'),
+    path('salary-income/by-request-or-task', salary_income_views.salary_income_by_service_request,name='salary_income_by_service_request'),
 
     path('other-income-details/', other_income_views.other_income_details_list, name='other_income_details_list'),
     path('other-income-details/<int:pk>/', other_income_views.other_income_details_detail, name='other_income_details_detail'),
+    path('other-income-details/by-request-or-task', other_income_views.other_income_details_by_service_request, name='other_income_details_by_service_request'),
 
     path('other-income-documents/', other_income_views.add_other_income_document,
          name='add_other_income_document'),
@@ -65,17 +70,30 @@ urlpatterns = [
          name='delete_interest_income_document'),
     path('interest-income-doc/<int:document_id>/update/', interest_income_views.update_interest_income_document,
          name='update_interest_income_document'),
+    path('interest-income-doc/view', interest_income_views.list_interest_income_documents, name='list_interest_income_documents'),
 
+    # GiftIncome APIs
+    path('gift-income/upsert/', gift_income_views.upsert_gift_income_details, name='upsert_gift_income'),  # POST create or update
+    path('gift-income/get/', gift_income_views.get_gift_income_details, name='get_gift_income'),  # GET by service_request
+
+    # GiftIncomeDocument APIs
+    path('gift-income-document/add/', gift_income_views.add_gift_income_document, name='add_gift_income_document'),  # POST add doc
+    path('gift-income-document/<int:document_id>/update/', gift_income_views.update_gift_income_document, name='update_gift_income_document'),  # PUT update doc
+    path('gift-income-document/<int:document_id>/delete/', gift_income_views.delete_gift_income_document, name='delete_gift_income_document'),  # DELETE doc
+    path('gift-income-document/view/', gift_income_views.get_gift_income_documents, name='get_gift_income_document'),  # GET by service_request
+
+    # DividendIncome APIs
     path('dividend-income/', dividend_views.upsert_dividend_income, name='upsert_dividend_income'),  # POST create or update
     path('dividend-income/view/', dividend_views.get_dividend_income, name='get_dividend_income'),   # GET by service_request
 
     # DividendIncomeDocument APIs
-    path('dividend-income/document/add/', dividend_views.add_dividend_income_document,
+    path('dividend-income-document/add/', dividend_views.add_dividend_income_document,
          name='add_dividend_income_document'),  # POST add doc
-    path('dividend-income/document/<int:document_id>/update/', dividend_views.update_dividend_income_document,
+    path('dividend-income-document/<int:document_id>/update/', dividend_views.update_dividend_income_document,
          name='update_dividend_income_document'),  # PUT update doc
-    path('dividend-income/document/<int:document_id>/delete/', dividend_views.delete_dividend_income_document,
+    path('dividend-income-document/<int:document_id>/delete/', dividend_views.delete_dividend_income_document,
          name='delete_dividend_income_document'),  # DELETE doc
+    path('dividend-income-document/view/', dividend_views.list_dividend_income_documents, name='list_dividend_income_document'),  # GET by service_request
 
     path('family-pension-income/', family_pension_views.upsert_family_pension_income,
          name='upsert_family_pension_income'),  # POST (create or update)
@@ -89,6 +107,12 @@ urlpatterns = [
          name='update_family_pension_income_document'),  # PUT (update)
     path('family-pension-income-documents/<int:document_id>/delete/', family_pension_views.delete_family_pension_income_document,
          name='delete_family_pension_income_document'),  # DELETE
+    path('family-pension-income-documents/view/', family_pension_views.get_family_pension_income_documents, name='get_family_pension_income_documents'),  # GET (retrieve by service_request)
 
+# Review Filing Certificate
+    path('review-filing/', views.review_filing_certificate_list, name='review_filing_list'),
+    path('review-filing/<int:pk>/', views.review_filing_certificate_detail, name='review_filing_detail'),
+    path('review-filing/by-request-or-task', views.get_review_filing_certificate,
+         name='review_filing_by_request_or_task'),
 ]
 

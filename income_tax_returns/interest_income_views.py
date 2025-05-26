@@ -77,3 +77,16 @@ def update_interest_income_document(request, document_id):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     except InterestIncomeDocument.DoesNotExist:
         return Response({"error": "Document not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+def list_interest_income_documents(request):
+    try:
+        interest_income_id = request.query_params.get('interest_income_id')
+        if not interest_income_id:
+            return Response({"error": "Missing interest_income_id"}, status=status.HTTP_400_BAD_REQUEST)
+        documents = InterestIncomeDocument.objects.filter(interest_income_id=interest_income_id)
+        serializer = InterestIncomeDocumentSerializer(documents, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except InterestIncomeDocument.DoesNotExist:
+        return Response({"error": "No documents found"}, status=status.HTTP_404_NOT_FOUND)

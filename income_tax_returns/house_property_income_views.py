@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import HousePropertyIncomeDetails
 from .serializers import HousePropertyIncomeDetailsSerializer
+import json
 
 
 @api_view(['POST'])
@@ -12,16 +13,24 @@ def upsert_house_property_details(request):
     service_request_id = request.data.get('service_request')
     if not service_request_id:
         return Response({"error": "Missing service_request"}, status=status.HTTP_400_BAD_REQUEST)
+    data = request.data.copy()
 
+    if 'property_address' in data and isinstance(data["property_address"], str):
+        try:
+            property_address = json.loads(data["property_address"])
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid property_address format"}, status=status.HTTP_400_BAD_REQUEST)
+    data["property_address"] = json.dumps(property_address)
+    print(type(data['property_address']))  # Will show <class 'str'> if wrong
     try:
         instance = HousePropertyIncomeDetails.objects.get(service_request_id=service_request_id)
-        serializer = HousePropertyIncomeDetailsSerializer(instance, data=request.data, partial=True)
+        serializer = HousePropertyIncomeDetailsSerializer(instance, data=data, partial=True)
     except HousePropertyIncomeDetails.DoesNotExist:
-        serializer = HousePropertyIncomeDetailsSerializer(data=request.data)
+        serializer = HousePropertyIncomeDetailsSerializer(data=data)
 
     if serializer.is_valid():
         serializer.save()
-        return Response({'message': 'House Property Income Details saved successfully'}, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -46,9 +55,9 @@ def delete_house_property_file(request, file_type, service_request_id):
         instance = HousePropertyIncomeDetails.objects.get(service_request_id=service_request_id)
         file_field = None
 
-        if file_type == 'municipal_tax_recipt':
-            file_field = instance.municipal_tax_recipt
-            instance.municipal_tax_recipt = None
+        if file_type == 'municipal_tax_receipt':
+            file_field = instance.municipal_tax_receipt
+            instance.municipal_tax_receipt = None
         elif file_type == 'loan_statement':
             file_field = instance.loan_statement
             instance.loan_statement = None

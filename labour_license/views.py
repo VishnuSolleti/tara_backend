@@ -299,6 +299,22 @@ def additional_space_business_detail(request, pk):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['GET'])
+def get_additional_space_business_details(request):
+    business_location_proofs_id = request.query_params.get('business_location_proofs')
+    if not business_location_proofs_id:
+        return Response({'error':"Provide either 'business_location_proofs_id' as a query parameter."})
+
+    try:
+        instance = AdditionalSpaceBusiness.objects.filter(business_location_proofs_id=business_location_proofs_id)
+    except AdditionalSpaceBusiness.DoesNotExist:
+        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    serializer = AdditionalSpaceBusinessSerializer(instance, many=True)
+    return Response(serializer.data)
+
+
+
 @api_view(['GET', 'POST'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_registration_documents_list(request):
