@@ -8,6 +8,14 @@ from . import interest_income_views
 from . import dividend_views
 from . import family_pension_views
 from . import gift_income_views
+from . import foreign_income_views
+from . import winning_income_views
+from . import agriculture_income
+from . import section_80g_views
+from . import section_80ettattbu_views
+from . import section_80c_views
+from . import deductions
+from . import section_80d_views
 
 urlpatterns = [
     # Unified POST and PUT API for TaxPaidDetails and document uploads
@@ -29,7 +37,8 @@ urlpatterns = [
     path('personal-information/<int:pk>/', views.personal_information_detail,
          name='personal_information_detail'),
 
-    path('personal-information/by-request-or-task', views.personal_information_by_service_request, name='personal_information_by_service_request'),
+    path('personal-information/by-request-or-task', views.personal_information_by_service_request,
+         name='personal_information_by_service_request'),
 
     # Salary Income Details
     path('salary-income/', salary_income_views.salary_income_list,
@@ -40,11 +49,15 @@ urlpatterns = [
          name='delete_salary_document_file'),
     path('salary-documents-count/<int:income_id>/', salary_income_views.salary_document_summary,
          name='salary_document_summary'),
-    path('salary-income/by-request-or-task', salary_income_views.salary_income_by_service_request,name='salary_income_by_service_request'),
+    path('salary-income/by-request-or-task', salary_income_views.salary_income_by_service_request,
+         name='salary_income_by_service_request'),
 
-    path('other-income-details/', other_income_views.other_income_details_list, name='other_income_details_list'),
-    path('other-income-details/<int:pk>/', other_income_views.other_income_details_detail, name='other_income_details_detail'),
-    path('other-income-details/by-request-or-task', other_income_views.other_income_details_by_service_request, name='other_income_details_by_service_request'),
+    path('other-income-details/', other_income_views.other_income_details_list,
+         name='other_income_details_list'),
+    path('other-income-details/<int:pk>/', other_income_views.other_income_details_detail,
+         name='other_income_details_detail'),
+    path('other-income-details/by-request-or-task', other_income_views.other_income_details_by_service_request,
+         name='other_income_details_by_service_request'),
 
     path('other-income-documents/', other_income_views.add_other_income_document,
          name='add_other_income_document'),
@@ -70,21 +83,30 @@ urlpatterns = [
          name='delete_interest_income_document'),
     path('interest-income-doc/<int:document_id>/update/', interest_income_views.update_interest_income_document,
          name='update_interest_income_document'),
-    path('interest-income-doc/view', interest_income_views.list_interest_income_documents, name='list_interest_income_documents'),
+    path('interest-income-doc/view', interest_income_views.list_interest_income_documents,
+         name='list_interest_income_documents'),
 
     # GiftIncome APIs
-    path('gift-income/upsert/', gift_income_views.upsert_gift_income_details, name='upsert_gift_income'),  # POST create or update
-    path('gift-income/get/', gift_income_views.get_gift_income_details, name='get_gift_income'),  # GET by service_request
+    path('gift-income/upsert/', gift_income_views.upsert_gift_income_details,
+         name='upsert_gift_income'),  # POST create or update
+    path('gift-income/get/', gift_income_views.get_gift_income_details,
+         name='get_gift_income'),  # GET by service_request
 
     # GiftIncomeDocument APIs
-    path('gift-income-document/add/', gift_income_views.add_gift_income_document, name='add_gift_income_document'),  # POST add doc
-    path('gift-income-document/<int:document_id>/update/', gift_income_views.update_gift_income_document, name='update_gift_income_document'),  # PUT update doc
-    path('gift-income-document/<int:document_id>/delete/', gift_income_views.delete_gift_income_document, name='delete_gift_income_document'),  # DELETE doc
-    path('gift-income-document/view/', gift_income_views.get_gift_income_documents, name='get_gift_income_document'),  # GET by service_request
+    path('gift-income-document/add/', gift_income_views.add_gift_income_document,
+         name='add_gift_income_document'),  # POST add doc
+    path('gift-income-document/<int:document_id>/update/', gift_income_views.update_gift_income_document,
+         name='update_gift_income_document'),  # PUT update doc
+    path('gift-income-document/<int:document_id>/delete/', gift_income_views.delete_gift_income_document,
+         name='delete_gift_income_document'),  # DELETE doc
+    path('gift-income-document/view/', gift_income_views.get_gift_income_documents,
+         name='get_gift_income_document'),  # GET by service_request
 
     # DividendIncome APIs
-    path('dividend-income/', dividend_views.upsert_dividend_income, name='upsert_dividend_income'),  # POST create or update
-    path('dividend-income/view/', dividend_views.get_dividend_income, name='get_dividend_income'),   # GET by service_request
+    path('dividend-income/', dividend_views.upsert_dividend_income,
+         name='upsert_dividend_income'),  # POST create or update
+    path('dividend-income/view/', dividend_views.get_dividend_income,
+         name='get_dividend_income'),   # GET by service_request
 
     # DividendIncomeDocument APIs
     path('dividend-income-document/add/', dividend_views.add_dividend_income_document,
@@ -93,7 +115,8 @@ urlpatterns = [
          name='update_dividend_income_document'),  # PUT update doc
     path('dividend-income-document/<int:document_id>/delete/', dividend_views.delete_dividend_income_document,
          name='delete_dividend_income_document'),  # DELETE doc
-    path('dividend-income-document/view/', dividend_views.list_dividend_income_documents, name='list_dividend_income_document'),  # GET by service_request
+    path('dividend-income-document/view/', dividend_views.list_dividend_income_documents,
+         name='list_dividend_income_document'),  # GET by service_request
 
     path('family-pension-income/', family_pension_views.upsert_family_pension_income,
          name='upsert_family_pension_income'),  # POST (create or update)
@@ -103,16 +126,110 @@ urlpatterns = [
     # Family Pension Income Documents
     path('family-pension-income-documents/', family_pension_views.add_family_pension_income_document,
          name='add_family_pension_income_document'),  # POST (create)
-    path('family-pension-income-documents/<int:document_id>/', family_pension_views.update_family_pension_income_document,
+    path('family-pension-income-documents/<int:document_id>/',
+         family_pension_views.update_family_pension_income_document,
          name='update_family_pension_income_document'),  # PUT (update)
-    path('family-pension-income-documents/<int:document_id>/delete/', family_pension_views.delete_family_pension_income_document,
+    path('family-pension-income-documents/<int:document_id>/delete/',
+         family_pension_views.delete_family_pension_income_document,
          name='delete_family_pension_income_document'),  # DELETE
-    path('family-pension-income-documents/view/', family_pension_views.get_family_pension_income_documents, name='get_family_pension_income_documents'),  # GET (retrieve by service_request)
+    path('family-pension-income-documents/view/', family_pension_views.get_family_pension_income_documents,
+         name='get_family_pension_income_documents'),  # GET (retrieve by service_request)
 
-# Review Filing Certificate
+    # Foreign Income APIs
+    path('foreign-income/upsert/', foreign_income_views.upsert_foreign_income, name='upsert_foreign_income'),
+    path('foreign-income/', foreign_income_views.get_foreign_income, name='get_foreign_income'),
+
+    # ForeignIncomeInfo APIs
+    path('foreign-income-info/add/', foreign_income_views.add_foreign_income_info, name='add_foreign_income_info'),
+    path('foreign-income-info/<int:document_id>/update/', foreign_income_views.update_foreign_income_info,
+         name='update_foreign_income_info'),
+    path('foreign-income-info/<int:document_id>/delete/', foreign_income_views.delete_foreign_income_info,
+         name='delete_foreign_income_info'),
+    path('foreign-income-info/', foreign_income_views.get_foreign_income_info_list,
+         name='get_foreign_income_info_list'),
+
+    # Review Filing Certificate
     path('review-filing/', views.review_filing_certificate_list, name='review_filing_list'),
     path('review-filing/<int:pk>/', views.review_filing_certificate_detail, name='review_filing_detail'),
     path('review-filing/by-request-or-task', views.get_review_filing_certificate,
          name='review_filing_by_request_or_task'),
+
+    # WinningIncome
+    path('winning-income/upsert/', winning_income_views.upsert_winning_income, name='upsert_winning_income'),
+    path('winning-income/', winning_income_views.get_winning_income, name='get_winning_income'),
+
+    # WinningIncomeDocuments
+    path('winning-income-docs/add/', winning_income_views.add_winning_income_document,
+         name='add_winning_income_document'),
+    path('winning-income-docs/<int:document_id>/update/', winning_income_views.update_winning_income_document,
+         name='update_winning_income_document'),
+    path('winning-income-docs/<int:document_id>/delete/', winning_income_views.delete_winning_income_document,
+         name='delete_winning_income_document'),
+    path('winning-income-docs/', winning_income_views.get_winning_income_documents,
+         name='get_winning_income_documents'),
+
+    # AgricultureIncome
+    path('agriculture-income/upsert/', agriculture_income.upsert_agriculture_income, name='upsert_agriculture_income'),
+    path('agriculture-income/', agriculture_income.get_agriculture_income, name='get_agriculture_income'),
+
+    # AgricultureIncomeDocument
+    path('agriculture-income-docs/add/', agriculture_income.add_agriculture_income_document,
+         name='add_agriculture_income_document'),
+    path('agriculture-income-docs/<int:document_id>/update/', agriculture_income.update_agriculture_income_document,
+         name='update_agriculture_income_document'),
+    path('agriculture-income-docs/<int:document_id>/delete/', agriculture_income.delete_agriculture_income_document,
+         name='delete_agriculture_income_document'),
+    path('agriculture-income-docs/', agriculture_income.get_agriculture_income_documents,
+         name='get_agriculture_income_documents'),
+
+    # Deductions
+    path('deductions/upsert/', deductions.upsert_deductions, name='upsert_deductions'),
+    path('deductions/', deductions.get_deductions, name='get_deductions'),
+
+    path('section-80g/add/', section_80g_views.add_section_80g, name='add_section_80g'),
+    path('section-80g/<int:pk>/update/', section_80g_views.update_section_80g, name='update_section_80g'),
+    path('section-80g/<int:pk>/delete/', section_80g_views.delete_section_80g, name='delete_section_80g'),
+    path('section-80g/', section_80g_views.list_section_80g, name='list_section_80g'),
+
+    path(
+        'section-80ettattbu/',
+        section_80ettattbu_views.section_80ettattbu_list,
+        name='section_80ettattbu_list'
+    ),
+    # retrieve, update, delete
+    path(
+        'section-80ettattbu/<int:pk>/',
+        section_80ettattbu_views.section_80ettattbu_detail,
+        name='section_80ettattbu_detail'
+    ),
+
+    # section 80c
+    path(
+        'section-80c/',
+        section_80c_views.section_80c_list,
+        name='section_80c_list'
+    ),
+    # retrieve, update, delete
+    path(
+        'section-80c/<int:pk>/',
+        section_80c_views.section_80c_detail,
+        name='section_80c_detail'
+    ),
+
+    path(
+            'section-80d/full/',
+            section_80d_views.upsert_section_80d_with_files,
+            name='upsert_section_80d_with_files'
+        ),
+    # Retrieve & Delete Section80D
+    path('section-80d/', section_80d_views.get_section_80d,    name='get_section_80d'),
+    path('section-80d/<int:pk>/', section_80d_views.delete_section_80d, name='delete_section_80d'),
+
+    # List & Delete Section80D files
+    path('section-80d-files/', section_80d_views.list_section_80d_files, name='list_section_80d_files'),
+    path('section-80d-files/<int:file_id>/', section_80d_views.delete_section_80d_file, name='delete_section_80d_file'),
+
 ]
 
+
+# Note: Ensure that the views and serializers are properly defined in their respective modules.

@@ -238,7 +238,7 @@ class FamilyPensionIncomeSerializer(serializers.ModelSerializer):
 
 class FamilyPensionIncomeDocumentsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = FamilyPensionIncomeDocuments
+        model = FamilyPensionIncomeInfo
         fields = '__all__'
 
 
@@ -246,3 +246,120 @@ class ReviewFilingCertificateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ReviewFilingCertificate
         fields = '__all__'
+
+
+class ForeignIncomeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ForeignIncome
+        fields = '__all__'
+
+
+class ForeignIncomeInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ForeignIncomeInfo
+        fields = '__all__'
+
+
+class WinningIncomeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WinningIncome
+        fields = '__all__'
+
+
+class WinningIncomeDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WinningIncomeDocument
+        fields = '__all__'
+
+
+class AgricultureIncomeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgricultureIncome
+        fields = '__all__'
+
+
+class AgricultureIncomeDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AgricultureIncomeDocument
+        fields = '__all__'
+
+
+class DeductionsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Deductions
+        fields = '__all__'
+
+
+class Section80GSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section80G
+        fields = '__all__'
+
+
+class Section80ETTATTBUSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section80ETTATTBU
+        fields = '__all__'
+
+
+class Section80CSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section80C
+        fields = '__all__'
+
+
+class Section80DFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section80DFile
+        fields = ('id', 'file', 'uploaded_at')
+        read_only_fields = ('id', 'uploaded_at')
+
+
+class Section80DWithFilesSerializer(serializers.ModelSerializer):
+    # allow multiple files in one go:
+    files = Section80DFileSerializer(many=True, write_only=True)
+
+    class Meta:
+        model = Section80D
+        fields = (
+            'id',
+            'deductions',
+            'self_family_non_senior_citizen',
+            'parents_senior_citizen',
+            'parents_non_senior_citizen',
+            'self_senior_citizen',
+            'preventive_health_checkup',
+            'files',
+        )
+        read_only_fields = ('id',)
+
+    def create(self, validated_data):
+        files_data = validated_data.pop('files', [])
+        section = Section80D.objects.create(**validated_data)
+        for file_dict in files_data:
+            Section80DFile.objects.create(section_80d=section, **file_dict)
+        return section
+
+    def update(self, instance, validated_data):
+        files_data = validated_data.pop('files', [])
+        # update the Section80D fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        # add any new files
+        for file_dict in files_data:
+            Section80DFile.objects.create(section_80d=instance, **file_dict)
+        return instance
+
+
+class Section80DSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section80D
+        fields = '__all__'
+
+
+class Section80DFileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section80DFile
+        fields = '__all__'
+        read_only_fields = ('id', 'uploaded_at')
