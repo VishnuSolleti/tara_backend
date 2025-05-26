@@ -17,6 +17,7 @@ urlpatterns = [
     # Additional Space Business
     path('additional-space/', views.additional_space_business_list, name='additional_space_list'),
     path('additional-space/<int:pk>/', views.additional_space_business_detail, name='additional_space_detail'),
+    path('additional-space/view', views.get_additional_space_business_details, name='get_additional_space_business_details'),
 
     # Business Registration Documents
     path('registration-documents/', views.business_registration_documents_list,
