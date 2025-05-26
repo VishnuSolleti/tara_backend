@@ -12,36 +12,21 @@ class PersonalInformationSerializer(serializers.ModelSerializer):
 class TaxPaidDetailsFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaxPaidDetailsFile
-        fields = ['id', 'tax_paid', 'document_type', 'file', 'uploaded_at']
-        read_only_fields = ['uploaded_at']
+        fields = '__all__'
 
 
 class TaxPaidDetailsSerializer(serializers.ModelSerializer):
-    assignee = serializers.PrimaryKeyRelatedField(queryset=Users.objects.all(), required=False, allow_null=True)
-    reviewer = serializers.PrimaryKeyRelatedField(queryset=Users.objects.all(), required=False, allow_null=True)
-    service_request = serializers.PrimaryKeyRelatedField(queryset=ServiceRequest.objects.all())
-    service_task = serializers.PrimaryKeyRelatedField(queryset=ServiceTask.objects.all())
     tax_paid_documents = TaxPaidDetailsFileSerializer(many=True, read_only=True)
 
     class Meta:
         model = TaxPaidDetails
-        fields = [
-            'id',
-            'service_request',
-            'service_type',
-            'service_task',
-            'status',
-            'assignee',
-            'reviewer',
-            'tax_paid_documents'
-        ]
-        read_only_fields = ['service_type']
+        fields = '__all__'
 
 
 class SalaryDocumentFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = SalaryDocumentFile
-        fields = ['id', 'document_type', 'file', 'uploaded_at']
+        fields = '__all__'
 
 
 class SalaryIncomeSerializer(serializers.ModelSerializer):
@@ -49,153 +34,32 @@ class SalaryIncomeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = SalaryIncome
-        fields = [
-            'id',
-            'service_request',
-            'service_type',
-            'service_task',
-            'status',
-            'assignee',
-            'reviewer',
-            'documents',
-        ]
-
-
-# class OtherIncomeDetailFileSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = OtherIncomeDetailsData
-#         fields = [
-#             'id',
-#             'other_income',
-#             'details',
-#             'amount',
-#             'file',
-#             'notes',
-#             'uploaded_at',
-#         ]
-#         read_only_fields = ['id', 'uploaded_at']
+        fields = '__all__'
 
 
 class OtherIncomeDetailsSerializer(serializers.ModelSerializer):
-
-
     class Meta:
         model = OtherIncomeDetails
-        fields = [
-            'id',
-            'service_request',
-            'service_type',
-            'service_task',
-            'status',
-            'assignee',
-            'reviewer',
-            'details',
-            'amount',
-            'notes',
-            'file'
-        ]
-        read_only_fields = ['id', 'service_type']
+        fields = '__all__'
 
 
 class ForeignEmployeeSalaryDetailsFilesSerializer(serializers.ModelSerializer):
     class Meta:
         model = ForeignEmployeeSalaryDetailsFiles
-        fields = ['id', 'document_type', 'file', 'uploaded_at']
+        fields = '__all__'
 
 
 class NRIEmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
-    assignee_name = serializers.SerializerMethodField()
-    reviewer_name = serializers.SerializerMethodField()
+    foreigner_documents = ForeignEmployeeSalaryDetailsFilesSerializer(many=True, read_only=True)
 
     class Meta:
         model = NRIEmployeeSalaryDetails
-        fields = [
-            'id',
-            'service_request',
-            'service_type',
-            'service_task',
-            'status',
-            'assignee',
-            'assignee_name',
-            'reviewer',
-            'reviewer_name',
-            'country_of_employment',
-            'salary_received',
-            'employment_start_date',
-            'employment_end_date'
-        ]
-
-    def get_assignee_name(self, obj):
-        return obj.assignee.get_full_name() if obj.assignee else None
-
-    def get_reviewer_name(self, obj):
-        return obj.reviewer.get_full_name() if obj.reviewer else None
+        fields = '__all__'
 
 
 class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
-    assignee_name = serializers.SerializerMethodField()
-    reviewer_name = serializers.SerializerMethodField()
-    property_address = serializers.JSONField(required=False, allow_null=True, default=dict)
-    municipal_tax_receipt_url = serializers.SerializerMethodField()
-    loan_statement_url = serializers.SerializerMethodField()
-    loan_interest_certificate_url = serializers.SerializerMethodField()
-
     class Meta:
         model = HousePropertyIncomeDetails
-        fields = [
-            'id',
-            'service_request',
-            'service_type',
-            'service_task',
-            'status',
-            'assignee',
-            'assignee_name',
-            'reviewer',
-            'reviewer_name',
-            'type_of_property',
-            'property_address',
-            'owned_property',
-            'ownership_percentage',
-            'country',
-            'is_it_property_let_out',
-            'annual_rent_received',
-            'rent_received',
-            'pay_municipal_tax',
-            'municipal_tax_paid',
-            'municipal_tax_receipt',
-            'municipal_tax_receipt_url',
-            'home_loan_on_property',
-            'interest_during_financial_year',
-            'principal_during_financial_year',
-            'loan_statement',
-            'loan_statement_url',
-            'upload_loan_interest_certificate',
-            'loan_interest_certificate_url',
-        ]
-
-    def get_assignee_name(self, obj):
-        parts = [obj.assignee.first_name, obj.assignee.last_name]
-        # Filter out None or empty strings, then join with space
-        return " ".join(part for part in parts if part).strip()
-
-    def get_reviewer_name(self, obj):
-        parts = [obj.reviewer.first_name, obj.reviewer.last_name]
-        # Filter out None or empty strings, then join with space
-        return " ".join(part for part in parts if part).strip()
-
-    def get_municipal_tax_receipt_url(self, obj):
-        return obj.municipal_tax_receipt.url if obj.municipal_tax_receipt else None
-
-    def get_loan_statement_url(self, obj):
-        return obj.loan_statement.url if obj.loan_statement else None
-
-    def get_loan_interest_certificate_url(self, obj):
-        return obj.upload_loan_interest_certificate.url if obj.upload_loan_interest_certificate else None
-
-
-class InterestIncomeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = InterestIncome
         fields = '__all__'
 
 
@@ -205,11 +69,12 @@ class InterestIncomeDocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class DividendIncomeSerializer(serializers.ModelSerializer):
+class InterestIncomeSerializer(serializers.ModelSerializer):
+    documents = InterestIncomeDocumentSerializer(many=True, read_only=True)
+
     class Meta:
-        model = DividendIncome
+        model = InterestIncome
         fields = '__all__'
-        read_only_fields = ('service_type',)
 
 
 class DividendIncomeDocumentSerializer(serializers.ModelSerializer):
@@ -218,10 +83,12 @@ class DividendIncomeDocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class GiftIncomeDetailsSerializer(serializers.ModelSerializer):
+class DividendIncomeSerializer(serializers.ModelSerializer):
+    documents = DividendIncomeDocumentSerializer(many=True, read_only=True)
+
     class Meta:
-        model = GiftIncomeDetails
-        fields = '__all__'  # or list fields explicitly if preferred
+        model = DividendIncome
+        fields = '__all__'
 
 
 class GiftIncomeDocumentSerializer(serializers.ModelSerializer):
@@ -230,27 +97,25 @@ class GiftIncomeDocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class FamilyPensionIncomeSerializer(serializers.ModelSerializer):
+class GiftIncomeDetailsSerializer(serializers.ModelSerializer):
+    gift_income_details = GiftIncomeDocumentSerializer(many=True, read_only=True)
+
     class Meta:
-        model = FamilyPensionIncome
+        model = GiftIncomeDetails
         fields = '__all__'
 
 
-class FamilyPensionIncomeDocumentsSerializer(serializers.ModelSerializer):
+class FamilyPensionIncomeInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = FamilyPensionIncomeInfo
         fields = '__all__'
 
 
-class ReviewFilingCertificateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ReviewFilingCertificate
-        fields = '__all__'
+class FamilyPensionIncomeSerializer(serializers.ModelSerializer):
+    family_pension_income_docs = FamilyPensionIncomeInfoSerializer(many=True, read_only=True)
 
-
-class ForeignIncomeSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ForeignIncome
+        model = FamilyPensionIncome
         fields = '__all__'
 
 
@@ -260,9 +125,11 @@ class ForeignIncomeInfoSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class WinningIncomeSerializer(serializers.ModelSerializer):
+class ForeignIncomeSerializer(serializers.ModelSerializer):
+    foreign_income_docs = ForeignIncomeInfoSerializer(many=True, read_only=True)
+
     class Meta:
-        model = WinningIncome
+        model = ForeignIncome
         fields = '__all__'
 
 
@@ -272,9 +139,11 @@ class WinningIncomeDocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class AgricultureIncomeSerializer(serializers.ModelSerializer):
+class WinningIncomeSerializer(serializers.ModelSerializer):
+    winnings_income_docs = WinningIncomeDocumentSerializer(many=True, read_only=True)
+
     class Meta:
-        model = AgricultureIncome
+        model = WinningIncome
         fields = '__all__'
 
 
@@ -284,9 +153,11 @@ class AgricultureIncomeDocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class DeductionsSerializer(serializers.ModelSerializer):
+class AgricultureIncomeSerializer(serializers.ModelSerializer):
+    agriculture_income_docs = AgricultureIncomeDocumentSerializer(many=True, read_only=True)
+
     class Meta:
-        model = Deductions
+        model = AgricultureIncome
         fields = '__all__'
 
 
@@ -311,55 +182,130 @@ class Section80CSerializer(serializers.ModelSerializer):
 class Section80DFileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section80DFile
-        fields = ('id', 'file', 'uploaded_at')
-        read_only_fields = ('id', 'uploaded_at')
-
-
-class Section80DWithFilesSerializer(serializers.ModelSerializer):
-    # allow multiple files in one go:
-    files = Section80DFileSerializer(many=True, write_only=True)
-
-    class Meta:
-        model = Section80D
-        fields = (
-            'id',
-            'deductions',
-            'self_family_non_senior_citizen',
-            'parents_senior_citizen',
-            'parents_non_senior_citizen',
-            'self_senior_citizen',
-            'preventive_health_checkup',
-            'files',
-        )
-        read_only_fields = ('id',)
-
-    def create(self, validated_data):
-        files_data = validated_data.pop('files', [])
-        section = Section80D.objects.create(**validated_data)
-        for file_dict in files_data:
-            Section80DFile.objects.create(section_80d=section, **file_dict)
-        return section
-
-    def update(self, instance, validated_data):
-        files_data = validated_data.pop('files', [])
-        # update the Section80D fields
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        # add any new files
-        for file_dict in files_data:
-            Section80DFile.objects.create(section_80d=instance, **file_dict)
-        return instance
+        fields = '__all__'
 
 
 class Section80DSerializer(serializers.ModelSerializer):
+    section_80d_documents = Section80DFileSerializer(many=True, read_only=True)
+
     class Meta:
         model = Section80D
         fields = '__all__'
 
 
-class Section80DFileSerializer(serializers.ModelSerializer):
+class DeductionsSerializer(serializers.ModelSerializer):
+    section_80g = Section80GSerializer(many=True, read_only=True)
+    section_80ettattbu = Section80ETTATTBUSerializer(read_only=True)
+    section_80c = Section80CSerializer(many=True, read_only=True)
+    section_80d = Section80DSerializer(read_only=True)
+
     class Meta:
-        model = Section80DFile
+        model = Deductions
         fields = '__all__'
-        read_only_fields = ('id', 'uploaded_at')
+
+
+class ReviewFilingCertificateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReviewFilingCertificate
+        fields = '__all__'
+
+
+class ServiceRequestTasksSerializer(serializers.Serializer):
+    personal_information = PersonalInformationSerializer(read_only=True)
+    tax_paid_details = TaxPaidDetailsSerializer(read_only=True)
+    salary_income_details = SalaryIncomeSerializer(read_only=True)
+    other_income_details = OtherIncomeDetailsSerializer(many=True, read_only=True)
+    foreign_income_details = NRIEmployeeSalaryDetailsSerializer(read_only=True)
+    house_property_details = HousePropertyIncomeDetailsSerializer(many=True, read_only=True)
+    other_income = InterestIncomeSerializer(many=True, read_only=True)
+    dividend_income = DividendIncomeSerializer(many=True, read_only=True)
+    gift_income = GiftIncomeDetailsSerializer(many=True, read_only=True)
+    family_pension_income = FamilyPensionIncomeSerializer(many=True, read_only=True)
+    foreign_income = ForeignIncomeSerializer(many=True, read_only=True)
+    winnings = WinningIncomeSerializer(many=True, read_only=True)
+    agriculture_income = AgricultureIncomeSerializer(many=True, read_only=True)
+    deductions = DeductionsSerializer(many=True, read_only=True)
+    ITR_review_filing_certificate = ReviewFilingCertificateSerializer(read_only=True)
+
+
+class ServiceTaskSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceTask
+        fields = [
+            'id',
+            'service_type',
+            'category_name',
+            'status',
+            'created_at',
+            'updated_at',
+            'due_date',
+            'priority',
+            'completion_percentage',
+            'service_request',
+            'client',
+            'assignee',
+            'reviewer'
+        ]
+
+
+class ServiceTaskWithDataSerializer(serializers.ModelSerializer):
+    task_data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ServiceTask
+        fields = [
+            'id',
+            'service_type',
+            'category_name',
+            'status',
+            'created_at',
+            'updated_at',
+            'due_date',
+            'priority',
+            'completion_percentage',
+            'service_request',
+            'client',
+            'assignee',
+            'reviewer',
+            'task_data'
+        ]
+
+    def get_task_data(self, obj):
+        service_request = obj.service_request
+
+        # Map category names to their corresponding models and serializers
+        category_mapping = {
+            'Personal Information': (PersonalInformation, PersonalInformationSerializer),
+            'Tax Paid Details': (TaxPaidDetails, TaxPaidDetailsSerializer),
+            'Salary Income': (SalaryIncome, SalaryIncomeSerializer),
+            'Other Income Details': (OtherIncomeDetails, OtherIncomeDetailsSerializer),
+            'Foreign Income Details': (NRIEmployeeSalaryDetails, NRIEmployeeSalaryDetailsSerializer),
+            'House Property Details': (HousePropertyIncomeDetails, HousePropertyIncomeDetailsSerializer),
+            'Interest Income': (InterestIncome, InterestIncomeSerializer),
+            'Dividend Income': (DividendIncome, DividendIncomeSerializer),
+            'Gift Income': (GiftIncomeDetails, GiftIncomeDetailsSerializer),
+            'Family Pension Income': (FamilyPensionIncome, FamilyPensionIncomeSerializer),
+            'Foreign Income': (ForeignIncome, ForeignIncomeSerializer),
+            'Winning Income': (WinningIncome, WinningIncomeSerializer),
+            'Agriculture Income': (AgricultureIncome, AgricultureIncomeSerializer),
+            'Deductions': (Deductions, DeductionsSerializer),
+            'Review Filing Certificate': (ReviewFilingCertificate, ReviewFilingCertificateSerializer)
+        }
+
+        if obj.category_name in category_mapping:
+            model_class, serializer_class = category_mapping[obj.category_name]
+
+            # For models that can have multiple records
+            if obj.category_name in ['Other Income Details', 'House Property Details', 'Interest Income',
+                                     'Dividend Income', 'Gift Income', 'Family Pension Income',
+                                     'Foreign Income', 'Winning Income', 'Agriculture Income', 'Deductions']:
+                data = model_class.objects.filter(service_request=service_request)
+                if data.exists():
+                    return serializer_class(data, many=True).data
+            else:
+                # For models that have one-to-one relationship
+                data = model_class.objects.filter(service_request=service_request).first()
+                if data:
+                    return serializer_class(data).data
+
+        return None

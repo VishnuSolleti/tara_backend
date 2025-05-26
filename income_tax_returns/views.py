@@ -135,3 +135,25 @@ def get_review_filing_certificate(request):
 
     serializer = ReviewFilingCertificateSerializer(instance)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def service_request_tasks_views(request):
+    try:
+        service_request_id = request.query_params.get('service_request_id')
+        service_request = ServiceRequest.objects.get(id=service_request_id)
+        tasks = ServiceTask.objects.filter(service_request=service_request)
+        serializer = ServiceTaskWithDataSerializer(tasks, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    except ServiceRequest.DoesNotExist:
+        return Response(
+            {'error': 'Service request not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
