@@ -17,7 +17,7 @@ class PersonalInformation(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_personal_information')
     first_name = models.CharField(max_length=255, null=False, blank=False)
     middle_name = models.CharField(max_length=255, null=False, blank=False)
     last_name = models.CharField(max_length=255, null=False, blank=False)
@@ -67,7 +67,7 @@ class TaxPaidDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_tax_paid_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -124,7 +124,7 @@ class SalaryIncome(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_salary_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -181,7 +181,7 @@ class OtherIncomeDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_other_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -202,7 +202,7 @@ class OtherIncomeDetails(models.Model):
     )
     details = models.CharField(max_length=255, null=True, blank=True)
     amount = models.IntegerField()
-    file = models.FileField(upload_to=salary_income_details_file,
+    file = models.FileField(upload_to=outcome_income_details_file,
                             null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
@@ -211,6 +211,12 @@ class OtherIncomeDetails(models.Model):
         # Default to service_request values if not set
         if not self.assignee and self.service_task.assignee:
             self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.service_request.id} - Foreign Employee Salary Details"
 
 
 class NRIEmployeeSalaryDetails(models.Model):
@@ -221,7 +227,7 @@ class NRIEmployeeSalaryDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_foreign_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -264,7 +270,7 @@ class ForeignEmployeeSalaryDetailsFiles(models.Model):
 
     nri = models.ForeignKey(NRIEmployeeSalaryDetails, on_delete=models.CASCADE, related_name='foreigner_documents')
     document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
-    file = models.FileField(upload_to=salary_income_details_file,
+    file = models.FileField(upload_to=foreign_emp_salary_details_file,
                             null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -280,7 +286,7 @@ class HousePropertyIncomeDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_house_property_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -300,7 +306,7 @@ class HousePropertyIncomeDetails(models.Model):
         related_name='house_property_details_reviewed'
     )
     type_of_property = models.CharField(max_length=255, null=True, blank=True)
-    property_address = JSONField(null=True, blank=True, default={})
+    property_address = JSONField(null=True, blank=True, default=dict)
     owned_property = models.BooleanField(default=False)
     ownership_percentage = models.IntegerField(null=True, blank=True)
     country = models.CharField(max_length=255, null=True, blank=True)
@@ -309,12 +315,12 @@ class HousePropertyIncomeDetails(models.Model):
     rent_received = models.CharField(max_length=255, null=True, blank=True)
     pay_municipal_tax = models.BooleanField(default=False)
     municipal_tax_paid = models.IntegerField(null=True, blank=True)
-    municipal_tax_recipt = models.FileField(upload_to=salary_income_details_file, null=True, blank=True)
+    municipal_tax_receipt = models.FileField(upload_to=house_property_details_municipal_tax_receipt, null=True, blank=True)
     home_loan_on_property = models.BooleanField(default=False)
     interest_during_financial_year = models.IntegerField(null=True, blank=True)
     principal_during_financial_year = models.IntegerField(null=True, blank=True)
-    loan_statement = models.FileField(upload_to=salary_income_details_file, null=True, blank=True)
-    upload_loan_interest_certificate = models.FileField(upload_to=salary_income_details_file, null=True, blank=True)
+    loan_statement = models.FileField(upload_to=house_property_details_loan_statement, null=True, blank=True)
+    upload_loan_interest_certificate = models.FileField(upload_to=house_property_details_loan_interest_certificate, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
@@ -336,7 +342,7 @@ class InterestIncome(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_other_income')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -380,7 +386,7 @@ class InterestIncomeDocument(models.Model):
                                                              ('Fixed Deposit', 'Fixed Deposit')])
     interest_earned = models.IntegerField(null=True, blank=True)
     bank_name = models.CharField(max_length=255, null=True, blank=True)
-    file = models.FileField(upload_to=salary_income_details_file,
+    file = models.FileField(upload_to=interest_income_details_file,
                             null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -396,7 +402,7 @@ class DividendIncome(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_dividend_income')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -434,7 +440,7 @@ class DividendIncomeDocument(models.Model):
     dividend_income = models.ForeignKey(DividendIncome, on_delete=models.CASCADE, related_name='documents')
     received_from = models.CharField(max_length=255, null=True, blank=True)
     dividend_received = models.IntegerField(null=True, blank=True)
-    file = models.FileField(upload_to=salary_income_details_file,
+    file = models.FileField(upload_to=dividend_income_file,
                             null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -450,7 +456,7 @@ class GiftIncomeDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_gift_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -506,7 +512,7 @@ class FamilyPensionIncome(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task_id = models.IntegerField(null=True, blank=True)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_family_pension_income')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -552,5 +558,116 @@ class FamilyPensionIncomeDocuments(models.Model):
 
     def __str__(self):
         return f"{self.family_pension.service_request.id}- {self.type_of_income}"
+
+
+class ReviewFilingCertificate(models.Model):
+    REVIEW_STATUS_CHOICES = [
+        ('inprogress', 'In Progress'),
+        ('resubmission', 'Resubmission'),
+        ('done', 'Done'),
+    ]
+
+    FILING_STATUS_CHOICES = [
+        ('inprogress', 'In Progress'),
+        ('filed', 'Filed'),
+        ('resubmitted', 'Resubmitted'),
+    ]
+
+    APPROVAL_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('resubmission', 'Resubmission'),
+        ('rejected', 'Rejected'),
+        ('approved', 'Approved'),
+    ]
+
+    service_request = models.OneToOneField(
+        ServiceRequest,
+        on_delete=models.CASCADE,
+        related_name='ITR_review_filing_certificate'
+    )
+
+    service_type = models.CharField(
+        max_length=20,
+        default="Income Tax Returns",
+        editable=False
+    )
+
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_ITR_review_filing_certificate')
+
+    review_certificate = models.FileField(upload_to=review_filing_certificate,
+                                          null=True, blank=True)
+    review_certificate_status = models.CharField(
+        max_length=20,
+        choices=REVIEW_STATUS_CHOICES,
+        null=True,
+        blank=True,
+        default=None
+    )
+
+    filing_status = models.CharField(
+        max_length=20,
+        choices=FILING_STATUS_CHOICES,
+        null=True,
+        blank=True,
+        default=None
+    )
+
+    approval_status = models.CharField(
+        max_length=20,
+        choices=APPROVAL_STATUS_CHOICES,
+        null=True,
+        blank=True,
+        default=None
+    )
+    assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='assigned_ITR_review_filing_certificate')
+    reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='reviewed_ITR_review_filing_certificate')
+
+    def save(self, *args, **kwargs):
+        # Default to service_request values if not set
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.review_certificate_status or "No Review Status"
+
+
+def calculate_completion_percentage(instance, exclude_fields=None):
+    exclude_fields = exclude_fields or ['id', 'created_at', 'updated_at', 'service_request', 'service_task']
+    total_fields = 0
+    filled_fields = 0
+
+    for field in instance._meta.fields:
+        if field.name in exclude_fields:
+            continue
+        total_fields += 1
+        value = getattr(instance, field.name)
+        if value not in [None, '', []]:
+            filled_fields += 1
+
+    if total_fields == 0:
+        return 0
+    return round((filled_fields / total_fields) * 100)
+
+
+@receiver(post_save, sender=PersonalInformation)
+def sync_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
 
 

@@ -96,6 +96,14 @@ def signatory_details_pan_image(instance, filename):
                         filename)
 
 
+def signatory_details_photo_image(instance, filename):
+    # Get the name of the business, replace spaces with underscores
+    service_request_id = str(instance.service_request.id)
+    # Construct the upload path
+    return os.path.join('service_requests', 'Labour License', service_request_id, 'signatory_details_photo_image',
+                        filename)
+
+
 def business_location_address_proof(instance, filename):
     # Get the name of the business, replace spaces with underscores
     service_request_id = str(instance.service_request.id)

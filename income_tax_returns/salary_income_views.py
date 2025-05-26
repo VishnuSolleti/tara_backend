@@ -76,9 +76,9 @@ def salary_income_detail(request, pk):
 
 
 @api_view(['DELETE'])
-def delete_salary_document(request, file_id):
+def delete_salary_document(request, pk):
     try:
-        file = SalaryDocumentFile.objects.get(pk=file_id)
+        file = SalaryDocumentFile.objects.get(pk=pk)
 
         # Step 1: Delete from S3
         if file.file:
@@ -109,3 +109,14 @@ def salary_document_summary(request, income_id):
         summary[doc_type] = count
 
     return Response(summary)
+
+
+@api_view(['GET'])
+def salary_income_by_service_request(request):
+    """
+    Get all salary income records for a specific service request
+    """
+    service_request_id = request.query_params.get('service_request_id')
+    records = SalaryIncome.objects.filter(service_request_id=service_request_id)
+    serializer = SalaryIncomeSerializer(records, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)

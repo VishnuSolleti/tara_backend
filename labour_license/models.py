@@ -62,6 +62,9 @@ class SignatoryDetails(models.Model):
     pan_image = models.FileField(
         upload_to=signatory_details_pan_image,
         null=True, blank=True)
+    photo_image = models.FileField(
+        upload_to=signatory_details_photo_image,
+        null=True, blank=True)
     mobile_number = models.BigIntegerField(null=False, blank=False)
     email = models.EmailField(null=False, blank=False)
     residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],

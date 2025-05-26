@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import *
+from servicetasks.models import ServiceTask
 
 
 class PersonalInformationSerializer(serializers.ModelSerializer):
@@ -19,6 +20,7 @@ class TaxPaidDetailsSerializer(serializers.ModelSerializer):
     assignee = serializers.PrimaryKeyRelatedField(queryset=Users.objects.all(), required=False, allow_null=True)
     reviewer = serializers.PrimaryKeyRelatedField(queryset=Users.objects.all(), required=False, allow_null=True)
     service_request = serializers.PrimaryKeyRelatedField(queryset=ServiceRequest.objects.all())
+    service_task = serializers.PrimaryKeyRelatedField(queryset=ServiceTask.objects.all())
     tax_paid_documents = TaxPaidDetailsFileSerializer(many=True, read_only=True)
 
     class Meta:
@@ -27,7 +29,7 @@ class TaxPaidDetailsSerializer(serializers.ModelSerializer):
             'id',
             'service_request',
             'service_type',
-            'service_task_id',
+            'service_task',
             'status',
             'assignee',
             'reviewer',
@@ -51,7 +53,7 @@ class SalaryIncomeSerializer(serializers.ModelSerializer):
             'id',
             'service_request',
             'service_type',
-            'service_task_id',
+            'service_task',
             'status',
             'assignee',
             'reviewer',
@@ -83,13 +85,14 @@ class OtherIncomeDetailsSerializer(serializers.ModelSerializer):
             'id',
             'service_request',
             'service_type',
-            'service_task_id',
+            'service_task',
             'status',
             'assignee',
             'reviewer',
-            'foreign_salary_and_employment',
-            'non_resident_indian',
-            'documents',
+            'details',
+            'amount',
+            'notes',
+            'file'
         ]
         read_only_fields = ['id', 'service_type']
 
@@ -110,7 +113,7 @@ class NRIEmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
             'id',
             'service_request',
             'service_type',
-            'service_task_id',
+            'service_task',
             'status',
             'assignee',
             'assignee_name',
@@ -132,7 +135,8 @@ class NRIEmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
 class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
     assignee_name = serializers.SerializerMethodField()
     reviewer_name = serializers.SerializerMethodField()
-    municipal_tax_recipt_url = serializers.SerializerMethodField()
+    property_address = serializers.JSONField(required=False, allow_null=True, default=dict)
+    municipal_tax_receipt_url = serializers.SerializerMethodField()
     loan_statement_url = serializers.SerializerMethodField()
     loan_interest_certificate_url = serializers.SerializerMethodField()
 
@@ -142,7 +146,7 @@ class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
             'id',
             'service_request',
             'service_type',
-            'service_task_id',
+            'service_task',
             'status',
             'assignee',
             'assignee_name',
@@ -158,8 +162,8 @@ class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
             'rent_received',
             'pay_municipal_tax',
             'municipal_tax_paid',
-            'municipal_tax_recipt',
-            'municipal_tax_recipt_url',
+            'municipal_tax_receipt',
+            'municipal_tax_receipt_url',
             'home_loan_on_property',
             'interest_during_financial_year',
             'principal_during_financial_year',
@@ -170,13 +174,17 @@ class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
         ]
 
     def get_assignee_name(self, obj):
-        return obj.assignee.get_full_name() if obj.assignee else None
+        parts = [obj.assignee.first_name, obj.assignee.last_name]
+        # Filter out None or empty strings, then join with space
+        return " ".join(part for part in parts if part).strip()
 
     def get_reviewer_name(self, obj):
-        return obj.reviewer.get_full_name() if obj.reviewer else None
+        parts = [obj.reviewer.first_name, obj.reviewer.last_name]
+        # Filter out None or empty strings, then join with space
+        return " ".join(part for part in parts if part).strip()
 
-    def get_municipal_tax_recipt_url(self, obj):
-        return obj.municipal_tax_recipt.url if obj.municipal_tax_recipt else None
+    def get_municipal_tax_receipt_url(self, obj):
+        return obj.municipal_tax_receipt.url if obj.municipal_tax_receipt else None
 
     def get_loan_statement_url(self, obj):
         return obj.loan_statement.url if obj.loan_statement else None
@@ -231,4 +239,10 @@ class FamilyPensionIncomeSerializer(serializers.ModelSerializer):
 class FamilyPensionIncomeDocumentsSerializer(serializers.ModelSerializer):
     class Meta:
         model = FamilyPensionIncomeDocuments
+        fields = '__all__'
+
+
+class ReviewFilingCertificateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReviewFilingCertificate
         fields = '__all__'

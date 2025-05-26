@@ -46,6 +46,21 @@ def other_income_details_detail(request, pk):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@api_view(['GET'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def other_income_details_by_service_request(request):
+    service_request_id = request.query_params.get('service_request_id')
+    if not service_request_id:
+        return Response({"error": "Missing service_request_id"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        records = OtherIncomeDetails.objects.filter(service_request_id=service_request_id)
+        serializer = OtherIncomeDetailsSerializer(records, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except OtherIncomeDetails.DoesNotExist:
+        return Response({"error": "No records found for the given service request"}, status=status.HTTP_404_NOT_FOUND)
+
+
 @api_view(['POST', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def add_other_income_document(request, pk=None):

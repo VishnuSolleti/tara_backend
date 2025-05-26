@@ -75,3 +75,17 @@ def delete_gift_income_document(request, document_id):
         return Response({"message": "Gift Income Document deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     except GiftIncomeDocument.DoesNotExist:
         return Response({"error": "Document not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['GET'])
+def get_gift_income_documents(request):
+    gift_income_id = request.query_params.get('gift_income')
+    if not gift_income_id:
+        return Response({"error": "Missing gift_income"}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        documents = GiftIncomeDocument.objects.filter(gift_income_id=gift_income_id)
+        serializer = GiftIncomeDocumentSerializer(documents, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except GiftIncomeDocument.DoesNotExist:
+        return Response({"error": "No documents found for the given gift income"}, status=status.HTTP_404_NOT_FOUND)
+
