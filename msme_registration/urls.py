@@ -3,9 +3,9 @@ from . import views
 
 urlpatterns = [
     # Personal Information URLs
-    path('personal-information/', views.personal_information_list, name='personal_information_list'),
-    path('personal-information/<int:pk>/', views.personal_information_detail, name='personal_information_detail'),
-    path('personal-information-by-service-request/', views.personal_information_by_service_request, name='personal_information_by_service_request'),
+    path('personal-information/', views.business_identity_list, name='business_identity_list'),
+    path('personal-information/<int:pk>/', views.business_identity_detail, name='business_identity_detail'),
+    path('personal-information-by-service-request/', views.business_identity_by_service_request, name='business_identity_by_service_request'),
 
     # Business Classification URLs
     path('business-classification/', views.business_classification_list, name='business_classification_list'),
@@ -34,4 +34,3 @@ urlpatterns = [
 
 
 ]
-    
