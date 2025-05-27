@@ -45,7 +45,13 @@ SERVICE_TASK_MAP = {
         "Trade License Details",
         "Business Document Details",
         "Review Filing Certificate"
-    ]
+    ],
+    "itr-filing": [
+        "Personal Information",
+        "Tax Paid Details",
+        "Deductions",
+        "Review Filing Certificate"
+    ],
 }
 
 
