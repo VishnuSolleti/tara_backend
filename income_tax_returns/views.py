@@ -200,7 +200,7 @@ TASK_MODEL_SERIALIZER_MAP = {
     "Personal Information": (PersonalInformation, PersonalInformationSerializer, False),
     "Tax Paid Details": (TaxPaidDetails, TaxPaidDetailsSerializer, False),
     "Deductions": (Deductions, DeductionsSerializer, False),
-    "Review and Filing Certificate": (ReviewFilingCertificate, ReviewFilingCertificateSerializer, False),
+    "Review Filing Certificate": (ReviewFilingCertificate, ReviewFilingCertificateSerializer, False),
 
     # Multiple entries expected
     "Other Income": (OtherIncomeDetails, OtherIncomeDetailsSerializer, True),
@@ -264,7 +264,7 @@ def get_service_request_full_data(request, service_request_id):
 
     return Response({
         "service_request": service_request.id,
-        "client": service_request.client.id,
+        "client": service_request.user.id,
         "tasks_data": full_data
     })
 

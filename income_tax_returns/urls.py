@@ -229,6 +229,9 @@ urlpatterns = [
     path('section-80d-files/', section_80d_views.list_section_80d_files, name='list_section_80d_files'),
     path('section-80d-files/<int:file_id>/', section_80d_views.delete_section_80d_file, name='delete_section_80d_file'),
 
+    path('service-requests-itr/<int:service_request_id>/full-data/', views.get_service_request_full_data,
+         name='get_service_request_full_data'),
+
 ]
 
 
