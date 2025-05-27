@@ -45,3 +45,13 @@ class ReviewFilingCertificateSerializer(serializers.ModelSerializer):
     class Meta:
         model = MsmeReviewFilingCertificate
         fields = '__all__'
+
+
+class RegisteredAddressWithLocationPlantSerializer(serializers.ModelSerializer):
+    official_address_of_enterprise = serializers.JSONField(required=False, allow_null=True)
+    location_of_plant_or_unit = LocationOfPlantOrUnitSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = RegisteredAddress
+        fields = '__all__'
+
