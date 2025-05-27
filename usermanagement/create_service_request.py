@@ -62,7 +62,7 @@ def create_new_service_request(request):
             service_request.plan = plan
             service_request.save()
 
-            amount = int(plan.amount * 100)  # Amount in paisa
+            amount = int(plan.amount * 100) if plan.amount else int(plan.max_amount * 100)  # Convert to paise
 
             try:
                 old_payments = ServicePaymentInfo.objects.filter(
@@ -105,7 +105,7 @@ def create_new_service_request(request):
                 'service_request': service_request.id,
                 'plan': plan.id,
                 'context': context.id,
-                'amount': plan.amount,
+                'amount': plan.amount if plan.amount else plan.max_amount,
                 'razorpay_order_id': order_id,
                 'status': 'initiated',
                 'is_latest': 'yes'
@@ -200,6 +200,12 @@ def manage_service_request_assignment(request, service_request_id):
                 service_request.reviewer = reviewer
         service_name = service_request.service.name.lower()
         service_request.due_date = due_dates.get(service_name)
+        status_ = request.data.get('status')
+        if status_:
+            if status_ not in ['initiated', 'paid', 'in progress', 'completed', 'rejected']:
+                return Response({"error": "Invalid status."}, status=status.HTTP_400_BAD_REQUEST)
+            service_request.status = status_
+            service_request.save()
         service_request.save(update_fields=['assignee', 'reviewer','due_date'])
 
         # Condition: Status must be "paid" and new assignee or reviewer is added
