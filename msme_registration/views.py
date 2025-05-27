@@ -380,8 +380,8 @@ def location_of_plant_or_unit_by_registration_address_id(request):
         return Response({"error": "Missing registration_address_id"}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        instance = LocationOfPlantOrUnit.objects.get(registered_address_id=registration_address_id)
-        serializer = LocationOfPlantOrUnitSerializer(instance)
+        instance = LocationOfPlantOrUnit.objects.filter(registered_address_id=registration_address_id)
+        serializer = LocationOfPlantOrUnitSerializer(instance, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except LocationOfPlantOrUnit.DoesNotExist:
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
