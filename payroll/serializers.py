@@ -438,6 +438,22 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
         model = EmployeeManagement
         fields = '__all__'
 
+    def create(self, validated_data):
+        # Check for duplicate PAN
+        if EmployeeManagement.objects.filter(work_email=validated_data.get('work_email'),
+                                             payroll_id=validated_data.get('payroll')).exists():
+            raise ValidationError("A record with this Work Email already exists")
+
+        # Check for duplicate Aadhar
+        if EmployeeManagement.objects.filter(mobile_number=validated_data.get('mobile_number'),
+                                             payroll_id=validated_data.get('payroll')).exists():
+            raise ValidationError("A record with this Mobile Number already exists.")
+        if EmployeeManagement.objects.filter(associate_id=validated_data.get('associate_id'),
+                                             payroll_id=validated_data.get('payroll')).exists():
+            raise ValidationError("A record with this Employee ID already exists.")
+
+        return super().create(validated_data)
+
 
 class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -497,12 +513,12 @@ class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         # Check for duplicate PAN
         if EmployeePersonalDetails.objects.filter(pan=validated_data.get('pan')).exists():
-            raise serializers.ValidationError("A record with this PAN already exists.")
-        
+            raise ValidationError("A record with this PAN already exists")
+
         # Check for duplicate Aadhar
         if EmployeePersonalDetails.objects.filter(aadhar=validated_data.get('aadhar')).exists():
-            raise serializers.ValidationError("A record with this Aadhar already exists.")
-            
+            raise ValidationError("A record with this Aadhar already exists.")
+
         return super().create(validated_data)
 
 
