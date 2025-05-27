@@ -45,6 +45,28 @@ class PersonalInformation(models.Model):
         related_name='personal_information_reviewed'
     )
     non_resident_indian = models.CharField(max_length=255, null=True, blank=True)
+    salary_income = models.CharField(max_length=5, null=True, blank=True,
+                                     choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    other_income = models.CharField(max_length=5, null=True, blank=True,
+                                    choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    foreign_income = models.CharField(max_length=5, null=True, blank=True,
+                                      choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    nri_details = models.CharField(max_length=5, null=True, blank=True,
+                                   choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    house_property_income = models.CharField(max_length=5, null=True, blank=True,
+                                             choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    interest_income = models.CharField(max_length=5, null=True, blank=True,
+                                       choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    dividend_income = models.CharField(max_length=5, null=True, blank=True,
+                                       choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    gift_income = models.CharField(max_length=5, null=True, blank=True,
+                                   choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    family_pension_income = models.CharField(max_length=5, null=True, blank=True,
+                                             choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    agriculture_income = models.CharField(max_length=5, null=True, blank=True,
+                                          choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    winning_income = models.CharField(max_length=5, null=True, blank=True,
+                                      choices=[('yes', 'Yes'), ('no', 'No')], default='no')
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
@@ -66,7 +88,8 @@ class TaxPaidDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_tax_paid_details')
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_tax_paid_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -123,7 +146,8 @@ class SalaryIncome(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_salary_income_details')
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_salary_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -180,7 +204,8 @@ class OtherIncomeDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_other_income_details')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                     related_name='service_task_other_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -285,7 +310,8 @@ class HousePropertyIncomeDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_house_property_details')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                     related_name='service_task_house_property_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -455,7 +481,8 @@ class GiftIncomeDetails(models.Model):
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_gift_income_details')
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                     related_name='service_task_gift_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
