@@ -166,6 +166,10 @@ class SalaryIncome(models.Model):
         blank=True,
         related_name='salary_income_reviewed'
     )
+    form_16_notes = models.TextField(null=True, blank=True, default=None)
+    payslip_notes = models.TextField(null=True, blank=True, default=None)
+    bank_statement_notes = models.TextField(null=True, blank=True, default=None)
+
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
@@ -304,7 +308,7 @@ class ForeignEmployeeSalaryDetailsFiles(models.Model):
 
 class HousePropertyIncomeDetails(models.Model):
     service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
-                                           related_name='house_property_details')
+                                        related_name='house_property_details')
     service_type = models.CharField(
         max_length=20,
         default="Income Tax Returns",
