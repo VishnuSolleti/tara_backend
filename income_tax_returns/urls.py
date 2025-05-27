@@ -16,6 +16,7 @@ from . import section_80ettattbu_views
 from . import section_80c_views
 from . import deductions
 from . import section_80d_views
+from . import nri_views
 
 urlpatterns = [
     # Unified POST and PUT API for TaxPaidDetails and document uploads
@@ -231,6 +232,11 @@ urlpatterns = [
 
     path('service-requests-itr/<int:service_request_id>/full-data/', views.get_service_request_full_data,
          name='get_service_request_full_data'),
+
+    path('nri-salary-details/upsert/', nri_views.upsert_nri_salary_details, name='upsert-nri-salary-details'),
+    path('nri-salary-details/view/', nri_views.nri_salary_details_view, name='view-nri-salary-details'),
+    path('nri-salary-details/file/<int:file_id>/delete/', nri_views.delete_nri_salary_file,
+         name='delete-nri-salary-file'),
 
 ]
 
