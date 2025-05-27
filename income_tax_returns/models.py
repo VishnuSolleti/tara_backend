@@ -25,6 +25,8 @@ class PersonalInformation(models.Model):
     gender = models.CharField(max_length=255, null=False, blank=False)
     residentail_status = models.CharField(max_length=255, null=False, blank=False)
     pan = models.FileField(upload_to=personal_information_pan, null=True, blank=True)
+    mobile_number = models.CharField(max_length=20, null=False, blank=False, default=None)
+    email = models.EmailField(max_length=255, null=False, blank=False, default=None)
     aadhar = models.FileField(upload_to=personal_information_aadhar, null=True, blank=True)
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
