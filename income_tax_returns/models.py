@@ -123,9 +123,9 @@ class TaxPaidDetails(models.Model):
 
 class TaxPaidDetailsFile(models.Model):
     DOCUMENT_TYPES = [
-        ('26AS', 'Form 16'),
+        ('26AS', '26As'),
         ('AIS', 'AIS'),
-        ('AdvanceTax', 'Bank Statement'),
+        ('AdvanceTax', 'AdvanceTax'),
     ]
 
     tax_paid = models.ForeignKey(TaxPaidDetails, on_delete=models.CASCADE, related_name='tax_paid_documents')
@@ -695,7 +695,7 @@ class WinningIncomeDocument(models.Model):
                                                       ('Game Show', 'Game Show'),
                                                       ('amount', 'amount')])
     amount = models.IntegerField()
-    file = models.FileField(upload_to=dividend_income_file,
+    file = models.FileField(upload_to=winning_income_file,
                             null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -747,15 +747,15 @@ class AgricultureIncome(models.Model):
 
 
 class AgricultureIncomeDocument(models.Model):
-    winning_income = models.ForeignKey(AgricultureIncome, on_delete=models.CASCADE,
+    agriculture_income = models.ForeignKey(AgricultureIncome, on_delete=models.CASCADE,
                                        related_name='agriculture_income_docs')
     amount = models.IntegerField()
-    file = models.FileField(upload_to=dividend_income_file,
+    file = models.FileField(upload_to=agriculture_income_file,
                             null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.winning_income.service_request.id}- {self.amount}"
+        return f"{self.agriculture_income.service_request.id}- {self.amount}"
 
 
 class Deductions(models.Model):
@@ -892,13 +892,13 @@ class Section80DFile(models.Model):
 
 class ReviewFilingCertificate(models.Model):
     REVIEW_STATUS_CHOICES = [
-        ('inprogress', 'In Progress'),
+        ('in progress', 'In Progress'),
         ('resubmission', 'Resubmission'),
         ('done', 'Done'),
     ]
 
     FILING_STATUS_CHOICES = [
-        ('inprogress', 'In Progress'),
+        ('in progress', 'In Progress'),
         ('filed', 'Filed'),
         ('resubmitted', 'Resubmitted'),
     ]

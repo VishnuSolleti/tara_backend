@@ -103,7 +103,7 @@ def business_registration_documents_certificate_of_incorporation(instance, filen
     service_request_id = str(instance.service_request.id)
     # Construct the upload path
     return os.path.join('service_requests',  'Trade License', service_request_id,
-                        'business_registration_documents_certificate_of_incorporation', filename)
+                        'business_registration_documents_coi', filename)
 
 
 def business_registration_documents_photo_of_premises(instance, filename):

@@ -196,13 +196,13 @@ class BusinessRegistrationDocuments(models.Model):
 
 class ReviewFilingCertificate(models.Model):
     REVIEW_STATUS_CHOICES = [
-        ('inprogress', 'In Progress'),
+        ('in progress', 'In Progress'),
         ('resubmission', 'Resubmission'),
         ('done', 'Done'),
     ]
 
     FILING_STATUS_CHOICES = [
-        ('inprogress', 'In Progress'),
+        ('in progress', 'In Progress'),
         ('filed', 'Filed'),
         ('resubmitted', 'Resubmitted'),
     ]

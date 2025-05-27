@@ -107,6 +107,26 @@ def dividend_income_file(instance, filename):
     )
 
 
+def winning_income_file(instance, filename):
+    # instance is of DividendIncomeFile
+    service_request_id = str(instance.winning_income.service_request_id)
+
+    # Construct an upload path
+    return os.path.join(
+        'service_requests', 'itr', service_request_id, 'winning_income_file', filename
+    )
+
+
+def agriculture_income_file(instance, filename):
+    # instance is of DividendIncomeFile
+    service_request_id = str(instance.winning_income.service_request_id)
+
+    # Construct an upload path
+    return os.path.join(
+        'service_requests', 'itr', service_request_id, 'agriculture_income_file', filename
+    )
+
+
 def review_filing_certificate(instance, filename):
     # Get the name of the business, replace spaces with underscores
     service_request_id = str(instance.service_request_id)
