@@ -50,7 +50,7 @@ def outcome_income_details_file(instance, filename):
 
 def foreign_emp_salary_details_file(instance, filename):
     # instance is of ForeignEmpSalaryDetailsFile
-    service_request_id = str(instance.foreign_emp_salary_details.service_request.id)
+    service_request_id = str(instance.nri.service_request.id)
     document_type = instance.document_type or "unknown_type"
 
     # Construct an upload path
