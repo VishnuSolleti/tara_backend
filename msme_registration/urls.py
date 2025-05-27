@@ -42,4 +42,6 @@ urlpatterns = [
     path('review-filing-certificate/by-service-request/', views.get_review_filing_certificate,
          name='review_filing_certificate_by_service_request'),
 
+    path('service-request-msme/<int:service_request_id>/full-data',views.get_msme_data_by_service_request, name='msme-data'),
+
 ]

@@ -457,3 +457,37 @@ def get_review_filing_certificate(request):
 
     serializer = ReviewFilingCertificateSerializer(instance)
     return Response(serializer.data, status=status.HTTP_200_OK)
+
+MSME_MODEL_SERIALIZER_MAP = {
+    "Business Identity": (BusinessIdentity, BusinessIdentitySerializer, False),
+    "Business Classification": (BusinessClassificationInputs, BusinessClassificationInputsSerializer, False),
+    "Turnover Declaration": (TurnoverAndInvestmentDeclaration, TurnoverAndInvestmentDeclarationSerializer, False),
+    "Registered Address": (RegisteredAddress, RegisteredAddressWithLocationPlantSerializer, False),
+    "Review Certificate": (MsmeReviewFilingCertificate, ReviewFilingCertificateSerializer, False),
+}
+
+
+@api_view(['GET'])
+def get_msme_data_by_service_request(request, service_request_id):
+    try:
+        service_request = ServiceRequest.objects.get(pk=service_request_id)
+    except ServiceRequest.DoesNotExist:
+        return Response({'error': 'ServiceRequest not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    msme_data = {}
+
+    for label, (model_class, serializer_class, is_multiple) in MSME_MODEL_SERIALIZER_MAP.items():
+        queryset = model_class.objects.filter(service_request=service_request)
+
+        if queryset.exists():
+            data = serializer_class(queryset, many=True).data if is_multiple else serializer_class(queryset.first()).data
+        else:
+            data = [] if is_multiple else None
+
+        msme_data[label] = data
+
+    return Response({
+        "service_request": service_request.id,
+        "client": service_request.user.id,
+        "msme_data": msme_data
+    }, status=status.HTTP_200_OK)
