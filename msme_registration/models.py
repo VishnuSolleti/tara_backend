@@ -142,6 +142,8 @@ class RegisteredAddress(models.Model):
     official_address_of_enterprise = models.JSONField(null=True, blank=True)
     bank_statement_or_cancelled_cheque = models.FileField(upload_to=upload_bank_statement_or_cancelled_cheque_path, blank=True, null=True)
     official_address_of_proof = models.FileField(upload_to=upload_official_address_proof_path, blank=True, null=True)
+    location_of_plant = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
+                                        null=False, blank=False, default='no')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                     ('sent for approval', 'Sent for Approval'),('revoked', 'Revoked')],
                                     null=False, blank=False, default="in progress")
