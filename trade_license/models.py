@@ -132,6 +132,8 @@ class BusinessLocation(models.Model):
     address_proof = models.FileField(upload_to=business_location_address_proof, blank=False, null=False)
     rental_agreement = models.FileField(upload_to=business_location_rental_agreement, blank=False, null=False)
     bank_statement = models.FileField(upload_to=business_location_bank_statement, blank=True, null=True)
+    additional_space = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
+                                        null=False, blank=False, default='no')
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in progress')
     service_type = models.CharField(max_length=100, default='Trade License', editable=False)
