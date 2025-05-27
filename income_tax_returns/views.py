@@ -37,7 +37,7 @@ def handle_dynamic_tasks(personal_info_instance):
                     service_request=personal_info_instance.service_request,
                     service_type=personal_info_instance.service_type,
                     category_name=category_name,
-                    client=personal_info_instance.service_request.client,
+                    client=personal_info_instance.service_request.user,
                     assignee=personal_info_instance.assignee,
                     reviewer=personal_info_instance.reviewer,
                     status="in progress",
