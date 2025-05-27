@@ -238,6 +238,9 @@ urlpatterns = [
     path('nri-salary-details/file/<int:file_id>/delete/', nri_views.delete_nri_salary_file,
          name='delete-nri-salary-file'),
 
+    path('service-request-section-data', views.get_service_request_section_data,
+         name='get_service_request_section_data'),
+
 ]
 
 

@@ -268,3 +268,84 @@ def get_service_request_full_data(request, service_request_id):
         "tasks_data": full_data
     })
 
+
+CATEGORY_TASK_MAP = {
+    "personal_info": ["Personal Information", "Tax Paid Details"],
+    "income_details": [
+        "Other Income", "Gift Income", "Foreign Income", "Dividend Income",
+        "Interest Income", "Salary Income", "NRI Employee Salary",
+        "House Property Income", "Family Pension Income", "Winning Income", "Agriculture Income"
+    ],
+    "deductions": ["Deductions"],
+    "review": ["Review Filing Certificate"]
+}
+
+
+@api_view(['GET'])
+def get_service_request_section_data(request):
+    service_request_id = request.query_params.get('service_request_id')
+    section_key = request.query_params.get('section')  # e.g. "income_details", "personal_info"
+    income_subtype = request.query_params.get('income_type')  # e.g. "Salary Income"
+
+    if not service_request_id or not section_key:
+        return Response({"error": "Missing service_request_id or section"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        service_request = ServiceRequest.objects.get(pk=service_request_id)
+    except ServiceRequest.DoesNotExist:
+        return Response({'error': 'ServiceRequest not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    allowed_categories = CATEGORY_TASK_MAP.get(section_key)
+
+    if not allowed_categories:
+        return Response({"error": "Invalid section key"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Narrow down further if income_type is specified
+    if section_key == "income_details" and income_subtype:
+        allowed_categories = [income_subtype]
+
+    tasks = service_request.service_tasks.filter(category_name__in=allowed_categories)
+
+    section_data = {}
+
+    for task in tasks:
+        category_name = task.category_name.strip()
+        config = TASK_MODEL_SERIALIZER_MAP.get(category_name)
+
+        task_info = {
+            "task_id": task.id,
+            "category_name": category_name,
+            "status": task.status,
+            "priority": task.priority,
+            "due_date": task.due_date,
+            "assignee": task.assignee.id if task.assignee else None,
+            "reviewer": task.reviewer.id if task.reviewer else None,
+            "data": None
+        }
+
+        if config:
+            model_class, serializer_class, is_multiple = config
+
+            queryset = model_class.objects.filter(
+                service_request=service_request,
+                service_task=task
+            )
+
+            task_info["data"] = (
+                serializer_class(queryset, many=True).data if is_multiple
+                else serializer_class(queryset.first()).data if queryset.exists()
+                else ([] if is_multiple else None)
+            )
+        else:
+            task_info["data"] = "No model/serializer mapping defined"
+
+        section_data[category_name] = task_info
+
+    return Response({
+        "service_request": service_request.id,
+        "client": service_request.user.id,
+        "section_key": section_key,
+        "tasks_data": section_data
+    }, status=status.HTTP_200_OK)
+
+
