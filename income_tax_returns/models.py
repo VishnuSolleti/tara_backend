@@ -51,24 +51,15 @@ class PersonalInformation(models.Model):
                                      choices=[('yes', 'Yes'), ('no', 'No')], default='no')
     other_income = models.CharField(max_length=5, null=True, blank=True,
                                     choices=[('yes', 'Yes'), ('no', 'No')], default='no')
-    foreign_income = models.CharField(max_length=5, null=True, blank=True,
-                                      choices=[('yes', 'Yes'), ('no', 'No')], default='no')
-    nri_details = models.CharField(max_length=5, null=True, blank=True,
-                                   choices=[('yes', 'Yes'), ('no', 'No')], default='no')
     house_property_income = models.CharField(max_length=5, null=True, blank=True,
                                              choices=[('yes', 'Yes'), ('no', 'No')], default='no')
-    interest_income = models.CharField(max_length=5, null=True, blank=True,
+    capital_gains = models.CharField(max_length=5, null=True, blank=True,
                                        choices=[('yes', 'Yes'), ('no', 'No')], default='no')
-    dividend_income = models.CharField(max_length=5, null=True, blank=True,
+    business_income = models.CharField(max_length=5, null=True, blank=True,
                                        choices=[('yes', 'Yes'), ('no', 'No')], default='no')
-    gift_income = models.CharField(max_length=5, null=True, blank=True,
-                                   choices=[('yes', 'Yes'), ('no', 'No')], default='no')
-    family_pension_income = models.CharField(max_length=5, null=True, blank=True,
-                                             choices=[('yes', 'Yes'), ('no', 'No')], default='no')
     agriculture_income = models.CharField(max_length=5, null=True, blank=True,
                                           choices=[('yes', 'Yes'), ('no', 'No')], default='no')
-    winning_income = models.CharField(max_length=5, null=True, blank=True,
-                                      choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
@@ -363,6 +354,225 @@ class HousePropertyIncomeDetails(models.Model):
 
     def __str__(self):
         return f"{self.service_request.id} - House Property Details"
+
+
+class CapitalGainsApplicableDetails(models.Model):
+    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
+                                           related_name='capital_gains_applicable_details')
+    service_type = models.CharField(
+        max_length=20,
+        default="Income Tax Returns",
+        editable=False
+    )
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_capital_gains_applicable_details')
+    status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')], null=False, blank=False)
+    assignee = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='capital_gains_applicable_details_assigned'
+    )
+
+    reviewer = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='capital_gains_applicable_details_reviewed'
+    )
+
+    gains_applicable = JSONField(null=True, blank=True, default=[])
+
+    def save(self, *args, **kwargs):
+        # Default to service_request values if not set
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.service_request.id} - Capital Gains Applicable Details"
+
+
+class CapitalGainsProperty(models.Model):
+    capital_gains_applicable = models.ForeignKey(CapitalGainsApplicableDetails, on_delete=models.CASCADE,
+                                                 related_name='capital_gains_property_details')
+    property_type = models.CharField(max_length=120, null=False, blank=False, choices=[('land', 'land'),
+                                                                                       ('plot', 'plot'),
+                                                                                       ('building', 'building')])
+    date_of_purchase = models.DateField()
+    purchase_cost = models.IntegerField()
+    date_of_sale = models.DateField()
+    sale_value = models.IntegerField()
+    purchase_doc = models.FileField(upload_to=capital_gains_property_purchase_doc, null=True, blank=True)
+    sale_doc = models.FileField(upload_to=capital_gains_property_sale_doc, null=True, blank=True)
+    reinvestment_details = JSONField(default=dict, null=True, blank=True)
+    reinvestment_details_docs = models.FileField(upload_to=capital_gains_property_reinvestment_docs,
+                                                 null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.capital_gains_applicable.service_request.id} - {self.property_type} Details"
+
+
+class CapitalGainsEquityMutualFund(models.Model):
+    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
+                                           related_name='capital_gains_equity_mutual_funds')
+    service_type = models.CharField(
+        max_length=20,
+        default="Income Tax Returns",
+        editable=False
+    )
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='service_task_capital_gains_equity_mutual_funds')
+    status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')], null=False, blank=False)
+    assignee = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='capital_gains_equity_mutual_funds_assigned'
+    )
+
+    reviewer = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='capital_gains_equity_mutual_funds_reviewed'
+    )
+    equity_mutual_fund_type = JSONField(null=True, blank=True, default=list)
+    sell_any_foreign_sales = models.CharField(max_length=20, choices=[('yes', 'yes'), ('no', 'no')], default='no')
+    sell_any_unlisted_sales = models.CharField(max_length=20, choices=[('yes', 'yes'), ('no', 'no')], default='no')
+
+    def __str__(self):
+        return f"{self.service_request.id} - Equity Mutual Fund Details"
+
+
+class CapitalGainsEquityMutualFundDocument(models.Model):
+    capital_gains_equity_mutual_fund = models.ForeignKey(CapitalGainsEquityMutualFund, on_delete=models.CASCADE,
+                                                          related_name='documents')
+    file = models.FileField(upload_to=capital_gains_equity_mutual_fund_file, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.capital_gains_equity_mutual_fund.service_request.id} - {self.document_type}"
+
+
+class OtherCapitalGains(models.Model):
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+                                        related_name='capital_gains_other_capital_gains')
+    service_type = models.CharField(
+        max_length=20,
+        default="Income Tax Returns",
+        editable=False
+    )
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+                                     related_name='service_task_capital_gains_other_capital_gains')
+    status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')], null=False, blank=False)
+    assignee = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='capital_gains_other_capital_gains_assigned'
+    )
+
+    reviewer = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='capital_gains_other_capital_gains_reviewed'
+    )
+    asset_details = models.CharField(max_length=120, null=False, blank=False)
+    purchase_date = models.DateField()
+    sale_date = models.DateField()
+    sale_value = models.IntegerField()
+    purchase_value = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.service_request.id} - Other Capital Gains Details"
+
+
+class OtherCapitalGainsDocument(models.Model):
+    other_capital_gains = models.ForeignKey(OtherCapitalGains, on_delete=models.CASCADE, related_name='documents')
+    file = models.FileField(upload_to=other_capital_gains_file,
+                            null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.other_capital_gains.service_request.id} - {self.file.name}"
+
+
+class BusinessProfessionalIncome(models.Model):
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+                                        related_name='business_professional_income')
+    service_type = models.CharField(
+        max_length=20,
+        default="Income Tax Returns",
+        editable=False
+    )
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_business_professional_income')
+    status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')], null=False, blank=False)
+    assignee = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='business_professional_income_assigned'
+    )
+
+    reviewer = models.ForeignKey(
+        Users,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='business_professional_income_reviewed'
+    )
+    business_name = models.CharField(max_length=255, null=False, blank=False)
+    business_type = models.CharField(max_length=255, null=False, blank=False)
+    opting_for_presumptive_taxation = models.CharField(max_length=255, null=False, blank=False,
+                                                       choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    opting_data = JSONField(default={}, null=True, blank=True)
+    gst_registered = models.CharField(max_length=255, null=False, blank=False,
+                                      choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+
+    def save(self, *args, **kwargs):
+        # Default to service_request values if not set
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.service_request.id} - Business Professional Income Details"
+
+
+class BusinessProfessionalIncomeDocument(models.Model):
+    business_professional_income = models.ForeignKey(BusinessProfessionalIncome, on_delete=models.CASCADE,
+                                                     related_name='documents')
+    document_type = models.CharField(max_length=30, choices=[('26AS', '26AS'),
+                                                             ('GST Returns', 'GST Returns'),
+                                                             ('Bank Statements', 'Bank Statements'),
+                                                             ('Other', 'Other'),
+                                                             ('AIS', 'AIS')])
+    file = models.FileField(upload_to=business_professional_income_file, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.business_professional_income.service_request.id} - {self.document_type}"
 
 
 class InterestIncome(models.Model):
@@ -884,7 +1094,7 @@ class Section80D(models.Model):
 
 class Section80DFile(models.Model):
 
-    section_80d = models.ForeignKey(TaxPaidDetails, on_delete=models.CASCADE, related_name='section_80d_documents')
+    section_80d = models.ForeignKey(Section80D, on_delete=models.CASCADE, related_name='section_80d_documents')
     file = models.FileField(upload_to=section_80d_file, null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

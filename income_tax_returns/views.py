@@ -10,39 +10,61 @@ from rest_framework.decorators import api_view, permission_classes, parser_class
 
 
 def handle_dynamic_tasks(personal_info_instance):
-    income_tasks = {
-        "salary_income": "Salary Income",
-        "other_income": "Other Income",
-        "house_property_income": "House Property Income",
-        "foreign_income": "Foreign Income",
-        "interest_income": "Interest Income",
-        "dividend_income": "Dividend Income",
-        "gift_income": "Gift Income",
-        "family_pension_income": "Family Pension Income",
-        "agriculture_income": "Agriculture Income",
-        "winning_income": "Winning Income",
-        "nri_details": "NRI Employee Salary",
-    }
+    service_request = personal_info_instance.service_request
+    service_type = personal_info_instance.service_type
+    client = service_request.user
+    assignee = personal_info_instance.assignee
+    reviewer = personal_info_instance.reviewer
 
-    for field, category_name in income_tasks.items():
-        if getattr(personal_info_instance, field) == 'yes':
-            exists = ServiceTask.objects.filter(
-                service_request=personal_info_instance.service_request,
-                service_type=personal_info_instance.service_type,
-                category_name=category_name
-            ).exists()
+    def create_task_if_not_exists(category_name):
+        exists = ServiceTask.objects.filter(
+            service_request=service_request,
+            service_type=service_type,
+            category_name=category_name
+        ).exists()
+        if not exists:
+            ServiceTask.objects.create(
+                service_request=service_request,
+                service_type=service_type,
+                category_name=category_name,
+                client=client,
+                assignee=assignee,
+                reviewer=reviewer,
+                status="in progress",
+                priority="medium"
+            )
 
-            if not exists:
-                ServiceTask.objects.create(
-                    service_request=personal_info_instance.service_request,
-                    service_type=personal_info_instance.service_type,
-                    category_name=category_name,
-                    client=personal_info_instance.service_request.user,
-                    assignee=personal_info_instance.assignee,
-                    reviewer=personal_info_instance.reviewer,
-                    status="in progress",
-                    priority="medium"
-                )
+    # Salary Income-related
+    if personal_info_instance.salary_income == 'yes':
+        create_task_if_not_exists("Salary Income")
+        create_task_if_not_exists("NRI Employee Salary")  # Assumes NRI if flagged separately
+
+    # House Property Income
+    if personal_info_instance.house_property_income == 'yes':
+        create_task_if_not_exists("House Property Income")
+
+    # Capital Gains Income
+    if personal_info_instance.capital_gains == 'yes':
+        create_task_if_not_exists("Capital Gains Applicable Details")
+        create_task_if_not_exists("Capital Gains Equity Mutual Fund")
+        create_task_if_not_exists("Other Capital Gains")
+
+    # Business Income
+    if personal_info_instance.business_income == 'yes':
+        create_task_if_not_exists("Business Income")
+
+    # Other Income (subcategories)
+    if personal_info_instance.other_income == 'yes':
+        create_task_if_not_exists("Interest Income")
+        create_task_if_not_exists("Dividend Income")
+        create_task_if_not_exists("Gift Income")
+        create_task_if_not_exists("Family Pension Income")
+        create_task_if_not_exists("Foreign Income")
+        create_task_if_not_exists("Winning Income")
+
+    # Agriculture Income
+    if personal_info_instance.agriculture_income == 'yes':
+        create_task_if_not_exists("Agriculture Income")
 
 
 @api_view(['GET', 'POST'])
@@ -274,7 +296,8 @@ CATEGORY_TASK_MAP = {
     "income_details": [
         "Other Income", "Gift Income", "Foreign Income", "Dividend Income",
         "Interest Income", "Salary Income", "NRI Employee Salary",
-        "House Property Income", "Family Pension Income", "Winning Income", "Agriculture Income"
+        "House Property Income", "Family Pension Income", "Winning Income", "Agriculture Income",
+        "Capital Gains Applicable Details", "Capital Gains Equity Mutual Fund", "Other Capital Gains", "Business Income"
     ],
     "deductions": ["Deductions"],
     "review": ["Review Filing Certificate"]
