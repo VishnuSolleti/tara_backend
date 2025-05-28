@@ -56,11 +56,29 @@ class SalaryDocumentFileSerializer(serializers.ModelSerializer):
 
 
 class SalaryIncomeSerializer(serializers.ModelSerializer):
-    documents = SalaryDocumentFileSerializer(many=True, read_only=True)
+    documents = serializers.SerializerMethodField()
 
     class Meta:
         model = SalaryIncome
         fields = '__all__'
+
+    def get_documents(self, obj):
+        doc_types = ['Payslip', 'Form 16', 'Bank Statements']  # Adjust as per your types
+        grouped = {}
+        for doc_type in doc_types:
+            files = obj.documents.filter(document_type=doc_type)
+            grouped[doc_type] = {
+                "count": files.count(),
+                "files": [
+                    {
+                        "id": f.id,
+                        "url": f.file.url if f.file else None,
+                        "uploaded_at": f.uploaded_at
+                    }
+                    for f in files
+                ]
+            }
+        return grouped
 
 
 class OtherIncomeDetailsSerializer(serializers.ModelSerializer):
@@ -76,11 +94,29 @@ class ForeignEmployeeSalaryDetailsFilesSerializer(serializers.ModelSerializer):
 
 
 class NRIEmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
-    foreigner_documents = ForeignEmployeeSalaryDetailsFilesSerializer(many=True, read_only=True)
+    foreigner_documents = serializers.SerializerMethodField()
 
     class Meta:
         model = NRIEmployeeSalaryDetails
         fields = '__all__'
+
+    def get_foreigner_documents(self, obj):
+        doc_types = ['Salary Slip', 'TAX PAID CERTIFICATE BOARD', 'Bank Statement']  # Adjust these as per your document_type choices
+        grouped = {}
+        for doc_type in doc_types:
+            files = obj.foreigner_documents.filter(document_type=doc_type)
+            grouped[doc_type] = {
+                "count": files.count(),
+                "files": [
+                    {
+                        "id": f.id,
+                        "url": f.file.url if f.file else None,
+                        "uploaded_at": f.uploaded_at
+                    }
+                    for f in files
+                ]
+            }
+        return grouped
 
 
 class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
