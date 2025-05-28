@@ -1488,14 +1488,12 @@ def calculate_payroll(request):
 
         total_benefits = safe_sum(item["annually"] for item in benefits.values())
 
-        # Benefits Annually value's
-        total_deductions = sum(
-            0 if benefits.get(key, {}).get("annually") == "NA" else benefits.get(key, {}).get("annually", 0)
-            for key in ["ESI", "EDLI", "EPF", "EPF admin charges"])
-
         # Adjust Fixed Allowance so that Gross Salary = Annual CTC - Benefits
         total_earnings = safe_sum(item["annually"] for item in earnings if item["component_name"] != "Fixed Allowance")
-        fixed_allowance = (annual_ctc - total_benefits - total_earnings - total_deductions)
+        print(total_earnings)
+        print(total_benefits)
+        print(annual_ctc)
+        fixed_allowance = (annual_ctc - total_benefits - total_earnings)
 
         for earning in earnings:
             if earning["component_name"] == "Fixed Allowance":
