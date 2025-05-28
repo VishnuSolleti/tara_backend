@@ -344,6 +344,7 @@ class CapitalGainsPropertySerializer(serializers.ModelSerializer):
 
 
 class CapitalGainsApplicableDetailsSerializer(serializers.ModelSerializer):
+    gains_applicable = serializers.JSONField(required=False, allow_null=True)
     capital_gains_property_details = CapitalGainsPropertySerializer(many=True, read_only=True)
 
     class Meta:
@@ -389,11 +390,29 @@ class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):
 
 class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
     opting_data = serializers.JSONField(required=False, allow_null=True)
-    documents = BusinessProfessionalIncomeDocumentSerializer(many=True, read_only=True)
+    documents = serializers.SerializerMethodField()
 
     class Meta:
         model = BusinessProfessionalIncome
         fields = '__all__'
+
+    def get_documents(self, obj):
+        doc_types = ['26AS', 'AIS', 'GST Returns', 'Bank Statements', 'Other']
+        grouped = {}
+        for doc_type in doc_types:
+            files = obj.documents.filter(document_type=doc_type)
+            grouped[doc_type] = {
+                "count": files.count(),
+                "files": [
+                    {
+                        "id": f.id,
+                        "url": f.file.url if f.file else None,
+                        "uploaded_at": f.uploaded_at
+                    }
+                    for f in files
+                ]
+            }
+        return grouped
 
 
 class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):
