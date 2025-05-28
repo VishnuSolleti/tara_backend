@@ -4,12 +4,22 @@ from rest_framework.response import Response
 from django.db import transaction
 from .models import CapitalGainsEquityMutualFund, CapitalGainsEquityMutualFundDocument
 from .serializers import CapitalGainsEquityMutualFundSerializer, CapitalGainsEquityMutualFundDocumentSerializer
+import json
 
 
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser])
 def upsert_equity_mutual_fund_with_files(request):
     try:
+        request_data = request.data
+
+        # Coerce investment_types if sent as a string
+        investment_types = request_data.get('equity_mutual_fund_type')
+        if isinstance(investment_types, str):
+            try:
+                request_data['equity_mutual_fund_type'] = json.loads(investment_types)
+            except json.JSONDecodeError:
+                return Response({"investment_types": "Invalid JSON format"}, status=400)
         service_request = request.data.get('service_request')
         service_task = request.data.get('service_task')
 
@@ -18,9 +28,9 @@ def upsert_equity_mutual_fund_with_files(request):
 
         try:
             instance = CapitalGainsEquityMutualFund.objects.get(service_request=service_request)
-            serializer = CapitalGainsEquityMutualFundSerializer(instance, data=request.data, partial=True)
+            serializer = CapitalGainsEquityMutualFundSerializer(instance, data=request_data, partial=True)
         except CapitalGainsEquityMutualFund.DoesNotExist:
-            serializer = CapitalGainsEquityMutualFundSerializer(data=request.data)
+            serializer = CapitalGainsEquityMutualFundSerializer(data=request_data)
 
         with transaction.atomic():
             if serializer.is_valid(raise_exception=True):
@@ -47,14 +57,10 @@ def upsert_equity_mutual_fund_with_files(request):
 @api_view(['GET'])
 def get_equity_mutual_fund_details(request, service_request_id):
     try:
-        fund = CapitalGainsEquityMutualFund.objects.get(service_request__id=service_request_id)
+        fund = CapitalGainsEquityMutualFund.objects.get(service_request_id=service_request_id)
         serializer = CapitalGainsEquityMutualFundSerializer(fund)
-        document_serializer = CapitalGainsEquityMutualFundDocumentSerializer(fund.documents.all(), many=True)
 
-        return Response({
-            "data": serializer.data,
-            "documents": document_serializer.data
-        })
+        return Response(serializer.data, status=200)
 
     except CapitalGainsEquityMutualFund.DoesNotExist:
         return Response({"error": "Details not found"}, status=404)

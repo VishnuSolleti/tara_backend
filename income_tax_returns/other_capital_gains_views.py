@@ -48,11 +48,9 @@ def get_other_capital_gains_details(request, service_request_id):
     try:
         gain = OtherCapitalGains.objects.get(service_request__id=service_request_id)
         serializer = OtherCapitalGainsSerializer(gain)
-        document_serializer = OtherCapitalGainsDocumentSerializer(gain.documents.all(), many=True)
 
         return Response({
-            "data": serializer.data,
-            "documents": document_serializer.data
+            "data": serializer.data
         })
 
     except OtherCapitalGains.DoesNotExist:
