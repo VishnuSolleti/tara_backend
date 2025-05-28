@@ -358,6 +358,7 @@ class CapitalGainsEquityMutualFundDocumentSerializer(serializers.ModelSerializer
 
 
 class CapitalGainsEquityMutualFundSerializer(serializers.ModelSerializer):
+    equity_mutual_fund_type = serializers.JSONField(required=False, allow_null=True)
     documents = CapitalGainsEquityMutualFundDocumentSerializer(many=True, read_only=True)
 
     class Meta:
@@ -372,6 +373,7 @@ class OtherCapitalGainsDocumentSerializer(serializers.ModelSerializer):
 
 
 class OtherCapitalGainsSerializer(serializers.ModelSerializer):
+    # Using the custom serializer for documents to handle multiple file uploads
     documents = OtherCapitalGainsDocumentSerializer(many=True, read_only=True)
 
     class Meta:
@@ -386,6 +388,7 @@ class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):
 
 
 class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
+    opting_data = serializers.JSONField(required=False, allow_null=True)
     documents = BusinessProfessionalIncomeDocumentSerializer(many=True, read_only=True)
 
     class Meta:

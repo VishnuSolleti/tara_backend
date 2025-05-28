@@ -157,7 +157,7 @@ def section_80d_file(instance, filename):
 
 def capital_gains_property_purchase_doc(instance, filename):
     # instance is of CapitalGainsPropertyPurchaseDoc
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.capital_gains_applicable.service_request_id)
 
     # Construct an upload path
     return os.path.join(
@@ -167,7 +167,7 @@ def capital_gains_property_purchase_doc(instance, filename):
 
 def capital_gains_property_sale_doc(instance, filename):
     # instance is of CapitalGainsPropertySaleDoc
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.capital_gains_applicable.service_request_id)
 
     # Construct an upload path
     return os.path.join(
@@ -177,7 +177,7 @@ def capital_gains_property_sale_doc(instance, filename):
 
 def capital_gains_property_reinvestment_docs(instance, filename):
     # instance is of CapitalGainsStocksPurchaseDoc
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.capital_gains_applicable.service_request_id)
 
     # Construct an upload path
     return os.path.join(
@@ -187,7 +187,7 @@ def capital_gains_property_reinvestment_docs(instance, filename):
 
 def capital_gains_equity_mutual_fund_file(instance, filename):
     # instance is of CapitalGainsEquityMutualFundFile
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.capital_gains_equity_mutual_fund.service_request_id)
 
     # Construct an upload path
     return os.path.join(
@@ -197,7 +197,7 @@ def capital_gains_equity_mutual_fund_file(instance, filename):
 
 def other_capital_gains_file(instance, filename):
     # instance is of OtherIncomeFile
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.other_capital_gains.service_request_id)
 
     # Construct an upload path
     return os.path.join(
@@ -207,7 +207,7 @@ def other_capital_gains_file(instance, filename):
 
 def business_professional_income_file(instance, filename):
     # instance is of BusinessProfessionalIncomeFile
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.business_professional_income.service_request_id)
     document_type = instance.document_type or "unknown_type"
 
     # Construct an upload path

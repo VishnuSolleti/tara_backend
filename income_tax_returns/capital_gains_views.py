@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework import status
-
+import json
 from .models import CapitalGainsApplicableDetails, CapitalGainsProperty
 from .serializers import CapitalGainsApplicableDetailsSerializer, CapitalGainsPropertySerializer
 
@@ -58,7 +58,14 @@ def get_capital_gains_details(request):
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def add_capital_gains_property(request):
-    serializer = CapitalGainsPropertySerializer(data=request.data)
+    request_data = request.data
+    reinvestment = request_data.get('reinvestment_details')
+    if isinstance(reinvestment, str):
+        try:
+            request_data['reinvestment_details'] = json.loads(reinvestment)
+        except json.JSONDecodeError:
+            return Response({'reinvestment_details': 'Invalid JSON format.'}, status=400)
+    serializer = CapitalGainsPropertySerializer(data=request_data)
     if serializer.is_valid():
         serializer.save()
         return Response({'message': 'Property added successfully'}, status=status.HTTP_201_CREATED)

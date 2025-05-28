@@ -94,7 +94,7 @@ urlpatterns = [
          capital_gains_funds_details_views.delete_equity_mutual_fund_file, name='delete_equity_mutual_fund_file'),
 
     # Business Professional Income
-    path('business-professional-income/', business_professional_income_views.upsert_business_professional_income_with_files,
+    path('business-professional-income/', business_professional_income_views.business_professional_income_upsert,
          name='upsert_business_professional_income'),
     path('business-professional-income/<int:service_request_id>/',
          business_professional_income_views.get_business_professional_income,
@@ -298,6 +298,5 @@ urlpatterns = [
          name='get_service_request_section_data'),
 
 ]
-
 
 # Note: Ensure that the views and serializers are properly defined in their respective modules.
