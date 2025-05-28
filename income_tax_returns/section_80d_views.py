@@ -1,39 +1,72 @@
 # views.py
 from rest_framework.decorators import api_view, parser_classes
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from rest_framework import status
 from .models import Section80D, Section80DFile
 from .serializers import *
+from django.db import transaction
 
 
-@api_view(['POST', 'PUT'])
-@parser_classes([MultiPartParser, FormParser])
+@api_view(['POST'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def upsert_section_80d_with_files(request):
-    """
-    POST: create new Section80D + files
-    PUT:  update existing Section80D + add new files
-          (requires 'id' field in form data to locate existing record)
-    """
-    if request.method == 'POST':
-        serializer = Section80DFileSerializer(data=request.data)
-    else:  # PUT
-        section_id = request.data.get('id')
-        if not section_id:
-            return Response({"error": "Missing Section80D id for update"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            instance = Section80D.objects.get(pk=section_id)
-        except Section80D.DoesNotExist:
-            return Response({"error": "Section80D not found"}, status=status.HTTP_404_NOT_FOUND)
+    deductions_id = request.data.get('deductions')
+
+    if not deductions_id:
+        return Response({"error": "Missing 'deductions' field"}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        instance = Section80D.objects.get(deductions_id=deductions_id)
         serializer = Section80DFileSerializer(instance, data=request.data, partial=True)
+    except Section80D.DoesNotExist:
+        serializer = Section80DSerializer(data=request.data)
 
     if serializer.is_valid():
-        section = serializer.save()
-        return Response(
-            Section80DFileSerializer(section).data,
-            status=(status.HTTP_201_CREATED if request.method=='POST' else status.HTTP_200_OK)
-        )
+        with transaction.atomic():
+            section_80d = serializer.save()
+
+            # Handle document upload
+            files = request.FILES.getlist('files')  # Expected as `files` key in form-data
+            for f in files:
+                Section80DFile.objects.create(section_80d=section_80d, file=f)
+
+            return Response({
+                "message": "Section 80D data saved successfully",
+                "data": serializer.data,
+                "files_uploaded": len(files)
+            }, status=status.HTTP_200_OK)
+
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+# Uncomment this section if you want to support both POST and PUT methods
+# @api_view(['POST', 'PUT'])
+# @parser_classes([MultiPartParser, FormParser])
+# def upsert_section_80d_with_files(request):
+#     """
+#     POST: create new Section80D + files
+#     PUT:  update existing Section80D + add new files
+#           (requires 'id' field in form data to locate existing record)
+#     """
+#     if request.method == 'POST':
+#         serializer = Section80DFileSerializer(data=request.data)
+#     else:  # PUT
+#         section_id = request.data.get('id')
+#         if not section_id:
+#             return Response({"error": "Missing Section80D id for update"}, status=status.HTTP_400_BAD_REQUEST)
+#         try:
+#             instance = Section80D.objects.get(pk=section_id)
+#         except Section80D.DoesNotExist:
+#             return Response({"error": "Section80D not found"}, status=status.HTTP_404_NOT_FOUND)
+#         serializer = Section80DFileSerializer(instance, data=request.data, partial=True)
+#
+#     if serializer.is_valid():
+#         section = serializer.save()
+#         return Response(
+#             Section80DFileSerializer(section).data,
+#             status=(status.HTTP_201_CREATED if request.method=='POST' else status.HTTP_200_OK)
+#         )
+#     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ——— Retrieve Section80D (no files) ———

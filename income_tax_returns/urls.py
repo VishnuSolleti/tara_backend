@@ -17,6 +17,10 @@ from . import section_80c_views
 from . import deductions
 from . import section_80d_views
 from . import nri_views
+from . import capital_gains_views
+from . import capital_gains_funds_details_views
+from . import other_capital_gains_views
+from . import business_professional_income_views
 
 urlpatterns = [
     # Unified POST and PUT API for TaxPaidDetails and document uploads
@@ -64,6 +68,58 @@ urlpatterns = [
          name='add_other_income_document'),
     path('other-income-document/<int:pk>/', other_income_views.add_other_income_document,
          name='update_or_delete_other_income_document'),
+
+    # Capital Gains
+    path('capital-gains/upsert/', capital_gains_views.upsert_capital_gains_details,
+         name='upsert_capital_gains_details'),
+    path('capital-gains/view/', capital_gains_views.get_capital_gains_details,
+         name='get_capital_gains_details'),
+    path('capital-gains/add-property/', capital_gains_views.add_capital_gains_property,
+         name='add_capital_gains_property'),
+    path('capital-gains/delete-property/<int:property_id>/', capital_gains_views.delete_capital_gains_property,
+         name='delete_capital_gains_property'),
+
+    path('capital-gains/update-property/<int:property_id>/',capital_gains_views.update_capital_gains_property,
+         name='update_capital_gains_property'),
+
+    # Capital Gains Equity Mutual Fund
+    path('capital-gains/equity-mutual-fund/submit/',
+         capital_gains_funds_details_views.upsert_equity_mutual_fund_with_files,
+         name='upsert_equity_mutual_fund_with_files'),
+    path('capital-gains/equity-mutual-fund/<int:service_request_id>/',
+         capital_gains_funds_details_views.get_equity_mutual_fund_details, name='get_equity_mutual_fund_details'),
+    path('capital-gains/equity-mutual-fund/<int:service_request_id>/delete/',
+         capital_gains_funds_details_views.delete_equity_mutual_fund, name='delete_equity_mutual_fund'),
+    path('capital-gains/equity-mutual-fund/file/<int:file_id>/delete/',
+         capital_gains_funds_details_views.delete_equity_mutual_fund_file, name='delete_equity_mutual_fund_file'),
+
+    # Business Professional Income
+    path('business-professional-income/', business_professional_income_views.upsert_business_professional_income_with_files,
+         name='upsert_business_professional_income'),
+    path('business-professional-income/<int:service_request_id>/',
+         business_professional_income_views.get_business_professional_income,
+         name='get_business_professional_income'),
+    path('business-professional-income/<int:service_request_id>/delete/',
+         business_professional_income_views.delete_business_professional_income,
+         name='delete_business_professional_income'),
+    path('business-professional-income/document/<int:file_id>/delete/',
+         business_professional_income_views.delete_business_professional_income_file,
+         name='delete_business_professional_income_file'),
+
+    path('other-capital-gains/with-files/', other_capital_gains_views.upsert_other_capital_gains_with_files,
+         name='upsert_other_capital_gains_with_files'),
+
+    # Get details of Other Capital Gains by service_request ID
+    path('other-capital-gains/<int:service_request_id>/', other_capital_gains_views.get_other_capital_gains_details,
+         name='get_other_capital_gains_details'),
+
+    # Delete entire Other Capital Gains record by service_request ID
+    path('other-capital-gains/delete/<int:service_request_id>/', other_capital_gains_views.delete_other_capital_gains,
+         name='delete_other_capital_gains'),
+
+    # Delete a specific document by file ID
+    path('other-capital-gains/document/<int:file_id>/delete/', other_capital_gains_views.delete_other_capital_gains_file,
+         name='delete_other_capital_gains_file'),
 
     path('house-property-details/upsert/', house_property_income_views.upsert_house_property_details,
          name='upsert_house_property_details'),

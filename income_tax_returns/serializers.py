@@ -15,12 +15,38 @@ class TaxPaidDetailsFileSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+# class TaxPaidDetailsSerializer(serializers.ModelSerializer):
+#     tax_paid_documents = TaxPaidDetailsFileSerializer(many=True, read_only=True)
+#
+#     class Meta:
+#         model = TaxPaidDetails
+#         fields = '__all__'
+
+
 class TaxPaidDetailsSerializer(serializers.ModelSerializer):
-    tax_paid_documents = TaxPaidDetailsFileSerializer(many=True, read_only=True)
+    documents = serializers.SerializerMethodField()
 
     class Meta:
         model = TaxPaidDetails
-        fields = '__all__'
+        fields = '__all__'  # or list the fields explicitly
+        depth = 1  # optional, if you want nested object fields expanded
+
+    def get_documents(self, obj):
+        grouped = {}
+        for doc_type in ['26AS', 'AIS', 'AdvanceTax']:
+            files = obj.tax_paid_documents.filter(document_type=doc_type)
+            grouped[doc_type] = {
+                "count": files.count(),
+                "files": [
+                    {
+                        "id": f.id,
+                        "url": f.file.url if f.file else None,
+                        "uploaded_at": f.uploaded_at
+                    }
+                    for f in files
+                ]
+            }
+        return grouped
 
 
 class SalaryDocumentFileSerializer(serializers.ModelSerializer):
@@ -309,3 +335,65 @@ class ServiceTaskWithDataSerializer(serializers.ModelSerializer):
                     return serializer_class(data).data
 
         return None
+
+
+class CapitalGainsPropertySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CapitalGainsProperty
+        fields = '__all__'
+
+
+class CapitalGainsApplicableDetailsSerializer(serializers.ModelSerializer):
+    capital_gains_property_details = CapitalGainsPropertySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CapitalGainsApplicableDetails
+        fields = '__all__'
+
+
+class CapitalGainsEquityMutualFundDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CapitalGainsEquityMutualFundDocument
+        fields = '__all__'
+
+
+class CapitalGainsEquityMutualFundSerializer(serializers.ModelSerializer):
+    documents = CapitalGainsEquityMutualFundDocumentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CapitalGainsEquityMutualFund
+        fields = '__all__'
+
+
+class OtherCapitalGainsDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OtherCapitalGainsDocument
+        fields = '__all__'
+
+
+class OtherCapitalGainsSerializer(serializers.ModelSerializer):
+    documents = OtherCapitalGainsDocumentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = OtherCapitalGains
+        fields = '__all__'
+
+
+class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusinessProfessionalIncomeDocument
+        fields = '__all__'
+
+
+class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
+    documents = BusinessProfessionalIncomeDocumentSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = BusinessProfessionalIncome
+        fields = '__all__'
+
+
+class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusinessProfessionalIncomeDocument
+        fields = ['id', 'document_type', 'file', 'uploaded_at']

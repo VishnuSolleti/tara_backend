@@ -91,7 +91,8 @@ class ApplicantDetails(models.Model):
 
 
 class SignatoryDetails(models.Model):
-    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE, related_name='promoter_or_directors_details')
+    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+                                        related_name='promoter_or_directors_details')
     name = models.CharField(max_length=255, blank=False, null=False)
     aadhar_image = models.FileField(upload_to=promoter_or_directors_aadhaar, blank=True, null=True)
     pan_image = models.FileField(upload_to=promoter_or_directors_pan, blank=True, null=True)
@@ -107,7 +108,8 @@ class SignatoryDetails(models.Model):
                                  related_name='assigned_signatory_detail')
     reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='reviewed_signatory_detail')
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='signatory_task', null=False, blank=False)
+    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='signatory_task',
+                                     null=False, blank=False)
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
