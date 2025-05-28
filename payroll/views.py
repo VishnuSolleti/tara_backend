@@ -1873,8 +1873,11 @@ def employee_list(request):
     elif request.method == 'POST':
         serializer = EmployeeManagementSerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response({"error":str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -2032,7 +2035,7 @@ def employee_personal_list(request):
                 try:
                     serializer.save()
                     return Response(serializer.data, status=status.HTTP_201_CREATED)
-                except Exception as e:
+                except ValidationError as e:
                     return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:

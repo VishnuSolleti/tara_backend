@@ -494,6 +494,7 @@ class EmployeeSalaryDetails(models.Model):
     total_ctc = models.JSONField(default=dict, blank=True)
     deductions = models.JSONField(default=list, blank=True)
     net_salary = models.JSONField(default=dict, blank=True)
+    tax_regime_opted = models.CharField(max_length=225, blank=True, null=True, default='new')
 
     valid_from = models.DateField(auto_now_add=True)  # Salary start date
     valid_to = models.DateField(null=True, blank=True)  # Salary end date (null = current salary)
