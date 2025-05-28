@@ -236,6 +236,10 @@ TASK_MODEL_SERIALIZER_MAP = {
     "Family Pension Income": (FamilyPensionIncome, FamilyPensionIncomeSerializer, True),
     "Winning Income": (WinningIncome, WinningIncomeSerializer, True),
     "Agriculture Income": (AgricultureIncome, AgricultureIncomeSerializer, True),
+    "Capital Gains Applicable Details": (CapitalGainsApplicableDetails, CapitalGainsApplicableDetailsSerializer, False),
+    "Capital Gains Equity Mutual Fund": (CapitalGainsEquityMutualFund, CapitalGainsEquityMutualFundSerializer, False),
+    "Other Capital Gains": (OtherCapitalGains, OtherCapitalGainsSerializer, True),
+    "Business Income": (BusinessProfessionalIncome, BusinessProfessionalIncomeSerializer, True)
 }
 
 

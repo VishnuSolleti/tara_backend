@@ -131,7 +131,7 @@ urlpatterns = [
 
     # InterestIncome endpoints
     path('interest-income/upsert/', interest_income_views.upsert_interest_income, name='upsert_interest_income'),
-    path('interest-income/get/', interest_income_views.get_interest_income, name='get_interest_income'),
+    path('interest-income/view/', interest_income_views.get_interest_income, name='get_interest_income'),
 
     # InterestIncomeDocument endpoints
     path('interest-income-doc/add/', interest_income_views.add_interest_income_document,
@@ -146,7 +146,7 @@ urlpatterns = [
     # GiftIncome APIs
     path('gift-income/upsert/', gift_income_views.upsert_gift_income_details,
          name='upsert_gift_income'),  # POST create or update
-    path('gift-income/get/', gift_income_views.get_gift_income_details,
+    path('gift-income/view/', gift_income_views.get_gift_income_details,
          name='get_gift_income'),  # GET by service_request
 
     # GiftIncomeDocument APIs
@@ -160,7 +160,7 @@ urlpatterns = [
          name='get_gift_income_document'),  # GET by service_request
 
     # DividendIncome APIs
-    path('dividend-income/', dividend_views.upsert_dividend_income,
+    path('dividend-income/upsert/', dividend_views.upsert_dividend_income,
          name='upsert_dividend_income'),  # POST create or update
     path('dividend-income/view/', dividend_views.get_dividend_income,
          name='get_dividend_income'),   # GET by service_request
@@ -175,9 +175,9 @@ urlpatterns = [
     path('dividend-income-document/view/', dividend_views.list_dividend_income_documents,
          name='list_dividend_income_document'),  # GET by service_request
 
-    path('family-pension-income/', family_pension_views.upsert_family_pension_income,
+    path('family-pension-income/upsert/', family_pension_views.upsert_family_pension_income,
          name='upsert_family_pension_income'),  # POST (create or update)
-    path('family-pension-income/get/', family_pension_views.get_family_pension_income,
+    path('family-pension-income/view/', family_pension_views.get_family_pension_income,
          name='get_family_pension_income'),     # GET (retrieve)
 
     # Family Pension Income Documents
@@ -194,7 +194,7 @@ urlpatterns = [
 
     # Foreign Income APIs
     path('foreign-income/upsert/', foreign_income_views.upsert_foreign_income, name='upsert_foreign_income'),
-    path('foreign-income/', foreign_income_views.get_foreign_income, name='get_foreign_income'),
+    path('foreign-income/view/', foreign_income_views.get_foreign_income, name='get_foreign_income'),
 
     # ForeignIncomeInfo APIs
     path('foreign-income-info/add/', foreign_income_views.add_foreign_income_info, name='add_foreign_income_info'),
@@ -213,7 +213,7 @@ urlpatterns = [
 
     # WinningIncome
     path('winning-income/upsert/', winning_income_views.upsert_winning_income, name='upsert_winning_income'),
-    path('winning-income/', winning_income_views.get_winning_income, name='get_winning_income'),
+    path('winning-income/view/', winning_income_views.get_winning_income, name='get_winning_income'),
 
     # WinningIncomeDocuments
     path('winning-income-docs/add/', winning_income_views.add_winning_income_document,
