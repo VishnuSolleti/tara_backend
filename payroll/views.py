@@ -1,3 +1,5 @@
+from typing import Union
+
 from rest_framework import status
 from rest_framework.response import Response
 from django.db.models import Count
@@ -1488,7 +1490,10 @@ def calculate_payroll(request):
 
         # Adjust Fixed Allowance so that Gross Salary = Annual CTC - Benefits
         total_earnings = safe_sum(item["annually"] for item in earnings if item["component_name"] != "Fixed Allowance")
-        fixed_allowance = annual_ctc - total_benefits - total_earnings
+        print(total_earnings)
+        print(total_benefits)
+        print(annual_ctc)
+        fixed_allowance = (annual_ctc - total_benefits - total_earnings)
 
         for earning in earnings:
             if earning["component_name"] == "Fixed Allowance":
@@ -3347,8 +3352,8 @@ def employee_monthly_salary_template(request):
         # Allowance Keys to Extract
         allowance_keys = [
             "Basic", "HRA", "Conveyance Allowance", "Travelling Allowance",
-            "Medical Allowance", "Internet Allowance", "Special Allowance", "Miscellaneous Allowance",
-            "Other Allowances"
+            "Bonus", "Commission", "Children Education Allowance", "Overtime Allowance",
+            "Fixed Allowance", "Transport Allowance"
         ]
 
         # Initialize Allowance Dictionary
@@ -3370,6 +3375,12 @@ def employee_monthly_salary_template(request):
 
         # Merge the earned allowances into allowance_values
         allowance_values.update(earned_allowances)
+
+        for k, v in allowance_values.items():
+            if v > 0:
+                earned = (v * total_working_days / attendance.total_days_of_month) if attendance.total_days_of_month \
+                    else 0
+                allowance_values[k] = round(earned, 2)
 
         # Extract Deductions from JSON
         deductions = salary_record.deductions if isinstance(salary_record.deductions, list) \
@@ -3434,6 +3445,7 @@ def employee_monthly_salary_template(request):
         total_in_words = total_in_words.replace("<br/>", ' ')
         total_in_words = total_in_words.title() + ' ' + 'Rupees Only'
 
+
         # Construct the Context Dictionary
         context = {
             "company_name": getattr(salary_record.employee.payroll.business, "nameOfBusiness", ""),
@@ -3457,11 +3469,12 @@ def employee_monthly_salary_template(request):
             "hra_allowance": format_with_commas(allowance_values.get("hra", 0)),
             "conveyance_allowance": format_with_commas(allowance_values.get("conveyance_allowance", 0)),
             "travelling_allowance": format_with_commas(allowance_values.get("travelling_allowance", 0)),
-            "medical_allowance": format_with_commas(allowance_values.get("medical_allowance", 0)),
-            "internet_allowance": format_with_commas(allowance_values.get("internet_allowance", 0)),
-            "special_allowance": format_with_commas(allowance_values.get("special_allowance", 0)),
-            "miscellaneous_allowance": format_with_commas(allowance_values.get("miscellaneous_allowance", 0)),
-            "other_allowances": format_with_commas(allowance_values.get("other_allowances",0)),
+            "bonus": format_with_commas(allowance_values.get("bonus", 0)),
+            "commission": format_with_commas(allowance_values.get("commission", 0)),
+            "children_education_allowance": format_with_commas(allowance_values.get("children_education_allowance", 0)),
+            "overtime_allowance": format_with_commas(allowance_values.get("overtime_allowance", 0)),
+            "transport_allowance": format_with_commas(allowance_values.get("transport_allowance", 0)),
+            "fixed_allowance": format_with_commas(allowance_values.get("fixed_allowance", 0)),
 
             # Gross and Net Salary
             "gross_earnings": format_with_commas(earned_salary),
