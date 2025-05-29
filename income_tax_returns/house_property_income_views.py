@@ -11,6 +11,7 @@ import json
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def upsert_house_property_details(request):
     service_request_id = request.data.get('service_request')
+    id = request.data.get('id', None)
     if not service_request_id:
         return Response({"error": "Missing service_request"}, status=status.HTTP_400_BAD_REQUEST)
     data = request.data.copy()
@@ -23,7 +24,7 @@ def upsert_house_property_details(request):
     data["property_address"] = json.dumps(property_address)
     print(type(data['property_address']))  # Will show <class 'str'> if wrong
     try:
-        instance = HousePropertyIncomeDetails.objects.get(service_request_id=service_request_id)
+        instance = HousePropertyIncomeDetails.objects.get(pk=id, service_request_id=service_request_id)
         serializer = HousePropertyIncomeDetailsSerializer(instance, data=data, partial=True)
     except HousePropertyIncomeDetails.DoesNotExist:
         serializer = HousePropertyIncomeDetailsSerializer(data=data)
