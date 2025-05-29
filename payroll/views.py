@@ -3000,7 +3000,7 @@ def calculate_employee_monthly_salary(request):
 
     return Response(salaries, status=status.HTTP_200_OK)
 
-
+import traceback
 @api_view(['GET'])
 def detail_employee_monthly_salary(request):
     
@@ -3188,9 +3188,9 @@ def detail_employee_monthly_salary(request):
                     if entry['employee_id'] not in current_year_tds_entries:
                         current_year_tds_entries[entry['employee_id']] = entry['tds_ytd'] or Decimal('0.00')
                 
-                previous_ytd = current_year_tds_entries.get(employee.id, Decimal('0.00'))
+                previous_ytd = float(current_year_tds_entries.get(employee.id, Decimal('0.00')))
                 
-                tds_ytd = Decimal(str(previous_ytd)) + Decimal(str(monthly_tds))
+                tds_ytd = float(Decimal(str(previous_ytd)) + Decimal(str(monthly_tds)))
                 
                 
                 # Create or update EmployeeSalaryHistory
@@ -3237,7 +3237,11 @@ def detail_employee_monthly_salary(request):
 
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as e:
-        return Response({'error': str(e)}, status=500)
+        tb = traceback.format_exc()
+        return Response({
+            'error': str(e),
+            'traceback': tb
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 from django.db.models import Sum, Q
 from django.db.models.functions import ExtractMonth, ExtractYear
