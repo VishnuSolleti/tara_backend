@@ -95,6 +95,7 @@ class ForeignEmployeeSalaryDetailsFilesSerializer(serializers.ModelSerializer):
 
 class NRIEmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
     foreigner_documents = serializers.SerializerMethodField()
+    employment_history = serializers.JSONField(required=False, allow_null=True)
 
     class Meta:
         model = NRIEmployeeSalaryDetails

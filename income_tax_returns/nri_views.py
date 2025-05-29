@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import NRIEmployeeSalaryDetails, ForeignEmployeeSalaryDetailsFiles
 from .serializers import NRIEmployeeSalaryDetailsSerializer, ForeignEmployeeSalaryDetailsFilesSerializer
+import json
 
 
 @api_view(['POST'])
@@ -13,11 +14,22 @@ def upsert_nri_salary_details(request):
     if not service_request_id:
         return Response({"error": "Missing service_request"}, status=status.HTTP_400_BAD_REQUEST)
 
+    data = request.data
+
+    # Handle employment_history JSON string
+    if 'employment_history' in data and isinstance(data['employment_history'], str):
+        try:
+            employment_history = json.loads(data['employment_history'])
+            data['employment_history'] = json.dumps(employment_history)
+        except json.JSONDecodeError:
+            return Response({"error": "Invalid JSON format for employment_history"}, status=status.HTTP_400_BAD_REQUEST)
+
+
     try:
         nri_salary = NRIEmployeeSalaryDetails.objects.get(service_request_id=service_request_id)
-        serializer = NRIEmployeeSalaryDetailsSerializer(nri_salary, data=request.data, partial=True)
+        serializer = NRIEmployeeSalaryDetailsSerializer(nri_salary, data=data, partial=True)
     except NRIEmployeeSalaryDetails.DoesNotExist:
-        serializer = NRIEmployeeSalaryDetailsSerializer(data=request.data)
+        serializer = NRIEmployeeSalaryDetailsSerializer(data=data)
 
     if serializer.is_valid():
         nri_salary = serializer.save()
@@ -38,6 +50,7 @@ def upsert_nri_salary_details(request):
                 )
 
         return Response({'message': 'NRI Salary Details saved successfully'}, status=status.HTTP_200_OK)
+
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
