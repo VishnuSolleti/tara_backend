@@ -439,6 +439,7 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def create(self, validated_data):
+        statutory_components = validated_data.get('statutory_components', {})
         # Check for duplicate PAN
         if EmployeeManagement.objects.filter(work_email=validated_data.get('work_email'),
                                              payroll_id=validated_data.get('payroll')).exists():
@@ -452,6 +453,17 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
                                              payroll_id=validated_data.get('payroll')).exists():
             raise ValidationError("A record with this Employee ID already exists.")
 
+        uan = statutory_components.get('employee_provident_fund', {}).get('uan')
+        if uan:
+            # This fetches all records and manually checks the nested UAN field
+            for emp in EmployeeManagement.objects.filter(payroll_id=validated_data.get('payroll')):
+                existing_uan = (
+                    emp.statutory_components.get('employee_provident_fund', {}).get('uan')
+                    if emp.statutory_components else None
+                )
+                if existing_uan == uan:
+                    raise ValidationError("A record with this UAN already exists.")
+
         return super().create(validated_data)
 
 
@@ -459,6 +471,11 @@ class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeSalaryDetails
         fields = '__all__'
+
+    def update(self, instance, validated_data):
+        # This ensures updated_on is only modified during PUT/PATCH
+        instance.updated_on = datetime.now()
+        return super().update(instance, validated_data)
 
 
 class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
@@ -529,7 +546,7 @@ class EmployeeBankDetailsSerializer(serializers.ModelSerializer):
 
 
 class EmployeeDataSerializer(serializers.ModelSerializer):
-    employee_salary = EmployeeSalaryDetailsSerializer(many=True, read_only=True)
+    employee_salary = EmployeeSalaryDetailsSerializer(read_only=True)
     employee_personal_details = EmployeePersonalDetailsSerializer(read_only=True)
     employee_bank_details = EmployeeBankDetailsSerializer(read_only=True)
 

@@ -482,7 +482,7 @@ class EmployeeLeaveBalance(models.Model):
 
 
 class EmployeeSalaryDetails(models.Model):
-    employee = models.ForeignKey(
+    employee = models.OneToOneField(
         'EmployeeManagement', on_delete=models.CASCADE, related_name='employee_salary'
     )  # Allows multiple salary records per employee
 
@@ -495,10 +495,10 @@ class EmployeeSalaryDetails(models.Model):
     deductions = models.JSONField(default=list, blank=True)
     net_salary = models.JSONField(default=dict, blank=True)
     tax_regime_opted = models.CharField(max_length=225, blank=True, null=True, default='new')
-
     valid_from = models.DateField(auto_now_add=True)  # Salary start date
     valid_to = models.DateField(null=True, blank=True)  # Salary end date (null = current salary)
     created_on = models.DateField(auto_now_add=True)
+    updated_on = models.DateTimeField(null=True, blank=True)
     created_month = models.IntegerField(editable=False)
     created_year = models.IntegerField(editable=False)
 
