@@ -120,6 +120,7 @@ class NRIEmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
 
 
 class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
+    property_address = serializers.JSONField(required=False, allow_null=True)
     class Meta:
         model = HousePropertyIncomeDetails
         fields = '__all__'
