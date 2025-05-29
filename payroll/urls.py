@@ -171,7 +171,11 @@ urlpatterns = [
 
     path('bonus-incentives/by-payroll-month', views.bonus_by_payroll_month_year, name='bonus-by-payroll'),
 
-    path('employee-salaries', views.active_employee_salaries, name='active-employee-salaries')
+    path('employee-salaries', views.active_employee_salaries, name='active-employee-salaries'),
+    
+    path("employee-tds",views.employee_tds_list,name="employee-tds-list"),
+    
+    path("employee-tds/<int:pk>",views.employee_tds_detail,name="employee-tds-detail"),
 
 
 ]

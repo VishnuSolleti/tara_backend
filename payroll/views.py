@@ -1909,6 +1909,59 @@ def employee_detail(request, pk):
 
 
 @api_view(['GET'])
+def employee_tds_list(request):
+    
+    def get_required_params():
+        data = request.query_params
+        try:
+            payroll_id = int(data.get('payroll_id'))
+            month = int(data.get('month'))
+            financial_year = data.get('financial_year')
+
+            if not all([payroll_id, month, financial_year]):
+                raise ValueError("Missing required parameters.")
+            return payroll_id, month, financial_year
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"Invalid parameter: {str(e)}")
+
+    try:
+        payroll_id, month, financial_year = get_required_params()
+
+        tds_records = EmployeeSalaryHistory.objects.filter(payroll_id=payroll_id,month=month,financial_year=financial_year)
+
+        serializer = EmployeeSalaryHistorySerializer(tds_records, many=True)
+        return Response(serializer.data, status=200)
+
+    except ValueError as e:
+        return Response({"error": str(e)}, status=400)
+    except Exception as e:
+        return Response({"error": f"An unexpected error occurred: {str(e)}"}, status=500)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def employee_tds_detail(request, pk):
+    try:
+        tds_entry = EmployeeSalaryHistory.objects.get(pk=pk)
+    except EmployeeSalaryHistory.DoesNotExist:
+        return Response({"error": "TDS record not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = EmployeeSalaryHistorySerializer(tds_entry)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    elif request.method == 'PUT':
+        serializer = EmployeeSalaryHistorySerializer(tds_entry, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        tds_entry.delete()
+        return Response({"message": "TDS record deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
 def new_employees_list(request):
     try:
         payroll_id = request.query_params.get('payroll_id')
@@ -2915,6 +2968,7 @@ def calculate_employee_monthly_salary(request):
 
 @api_view(['GET'])
 def detail_employee_monthly_salary(request):
+    
     try:
         today = date.today()
         current_day = today.day
@@ -2943,12 +2997,7 @@ def detail_employee_monthly_salary(request):
 
         for salary_record in salary_records:
             employee = salary_record.employee
-            salary_history = EmployeeSalaryHistory.objects.filter(
-                employee=employee,
-                payroll=payroll_id,
-                month=month,
-                financial_year=financial_year
-            ).first()
+            salary_history = EmployeeSalaryHistory.objects.filter( employee=employee, payroll=payroll_id, month=month, financial_year=financial_year).first()
             if not salary_history:
                 # Exclude exited employees
                 exit_obj = EmployeeExit.objects.filter(employee=employee).last()
@@ -3082,8 +3131,34 @@ def detail_employee_monthly_salary(request):
                 prorated_bonus = prorate(get_component_amount(salary_record.earnings, "bonus"))
                 prorated_special_allowance = prorate(get_component_amount(salary_record.earnings,
                                                                           "special allowance"))
+                
+                FINANCIAL_MONTH_MAP = {1: 10, 2: 11, 3: 12, 4: 1, 5: 2, 6: 3,7: 4, 8: 5, 9: 6, 10: 7, 11: 8, 12: 9}
+                
+                joined_month = FINANCIAL_MONTH_MAP.get(employee.doj.month, 1)
+                
+                annual_gross=int(round(earned_salary, 2))*12
+                
+                monthly_tds,yearly_tds=calculate_tds(regime_type=salary_record.tax_regime_opted,annual_salary=annual_gross,join_month=joined_month)
+                
+                # Looping 
+                salary_entries = EmployeeSalaryHistory.objects.filter(payroll_id=payroll_id,month=month,financial_year=financial_year).select_related('employee')
+                
+                employee_ids = [entry.employee_id for entry in salary_entries]
+                
+                current_year_tds_entries = {}
+                
+                previous_tds_entries = EmployeeSalaryHistory.objects.filter(employee_id__in=employee_ids,financial_year=financial_year,month__lt=month).values('employee_id','tds_ytd').order_by('employee_id', '-month')
+                
+                for entry in previous_tds_entries:
+                    if entry['employee_id'] not in current_year_tds_entries:
+                        current_year_tds_entries[entry['employee_id']] = entry['tds_ytd'] or Decimal('0.00')
+                
+                previous_ytd = current_year_tds_entries.get(employee.id, Decimal('0.00'))
+                
+                tds_ytd = Decimal(str(previous_ytd)) + Decimal(str(monthly_tds))
+                
+                
                 # Create or update EmployeeSalaryHistory
-
                 EmployeeSalaryHistory.objects.create(
                     employee=employee,
                     payroll=employee.payroll,
@@ -3106,7 +3181,9 @@ def detail_employee_monthly_salary(request):
                     epf=pf,
                     esi=esi,
                     pt=pt_amount,
-                    tds=0,
+                    tds=monthly_tds,
+                    tds_ytd=tds_ytd,
+                    annual_tds=yearly_tds,
                     loan_emi=round(emi_deduction, 2),
                     other_deductions=round(other_deductions, 2),
                     total_deductions=round(total_deductions, 2),
@@ -3114,6 +3191,7 @@ def detail_employee_monthly_salary(request):
                     is_active=True,
                     notes="Salary processed from API"
                 )
+        
         salary_records = EmployeeSalaryHistory.objects.filter(
             payroll=payroll_id,
             month=month,

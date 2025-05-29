@@ -826,7 +826,12 @@ class EmployeeSalaryHistory(models.Model):
     epf = models.FloatField(null=False)  # EPF Contribution
     esi = models.FloatField(null=False)  # ESI Contribution
     pt = models.FloatField(null=False)  # Professional Tax
+    
     tds = models.FloatField(null=False)  # Tax Deducted at Source
+    tds_ytd = models.FloatField(null=False)  # cummulative tds
+    
+    annual_tds=models.FloatField(null=False) #Yearly Tds
+    
     loan_emi = models.FloatField(null=False)  # Loan EMI
     other_deductions = models.FloatField(null=False)  # Other Deductions
     total_deductions = models.FloatField(null=False)  # Total Deductions
