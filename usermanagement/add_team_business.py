@@ -516,6 +516,7 @@ def accept_team_invitation(request):
             user.status = 'active'
             user.registration_completed = True
             user.is_active = 'yes'
+            user.active_context = user_context_role.context.id
             user.save()
             logger.info("New user status updated successfully")
 
