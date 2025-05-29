@@ -1,12 +1,12 @@
 from typing import Union
-
+import logging
 from rest_framework import status
 from rest_framework.response import Response
 from django.db.models import Count
 from rest_framework.views import APIView
 from .models import *
 from .serializers import *
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 import boto3
 from Tara.settings.default import *
 from botocore.exceptions import ClientError
@@ -30,6 +30,7 @@ from django.http import JsonResponse
 from django.db.models import OuterRef, Subquery, Q
 from datetime import datetime
 import io
+from rest_framework.permissions import AllowAny
 
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
@@ -2535,72 +2536,106 @@ def calculate_holidays_and_week_offs(payroll_id, year, month):
     }
 
 
+logger = logging.getLogger(__name__)
+
+
 @api_view(['POST'])
+@permission_classes([AllowAny])
 def generate_next_month_attendance(request):
     """
-    Automatically creates attendance records for all employees under a given payroll_id for the next month,
-    excluding employees who have left the organization.
+    Auto-generates attendance for all active employees in all PayrollOrgs for the next month.
+    Skips exited employees and already existing attendance records.
+    Collects and returns all errors without failing the whole run.
     """
-    payroll_id = request.query_params.get("payroll_id")
-
-    if not payroll_id:
-        return Response({"error": "Payroll ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
     today = date.today()
     next_month = today.month + 1 if today.month < 12 else 1
     next_year = today.year if today.month < 12 else today.year + 1
     first_day_next_month = date(next_year, next_month, 1)
 
-    # Exclude employees who have exited before the next month's start date
-    active_employees = EmployeeManagement.objects.filter(
-        payroll=payroll_id
-    ).exclude(
-        Q(employee_exit_details__doe__lt=first_day_next_month)  # Employees who exited before next month
-    )
-
-    if not active_employees.exists():
-        return Response({"error": "No active employees found for the given payroll ID."},
-                        status=status.HTTP_404_NOT_FOUND)
-
-    # Fetch holiday and week-off details
-    holiday_data = calculate_holidays_and_week_offs(payroll_id, next_year, next_month)
-
-    if "error" in holiday_data:
-        return Response({"error": holiday_data["error"]}, status=status.HTTP_400_BAD_REQUEST)
-
-    total_days = holiday_data["total_days"]
-    holidays = holiday_data["holiday_count"]
-    week_offs = holiday_data["week_off_count"]
-
     created_records = 0
-    for employee in active_employees:
-        # Determine financial year
-        financial_year = f"{next_year}-{next_year + 1}" if next_month >= 4 else f"{next_year - 1}-{next_year}"
+    created_employee_ids = []
+    error_cases = []
 
-        # Calculate present and balance days
-        present_days = 0
-        balance_days = 0
+    payroll_orgs = PayrollOrg.objects.all()
 
-        EmployeeAttendance.objects.create(
-            employee=employee,
-            financial_year=financial_year,
-            month=next_month,
-            total_days_of_month=total_days,
-            holidays=holidays,
-            week_offs=week_offs,
-            present_days=present_days,
-            balance_days=balance_days,
-            casual_leaves=0,
-            sick_leaves=0,
-            earned_leaves=0,
-            loss_of_pay =0
-        )
+    for payroll_org in payroll_orgs:
+        try:
+            employees = EmployeeManagement.objects.filter(payroll=payroll_org)
 
-        created_records += 1
+            # Calculate holidays and week-offs
+            holiday_data = calculate_holidays_and_week_offs(payroll_org.id, next_year, next_month)
+            if "error" in holiday_data:
+                error_cases.append({
+                    "org_id": payroll_org.id,
+                    "error": holiday_data["error"]
+                })
+                continue
+
+            total_days = holiday_data["total_days"]
+            holidays = holiday_data["holiday_count"]
+            week_offs = holiday_data["week_off_count"]
+
+            financial_year = (
+                f"{next_year}-{next_year + 1}" if next_month >= 4 else f"{next_year - 1}-{next_year}"
+            )
+
+            for employee in employees:
+                try:
+                    if hasattr(employee, 'employee_exit_details'):
+                        doe = getattr(employee.employee_exit_details, 'doe', None)
+                        if doe and doe < first_day_next_month:
+                            logger.info(f"[SKIP] Employee {employee.id} exited on {doe}")
+                            continue
+
+                    # Check individually if attendance already exists
+                    if EmployeeAttendance.objects.filter(
+                        employee=employee,
+                        financial_year=financial_year,
+                        month=next_month
+                    ).exists():
+                        logger.info(f"[SKIP] Attendance already exists for Employee {employee.id}")
+                        continue
+
+                    EmployeeAttendance.objects.create(
+                        employee=employee,
+                        financial_year=financial_year,
+                        month=next_month,
+                        total_days_of_month=total_days,
+                        holidays=holidays,
+                        week_offs=week_offs,
+                        present_days=0,
+                        balance_days=0,
+                        casual_leaves=0,
+                        sick_leaves=0,
+                        earned_leaves=0,
+                        loss_of_pay=0
+                    )
+
+                    created_records += 1
+                    created_employee_ids.append(employee.id)
+
+                except Exception as e:
+                    error_cases.append({
+                        "employee_id": employee.id,
+                        "employee_name": getattr(employee, "full_name", "Unknown"),
+                        "org_id": payroll_org.id,
+                        "error": str(e)
+                    })
+                    logger.exception(f"[ERROR] Attendance failed for Employee ID {employee.id}")
+
+        except Exception as e:
+            error_cases.append({
+                "org_id": payroll_org.id,
+                "error": str(e)
+            })
+            logger.exception(f"[ERROR] PayrollOrg ID {payroll_org.id} failed")
 
     return Response({
-        "message": f"Attendance records for {date(next_year, next_month, 1).strftime('%B %Y')} created successfully.",
-        "created_records": created_records
+        "message": f"Attendance generation completed for {date(next_year, next_month, 1).strftime('%B %Y')}.",
+        "created_records": created_records,
+        "created_employee_ids": created_employee_ids,
+        "errors": error_cases
     }, status=status.HTTP_201_CREATED)
 
 
@@ -3455,14 +3490,21 @@ def employee_monthly_salary_template(request):
                        f"{getattr(salary_record.employee.payroll, 'filling_address_pincode', '')}",
             "month": month,
             "year": year_,
-            "employee_name": f"{getattr(salary_record.employee, 'first_name', '')} {getattr(salary_record.employee, 'last_name', '')}",
+            "employee_name": f"{getattr(salary_record.employee, 'first_name', '')} "
+                             f"{getattr(salary_record.employee, 'last_name', '')}",
             "designation": getattr(salary_record.employee.designation, "designation_name", ""),
             "employee_id": getattr(salary_record.employee, "associate_id", ""),
             "doj": getattr(salary_record.employee, "doj", ""),
             "pay_period": f"{month_name} {year_}",
             "pay_date": "",
-            "bank_account_number": getattr(salary_record.employee.employee_bank_details,"account_number",""),
-            "uan_number": salary_record.employee.statutory_components.get('employee_provident_fund', {}).get('uan', '') if hasattr(salary_record.employee, 'statutory_components') and salary_record.employee.statutory_components else "",
+            "bank_account_number":salary_record.employee.employee_bank_details.account_number
+            if hasattr(salary_record.employee, 'employee_bank_details')
+               and salary_record.employee.employee_bank_details.account_number
+            else
+            "",
+            "uan_number": salary_record.employee.statutory_components.get('employee_provident_fund', {}).get('uan', '')
+            if hasattr(salary_record.employee, 'statutory_components')
+               and salary_record.employee.statutory_components else "",
 
             # Earnings and Allowances
             "basic": format_with_commas(allowance_values.get("basic", 0)),
