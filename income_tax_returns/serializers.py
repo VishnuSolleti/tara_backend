@@ -63,7 +63,7 @@ class SalaryIncomeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_documents(self, obj):
-        doc_types = ['Payslip', 'Form 16', 'Bank Statements']  # Adjust as per your types
+        doc_types = ['PAYSLIP', 'FORM_16', 'BANK_STATEMENT']  # Adjust as per your types
         grouped = {}
         for doc_type in doc_types:
             files = obj.documents.filter(document_type=doc_type)
