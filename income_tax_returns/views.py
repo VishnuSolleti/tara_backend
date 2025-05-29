@@ -380,6 +380,7 @@ def get_service_request_section_data(request):
             "house_property_income": {"House Property Income"},
             "capital_gains": {"Capital Gains Applicable Details", "Capital Gains Equity Mutual Fund", "Other Capital Gains"},
             "agriculture_income": {"Agriculture Income"},
+            "business_income": {"Business Income"},
             "other_income": set(allowed_categories) - {
                 "Salary Income", "NRI Employee Salary", "Other Income",
                 "House Property Income",
@@ -395,7 +396,8 @@ def get_service_request_section_data(request):
             "house_property_income": [],
             "capital_gains": [],
             "agriculture_income": [],
-            "other_income": []
+            "other_income": [],
+            "business_income": []
         }
 
         for task in tasks:
