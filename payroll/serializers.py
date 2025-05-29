@@ -546,7 +546,7 @@ class EmployeeBankDetailsSerializer(serializers.ModelSerializer):
 
 
 class EmployeeDataSerializer(serializers.ModelSerializer):
-    employee_salary = EmployeeSalaryDetailsSerializer(many=True, read_only=True)
+    employee_salary = EmployeeSalaryDetailsSerializer(read_only=True)
     employee_personal_details = EmployeePersonalDetailsSerializer(read_only=True)
     employee_bank_details = EmployeeBankDetailsSerializer(read_only=True)
 
