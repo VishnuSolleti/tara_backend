@@ -3191,8 +3191,7 @@ def detail_employee_monthly_salary(request):
                 previous_ytd = float(current_year_tds_entries.get(employee.id, Decimal('0.00')))
                 
                 tds_ytd = float(Decimal(str(previous_ytd)) + Decimal(str(monthly_tds)))
-                
-                
+
                 # Create or update EmployeeSalaryHistory
                 EmployeeSalaryHistory.objects.create(
                     employee=employee,
