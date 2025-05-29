@@ -793,6 +793,8 @@ class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
     designation = serializers.SerializerMethodField()
+    regime = serializers.SerializerMethodField()
+    pan = serializers.SerializerMethodField()
 
     class Meta:
         model = EmployeeSalaryHistory
@@ -809,3 +811,17 @@ class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
     def get_designation(self, obj):
         """Fetch employee's designation"""
         return obj.employee.designation.designation_name
+
+    def get_regime(self, obj):
+        """Fetch tax regime opted from salary details"""
+        try:
+            return obj.employee.employee_salary.tax_regime_opted
+        except AttributeError:
+            return None
+
+    def get_pan(self, obj):
+        """Fetch PAN from employee's personal details"""
+        try:
+            return obj.employee.employee_personal_details.pan
+        except AttributeError:
+            return None
