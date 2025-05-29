@@ -3111,7 +3111,10 @@ def detail_employee_monthly_salary(request):
                             continue  # Skip this slab if parsing fails
 
                 # Benefits
-                benefits_total = sum(b.get("monthly", 0) for b in salary_record.benefits or [])
+                benefits_total = sum(
+                    b["monthly"] if isinstance(b.get("monthly"), (int, float)) else 0
+                    for b in (salary_record.benefits or [])
+                )
 
                 # Taxes
                 taxes = sum(d.get("monthly", 0) for d in salary_record.deductions if "Tax" in d.get("component_name", ""))
@@ -3146,6 +3149,8 @@ def detail_employee_monthly_salary(request):
                     for deduction in salary_record.deductions:
                         name = deduction.get("component_name", "").lower().replace(" ", "_")
                         value = deduction.get("monthly", 0)
+                        value = value if isinstance(value, (int, float)) else 0  # Ensure numeric
+
                         if "tax" not in name:
                             employee_deductions += value
                         if all(ex not in name for ex in exclude_deductions):
