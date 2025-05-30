@@ -789,7 +789,7 @@ class EmployeeAttendanceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
+class EmployeeTDSSerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     regime = serializers.SerializerMethodField()
     pan = serializers.SerializerMethodField()
@@ -816,3 +816,25 @@ class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
             return obj.employee.employee_personal_details.pan
         except AttributeError:
             return None
+
+
+class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmployeeSalaryHistory
+        fields = '__all__'
+
+    def get_employee_name(self, obj):
+        """Returns the formatted employee name"""
+        return f"{obj.employee.first_name} {obj.employee.middle_name} {obj.employee.last_name}".strip()
+
+    def get_department(self, obj):
+        """Fetch employee's department"""
+        return obj.employee.department.dept_name
+
+    def get_designation(self, obj):
+        """Fetch employee's designation"""
+        return obj.employee.designation.designation_name

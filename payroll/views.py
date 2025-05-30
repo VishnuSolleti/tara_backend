@@ -1930,7 +1930,7 @@ def employee_tds_list(request):
 
         tds_records = EmployeeSalaryHistory.objects.filter(payroll_id=payroll_id,month=month,financial_year=financial_year)
 
-        serializer = EmployeeSalaryHistorySerializer(tds_records, many=True)
+        serializer = EmployeeTDSSerializer(tds_records, many=True)
         return Response(serializer.data, status=200)
 
     except ValueError as e:
@@ -1947,7 +1947,7 @@ def employee_tds_detail(request, pk):
         return Response({"error": "TDS record not found."}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = EmployeeSalaryHistorySerializer(tds_entry)
+        serializer = EmployeeTDSSerializer(tds_entry)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
