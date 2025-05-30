@@ -102,11 +102,16 @@ class NRIEmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def get_foreigner_documents(self, obj):
-        doc_types = ['Salary Slip', 'TAX PAID CERTIFICATE BOARD', 'Bank Statement']  # Adjust these as per your document_type choices
+        doc_map = {
+            'salary_slip_files': 'SALARY_SLIP',
+            'tax_paid_certificate_board_files': 'TAX_PAID_CERTIFICATE_BOARD',
+            'bank_statement_files': 'BANK_STATEMENT',
+        }
+
         grouped = {}
-        for doc_type in doc_types:
+        for group_name, doc_type in doc_map.items():
             files = obj.foreigner_documents.filter(document_type=doc_type)
-            grouped[doc_type] = {
+            grouped[group_name] = {
                 "count": files.count(),
                 "files": [
                     {

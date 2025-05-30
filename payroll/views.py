@@ -2982,8 +2982,13 @@ def calculate_employee_monthly_salary(request):
 
         salaries.append({
             "employee_id": employee.id,
+            "associate_id": employee.associate_id,
             "employee_name": attendance.employee.first_name + ' ' + attendance.employee.last_name,
+            "department": employee.department.dept_name,
+            "designation": employee.designation.designation_name,
             "month": attendance.month,
+            "ctc": salary_record.annual_ctc,
+            "actual_gross": round(salary_record.annual_ctc / 12, 2) if salary_record.annual_ctc else 0,
             "financial_year": financial_year,
             "paid_days": total_working_days,
             "gross_salary": gross_salary,
