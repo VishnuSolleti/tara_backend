@@ -796,7 +796,8 @@ class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EmployeeSalaryHistory
-        fields = ["id", "employee_name", "regime", "pan", "tds", "tds_ytd", "annual_tds"]
+        fields = ["id", "employee", "employee_name", "regime", "pan", "tds", "tds_ytd", "annual_tds"]
+
 
     def get_employee_name(self, obj):
         """Returns the formatted employee name"""
