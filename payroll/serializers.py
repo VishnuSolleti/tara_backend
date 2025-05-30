@@ -564,7 +564,7 @@ class CurrentMonthEmployeeDataSerializer(serializers.ModelSerializer):
     paid_days = serializers.SerializerMethodField()
     gross_salary = serializers.SerializerMethodField()
     annual_ctc = serializers.SerializerMethodField()
-
+    associate_id = serializers.CharField(source='associate_id', read_only=True)
     designation_name = serializers.CharField(source='designation.designation_name', read_only=True)
     department_name = serializers.CharField(source='department.dept_name', read_only=True)
 
@@ -575,6 +575,7 @@ class CurrentMonthEmployeeDataSerializer(serializers.ModelSerializer):
             "employee_name",
             "department_name",
             "designation_name",
+            "associate_id",
             "doj",
             "total_days_in_month",
             "paid_days",
@@ -692,6 +693,7 @@ class BonusIncentiveSerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
     designation = serializers.SerializerMethodField()
+    associate_id = serializers.CharField(source='employee.associate_id', read_only=True)
 
     class Meta:
         model = BonusIncentive
@@ -738,6 +740,7 @@ class AdvanceLoanSummarySerializer(serializers.ModelSerializer):
     designation = serializers.SerializerMethodField()
     pending_balance = serializers.SerializerMethodField()
     current_month_deduction = serializers.SerializerMethodField()
+    associate_id = serializers.CharField(source='employee.associate_id', read_only=True)
 
     class Meta:
         model = AdvanceLoan
@@ -746,6 +749,7 @@ class AdvanceLoanSummarySerializer(serializers.ModelSerializer):
             "employee_name",
             "department",
             "designation",
+            "associate_id",
             "loan_type",
             "amount",
             "emi_amount",

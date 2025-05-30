@@ -2316,6 +2316,7 @@ def payroll_exit_settlement_details(request):
         response_data.append({
             "employee_name": f"{employee.first_name} {employee.middle_name} {employee.last_name}".strip(),
             "id": exit_detail.id,
+            "associate_id": employee.associate_id,
             "department": employee.department.dept_name,
             "designation": employee.designation.designation_name,
             "exit_date": exit_detail.doe,
@@ -2517,6 +2518,7 @@ def employee_attendance_filtered(request):
 
         data.append({
             "id": record.id,
+            "associate_id": record.employee.associate_id,
             "employee_name": record.employee.first_name + ' ' + record.employee.last_name,
             "loss_of_pay": record.loss_of_pay,
             "earned_leaves": record.earned_leaves,
