@@ -907,7 +907,7 @@ class WinningIncomeDocument(models.Model):
     winning_income = models.ForeignKey(WinningIncome, on_delete=models.CASCADE, related_name='winnings_income_docs')
     source = models.CharField(max_length=30, choices=[('Lottery', 'Lottery'),
                                                       ('Game Show', 'Game Show'),
-                                                      ('amount', 'amount')])
+                                                      ('Others', 'Others')])
     amount = models.IntegerField()
     file = models.FileField(upload_to=winning_income_file,
                             null=True, blank=True)
