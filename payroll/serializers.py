@@ -793,10 +793,11 @@ class EmployeeTDSSerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     regime = serializers.SerializerMethodField()
     pan = serializers.SerializerMethodField()
+    associate_id = serializers.CharField(source='employee.associate_id', read_only=True)
 
     class Meta:
         model = EmployeeSalaryHistory
-        fields = ["id", "employee", "employee_name", "regime", "pan", "tds", "tds_ytd", "annual_tds"]
+        fields = ["id", "employee", "associate_id", "employee_name", "regime", "pan", "tds", "tds_ytd", "annual_tds"]
 
 
     def get_employee_name(self, obj):
@@ -822,6 +823,7 @@ class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
     designation = serializers.SerializerMethodField()
+    associate_id = serializers.CharField(source='employee.associate_id', read_only=True)
 
     class Meta:
         model = EmployeeSalaryHistory
