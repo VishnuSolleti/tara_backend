@@ -564,7 +564,6 @@ class CurrentMonthEmployeeDataSerializer(serializers.ModelSerializer):
     paid_days = serializers.SerializerMethodField()
     gross_salary = serializers.SerializerMethodField()
     annual_ctc = serializers.SerializerMethodField()
-    associate_id = serializers.CharField(source='associate_id', read_only=True)
     designation_name = serializers.CharField(source='designation.designation_name', read_only=True)
     department_name = serializers.CharField(source='department.dept_name', read_only=True)
 
@@ -793,40 +792,12 @@ class EmployeeAttendanceSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class EmployeeTDSSerializer(serializers.ModelSerializer):
-    employee_name = serializers.SerializerMethodField()
-    regime = serializers.SerializerMethodField()
-    pan = serializers.SerializerMethodField()
-    associate_id = serializers.CharField(source='employee.associate_id', read_only=True)
-
-    class Meta:
-        model = EmployeeSalaryHistory
-        fields = ["id", "employee", "associate_id", "employee_name", "regime", "pan", "tds", "tds_ytd", "annual_tds"]
-
-
-    def get_employee_name(self, obj):
-        """Returns the formatted employee name"""
-        return f"{obj.employee.first_name} {obj.employee.middle_name} {obj.employee.last_name}".strip()
-
-    def get_regime(self, obj):
-        """Fetch tax regime opted from salary details"""
-        try:
-            return obj.employee.employee_salary.tax_regime_opted
-        except AttributeError:
-            return None
-
-    def get_pan(self, obj):
-        """Fetch PAN from employee's personal details"""
-        try:
-            return obj.employee.employee_personal_details.pan
-        except AttributeError:
-            return None
-
-
 class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
     designation = serializers.SerializerMethodField()
+    regime = serializers.SerializerMethodField()
+    pan = serializers.SerializerMethodField()
     associate_id = serializers.CharField(source='employee.associate_id', read_only=True)
 
     class Meta:
@@ -844,3 +815,17 @@ class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
     def get_designation(self, obj):
         """Fetch employee's designation"""
         return obj.employee.designation.designation_name
+
+    def get_regime(self, obj):
+        """Fetch tax regime opted from salary details"""
+        try:
+            return obj.employee.employee_salary.tax_regime_opted
+        except AttributeError:
+            return None
+
+    def get_pan(self, obj):
+        """Fetch PAN from employee's personal details"""
+        try:
+            return obj.employee.employee_personal_details.pan
+        except AttributeError:
+            return None

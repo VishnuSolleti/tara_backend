@@ -20,7 +20,7 @@ from django.core.exceptions import ObjectDoesNotExist
 import json
 from .helpers import *
 import calendar
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.db.models.functions import ExtractMonth
 from num2words import num2words
 from django.template.loader import render_to_string
@@ -31,7 +31,6 @@ from django.db.models import OuterRef, Subquery, Q
 from datetime import datetime
 import io
 from rest_framework.permissions import AllowAny
-
 
 def upload_to_s3(pdf_data, bucket_name, object_key):
     try:
@@ -1930,8 +1929,22 @@ def employee_tds_list(request):
 
         tds_records = EmployeeSalaryHistory.objects.filter(payroll_id=payroll_id,month=month,financial_year=financial_year)
 
-        serializer = EmployeeTDSSerializer(tds_records, many=True)
-        return Response(serializer.data, status=200)
+        serializer = EmployeeSalaryHistorySerializer(tds_records, many=True)
+        data = []
+        for record in serializer.data:
+            data.append({
+                "id": record["id"],
+                "employee": record["employee"],
+                "associate_id": record["associate_id"],
+                "employee_name": record["employee_name"],
+                "regime": record["regime"],
+                "pan": record["pan"],
+                "tds_ytd": round(record["tds_ytd"], 2) if record["tds_ytd"] is not None else 0,
+                "tds": round(record["tds"], 2) if record["tds"] is not None else 0,
+                "annual_tds": round(record["annual_tds"], 2) if record["annual_tds"] is not None else 0,
+            })
+
+        return Response(data, status=200)
 
     except ValueError as e:
         return Response({"error": str(e)}, status=400)
@@ -1947,8 +1960,20 @@ def employee_tds_detail(request, pk):
         return Response({"error": "TDS record not found."}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = EmployeeTDSSerializer(tds_entry)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = EmployeeSalaryHistorySerializer(tds_entry)
+        record = serializer.data
+        data = {
+            "id": record["id"],
+            "employee": record["employee"],
+            "associate_id": record["associate_id"],
+            "employee_name": record["employee_name"],
+            "regime": record["regime"],
+            "pan": record["pan"],
+            "tds_ytd": round(record["tds_ytd"], 2) if record["tds_ytd"] is not None else 0,
+            "tds": round(record["tds"], 2) if record["tds"] is not None else 0,
+            "annual_tds": round(record["annual_tds"], 2) if record["annual_tds"] is not None else 0,
+        }
+        return Response(data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         serializer = EmployeeSalaryHistorySerializer(tds_entry, data=request.data, partial=True)
@@ -2993,7 +3018,7 @@ def calculate_employee_monthly_salary(request):
             "actual_gross": round(salary_record.annual_ctc / 12, 2) if salary_record.annual_ctc else 0,
             "financial_year": financial_year,
             "paid_days": total_working_days,
-            "gross_salary": gross_salary,
+            "gross_salary": round(gross_salary, 2) if gross_salary else 0,
             "earned_salary": round(earned_salary, 2),
             "benefits_total": round(benefits_total, 2),
             "deductions": {
@@ -3227,9 +3252,9 @@ def detail_employee_monthly_salary(request):
                     epf=pf,
                     esi=esi,
                     pt=pt_amount,
-                    tds=monthly_tds,
-                    tds_ytd=tds_ytd,
-                    annual_tds=yearly_tds,
+                    tds=round(monthly_tds, 2),
+                    tds_ytd=round(tds_ytd, 2),
+                    annual_tds=round(yearly_tds, 2),
                     loan_emi=round(emi_deduction, 2),
                     other_deductions=round(other_deductions, 2),
                     total_deductions=round(total_deductions, 2),
@@ -3358,14 +3383,17 @@ def get_financial_year_summary(request):
             year = end_year
 
         # Get salary records
-        salary = EmployeeSalaryHistory.objects.filter(
+        salary_summary = EmployeeSalaryHistory.objects.filter(
             payroll_id=payroll_id,
             financial_year=financial_year,
             month=month
-        ).first()
+        ).aggregate(total_ctc=Sum('ctc'))
+        print()
+
+        total_ctc = salary_summary['total_ctc']
 
         # Calculate status
-        if not salary:
+        if not total_ctc:
             if year == current_date.year and month == current_month:
                 if current_day < 20:
                     status = "-"
@@ -3381,8 +3409,7 @@ def get_financial_year_summary(request):
                 action = ""
             ctc = ""
         else:
-            ctc = salary.ctc
-            # if record exists, infer it's processed
+            ctc = total_ctc
             status = "processed"
             action = "view"
 
