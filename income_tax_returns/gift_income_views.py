@@ -23,7 +23,7 @@ def upsert_gift_income_details(request):
 
     if serializer.is_valid():
         serializer.save()
-        return Response({"message": "Gift Income Details saved successfully"}, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

@@ -22,8 +22,8 @@ def upsert_dividend_income(request):
         serializer = DividendIncomeSerializer(data=request.data)
 
     if serializer.is_valid():
-        dividend_income = serializer.save()
-        return Response({'message': 'Dividend Income saved successfully'}, status=status.HTTP_200_OK)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
