@@ -847,12 +847,14 @@ class ForeignIncome(models.Model):
 class ForeignIncomeInfo(models.Model):
     foreign_income = models.ForeignKey(ForeignIncome, on_delete=models.CASCADE,
                                        related_name='foreign_income_docs')
-    type_of_income = models.CharField(max_length=30, choices=[('Divident', 'Divident'),
+    type_of_income = models.CharField(max_length=30, choices=[('Dividend', 'Dividend'),
                                                               ('Interest', 'Interest'),
                                                               ('Others', 'Others')])
     country = models.CharField(max_length=20)
     currency = models.CharField(max_length=3)
     amount = models.IntegerField()
+    tax_paid_abroad = models.CharField(max_length=20, choices=[('yes', 'Yes'), ('no', 'No')], default='No')
+    form67_file = models.FileField(upload_to=foreign_income_file, null=True, blank=True)
 
     def __str__(self):
         return f"{self.foreign_income.service_request.id}- {self.type_of_income}"
