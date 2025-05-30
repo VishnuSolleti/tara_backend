@@ -1933,6 +1933,7 @@ def employee_tds_list(request):
         data = []
         for record in serializer.data:
             data.append({
+                "id": record["id"],
                 "employee": record["employee"],
                 "associate_id": record["associate_id"],
                 "employee_name": record["employee_name"],
@@ -1959,8 +1960,20 @@ def employee_tds_detail(request, pk):
         return Response({"error": "TDS record not found."}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = EmployeeTDSSerializer(tds_entry)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = EmployeeSalaryHistorySerializer(tds_entry)
+        record = serializer.data
+        data = {
+            "id": record["id"],
+            "employee": record["employee"],
+            "associate_id": record["associate_id"],
+            "employee_name": record["employee_name"],
+            "regime": record["regime"],
+            "pan": record["pan"],
+            "tds_ytd": round(record["tds_ytd"], 2) if record["tds_ytd"] is not None else 0,
+            "tds": round(record["tds"], 2) if record["tds"] is not None else 0,
+            "annual_tds": round(record["annual_tds"], 2) if record["annual_tds"] is not None else 0,
+        }
+        return Response(data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         serializer = EmployeeSalaryHistorySerializer(tds_entry, data=request.data, partial=True)
