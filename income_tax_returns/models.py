@@ -411,6 +411,7 @@ class CapitalGainsProperty(models.Model):
     sale_value = models.IntegerField()
     purchase_doc = models.FileField(upload_to=capital_gains_property_purchase_doc, null=True, blank=True)
     sale_doc = models.FileField(upload_to=capital_gains_property_sale_doc, null=True, blank=True)
+    reinvestment_made = models.CharField(max_length=20, choices=[('yes', 'Yes'), ('no', 'No')], default='no')
     reinvestment_details = JSONField(default=dict, null=True, blank=True)
     reinvestment_details_docs = models.FileField(upload_to=capital_gains_property_reinvestment_docs,
                                                  null=True, blank=True)
