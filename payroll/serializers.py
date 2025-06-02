@@ -1,7 +1,4 @@
 from rest_framework import serializers
-from .models import (PayrollOrg, WorkLocations, Departments, SalaryTemplate, PaySchedule,
-                     Designation, EPF, ESI, PT, Earnings, Benefits, Deduction, Reimbursement,
-                     HolidayManagement, LeaveManagement)
 from .models import *
 from datetime import date, datetime
 from calendar import monthrange
@@ -473,16 +470,33 @@ class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def update(self, instance, validated_data):
-        # This ensures updated_on is only modified during PUT/PATCH
-        instance.updated_on = datetime.now()
-        return super().update(instance, validated_data)
+        # Get old annual_ctc value
+        old_annual_ctc = instance.annual_ctc
+
+        # Perform the default update
+        instance = super().update(instance, validated_data)
+
+        # Get new annual_ctc value after update
+        new_annual_ctc = instance.annual_ctc
+
+        # If annual_ctc changed, update revised_ctc and updated_on
+        if new_annual_ctc != old_annual_ctc:
+            today = datetime.now().date()  # This gives a date object: YYYY-MM-DD
+
+            instance.previous_ctc = old_annual_ctc
+            instance.updated_on = today
+            instance.update_month = today.month
+            instance.update_year = today.year
+            instance.save(update_fields=['previous_ctc', 'updated_on', 'update_month', 'update_year'])
+
+        return instance
 
 
 class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
     designation = serializers.SerializerMethodField()
-    previous_ctc = serializers.SerializerMethodField()
+    previous_ctc = serializers.DecimalField(max_digits=12, decimal_places=2)
     current_ctc = serializers.DecimalField(source='annual_ctc', max_digits=12, decimal_places=2)
     employee_id = serializers.IntegerField(source='employee.id')
     associate_id = serializers.CharField(source='employee.associate_id')  # Added based on your model
@@ -498,7 +512,7 @@ class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
             'designation',
             'previous_ctc',
             'current_ctc',
-            'created_on'
+            'updated_on',
         ]
 
     def get_employee_name(self, obj):
@@ -512,14 +526,6 @@ class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
     def get_designation(self, obj):
         return obj.employee.designation.designation_name if obj.employee.designation else None
 
-    def get_previous_ctc(self, obj):
-        previous_salary = (
-            EmployeeSalaryDetails.objects
-            .filter(employee=obj.employee, id__lt=obj.id)
-            .order_by('-id')
-            .first()
-        )
-        return previous_salary.annual_ctc if previous_salary else None
 
 
 class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):

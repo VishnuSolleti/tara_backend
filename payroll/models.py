@@ -498,7 +498,10 @@ class EmployeeSalaryDetails(models.Model):
     valid_from = models.DateField(auto_now_add=True)  # Salary start date
     valid_to = models.DateField(null=True, blank=True)  # Salary end date (null = current salary)
     created_on = models.DateField(auto_now_add=True)
-    updated_on = models.DateTimeField(null=True, blank=True)
+    update_month = models.IntegerField(blank=True, null=True)
+    update_year = models.IntegerField(blank=True, null=True)
+    previous_ctc = models.IntegerField(blank=True, null=True)
+    updated_on = models.DateField(null=True, blank=True)
     created_month = models.IntegerField(editable=False)
     created_year = models.IntegerField(editable=False)
 
