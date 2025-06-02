@@ -1435,7 +1435,7 @@ def calculate_payroll(request):
 
         # EPF Benefits
         if epf_enabled:
-            benefits["EPF"] = {
+            benefits["EPF Employer Contribution"] = {
                 "monthly": 0.12 * pf_restricted_wage / 12,
                 "annually": 0.12 * pf_restricted_wage,
                 "calculation_type": "Percentage (12%) of PF wage"
@@ -1443,7 +1443,7 @@ def calculate_payroll(request):
 
             # EDLI & Admin Charges
             if basic_monthly <= 15000:
-                benefits["EDLI"] = {
+                benefits["EDLI Employer Contribution"] = {
                     "monthly": 0.005 * pf_restricted_wage / 12,
                     "annually": 0.005 * pf_restricted_wage,
                     "calculation_type": "Percentage (0.5%) of PF wage"
@@ -1454,7 +1454,7 @@ def calculate_payroll(request):
                     "calculation_type": "Percentage (0.5%) of PF wage"
                 }
             else:
-                benefits["EDLI"] = {
+                benefits["EDLI Employer Contribution"] = {
                     "monthly": 75,
                     "annually": 900,
                     "calculation_type": "Fixed Amount"
@@ -1465,26 +1465,26 @@ def calculate_payroll(request):
                     "calculation_type": "Fixed Amount"
                 }
         else:
-            benefits["EPF"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
-            benefits["EDLI"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
+            benefits["EPF Employer Contribution"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
+            benefits["EDLI Employer Contribution"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
             benefits["EPF admin charges"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
 
         # ESI Benefits
         if esi_enabled:
             if basic_monthly <= 21000:
-                benefits["ESI"] = {
+                benefits["ESI Employer Contribution"] = {
                     "monthly": 0.0325 * pf_restricted_wage / 12,
                     "annually": 0.0325 * pf_restricted_wage,
                     "calculation_type": "Percentage (3.25%) of PF wage"
                 }
             else:
-                benefits["ESI"] = {
+                benefits["ESI Employer Contribution"] = {
                     "monthly": 0,
                     "annually": 0,
                     "calculation_type": "Not Applicable"
                 }
         else:
-            benefits["ESI"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
+            benefits["ESI Employer Contribution"] = {"monthly": "NA", "annually": "NA", "calculation_type": "Not Applicable"}
 
         total_benefits = safe_sum(item["annually"] for item in benefits.values())
 
@@ -3175,6 +3175,8 @@ def detail_employee_monthly_salary(request):
                         if name not in exclude_earnings:
                             other_earnings += prorate(earning.get("monthly", 0))
 
+                epf_value = 0
+                ept_value = 0
                 other_deductions = 0
                 employee_deductions = 0
                 if salary_record.deductions:
@@ -3182,7 +3184,10 @@ def detail_employee_monthly_salary(request):
                         name = deduction.get("component_name", "").lower().replace(" ", "_")
                         value = deduction.get("monthly", 0)
                         value = value if isinstance(value, (int, float)) else 0  # Ensure numeric
-
+                        if name == "pf":
+                            epf_value = value
+                        if name == "pt" and value > 0:
+                            ept_value = value
                         if "tax" not in name:
                             employee_deductions += value
                         if all(ex not in name for ex in exclude_deductions):
@@ -3206,28 +3211,28 @@ def detail_employee_monthly_salary(request):
                 
                 FINANCIAL_MONTH_MAP = {1: 10, 2: 11, 3: 12, 4: 1, 5: 2, 6: 3,7: 4, 8: 5, 9: 6, 10: 7, 11: 8, 12: 9}
                 
-                joined_month = FINANCIAL_MONTH_MAP.get(employee.doj.month, 1)
-                
+                current_month = FINANCIAL_MONTH_MAP.get(month, 1)
+
                 annual_gross=int(round(earned_salary, 2))*12
                 
-                monthly_tds,yearly_tds=calculate_tds(regime_type=salary_record.tax_regime_opted,annual_salary=annual_gross,join_month=joined_month)
-                
-                # Looping 
-                salary_entries = EmployeeSalaryHistory.objects.filter(payroll_id=payroll_id,month=month,financial_year=financial_year).select_related('employee')
-                
-                employee_ids = [entry.employee_id for entry in salary_entries]
-                
-                current_year_tds_entries = {}
-                
-                previous_tds_entries = EmployeeSalaryHistory.objects.filter(employee_id__in=employee_ids,financial_year=financial_year,month__lt=month).values('employee_id','tds_ytd').order_by('employee_id', '-month')
-                
-                for entry in previous_tds_entries:
-                    if entry['employee_id'] not in current_year_tds_entries:
-                        current_year_tds_entries[entry['employee_id']] = entry['tds_ytd'] or Decimal('0.00')
-                
-                previous_ytd = float(current_year_tds_entries.get(employee.id, Decimal('0.00')))
-                
-                tds_ytd = float(Decimal(str(previous_ytd)) + Decimal(str(monthly_tds)))
+                monthly_tds,annual_tds=calculate_tds(regime_type=salary_record.tax_regime_opted,annual_salary=annual_gross,
+                                                     current_month=current_month, epf_value=epf_value, ept_value = ept_value)
+                tds_ytd = 0
+                try:
+                    entry = EmployeeSalaryHistory.objects.filter(
+                        employee=employee,
+                        payroll_id=payroll_id,
+                        financial_year=financial_year
+                    ).order_by('-month').first()
+                    if entry:
+                        tds_ytd = entry.tds_ytd + monthly_tds
+                        if entry.ctc != salary_record.annual_ctc:
+                            annual_tds = annual_tds
+                        else:
+                            annual_tds = entry.annual_tds
+                except EmployeeSalaryHistory.DoesNotExist:
+                    tds_ytd = monthly_tds
+                    annual_tds = annual_tds
 
                 # Create or update EmployeeSalaryHistory
                 EmployeeSalaryHistory.objects.create(
@@ -3254,7 +3259,7 @@ def detail_employee_monthly_salary(request):
                     pt=pt_amount,
                     tds=monthly_tds,
                     tds_ytd=tds_ytd,
-                    annual_tds=yearly_tds,
+                    annual_tds=annual_tds,
                     loan_emi=round(emi_deduction, 2),
                     other_deductions=round(other_deductions, 2),
                     total_deductions=round(total_deductions, 2),
@@ -3873,59 +3878,68 @@ def bonus_by_payroll_month_year(request):
 #     except Exception as e:
 #         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['GET'])
-def active_employee_salaries(request):
-    try:
-        payroll_id = request.query_params.get('payroll_id')
-        year = request.query_params.get('year')
-        month = request.query_params.get('month')
-
-        # Validate required parameters
-        if not all([payroll_id, year, month]):
-            return Response(
-                {"error": "Missing required query parameters: payroll_id, year, and month."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Validate and parse year/month
-        try:
-            year = int(year)
-            month = int(month)
-        except ValueError:
-            return Response(
-                {"error": "Year and month must be valid integers."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Get all salary details for the payroll_id with employee and exit details
-        salary_details = EmployeeSalaryDetails.objects.filter(
-            employee__payroll_id=payroll_id,
-            created_year=year, created_month=month
-        ).select_related(
-            'employee',
-            'employee__employee_exit_details'
-        )
-
-        # Filter active employees (same logic as before)
-        active_salaries = salary_details.filter(
-            Q(employee__employee_exit_details=None) |
-            Q(employee__employee_exit_details__exit_year__gt=year) |
-            Q(employee__employee_exit_details__exit_year=year,
-              employee__employee_exit_details__exit_month__gte=month)
-        )
-
-        # Group by employee and get the latest record (by highest ID assuming it's auto-increment)
-        from django.db.models import Max
-        latest_ids = list(active_salaries.values('employee')
-                          .annotate(latest_id=Max('id'))
-                          .values_list('latest_id', flat=True))
-        result = active_salaries.filter(id__in=latest_ids)
-
-        serializer = SimplifiedEmployeeSalarySerializer(result, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# @api_view(['GET'])
+# def active_employee_salaries(request):
+#     try:
+#         payroll_id = request.query_params.get('payroll_id')
+#         year = request.query_params.get('year')
+#         month = request.query_params.get('month')
+#
+#         # Validate required parameters
+#         if not all([payroll_id, year, month]):
+#             return Response(
+#                 {"error": "Missing required query parameters: payroll_id, year, and month."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+#
+#         # Validate and parse year/month
+#         try:
+#             year = int(year)
+#             month = int(month)
+#         except ValueError:
+#             return Response(
+#                 {"error": "Year and month must be valid integers."},
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+#         print(year, month, payroll_id)
+#
+#         print(EmployeeSalaryDetails.objects.filter(
+#             update_year=year, update_month=month
+#         ).select_related(
+#             'employee',
+#             'employee__employee_exit_details'
+#         ))
+#
+#         # Get all salary details for the payroll_id with employee and exit details
+#         salary_details = EmployeeSalaryDetails.objects.filter(
+#             employee__payroll_id=payroll_id,
+#             update_year=year, update_month=month
+#         ).select_related(
+#             'employee',
+#             'employee__employee_exit_details'
+#         )
+#         print(salary_details)
+#
+#         # Filter active employees (same logic as before)
+#         active_salaries = salary_details.filter(
+#             Q(employee__employee_exit_details=None) |
+#             Q(employee__employee_exit_details__exit_year__gt=year) |
+#             Q(employee__employee_exit_details__exit_year=year,
+#               employee__employee_exit_details__exit_month__gte=month)
+#         )
+#
+#         # Group by employee and get the latest record (by highest ID assuming it's auto-increment)
+#         from django.db.models import Max
+#         latest_ids = list(active_salaries.values('employee')
+#                           .annotate(latest_id=Max('id'))
+#                           .values_list('latest_id', flat=True))
+#         result = active_salaries.filter(id__in=latest_ids)
+#
+#         serializer = SimplifiedEmployeeSalarySerializer(result, many=True)
+#         return Response(serializer.data, status=status.HTTP_200_OK)
+#
+#     except Exception as e:
+#         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -4048,3 +4062,33 @@ def download_template_csv(request):
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def salary_revision_list(request):
+    """
+    Returns a list of employees with their latest salary details for a given payroll ID.
+    """
+    try:
+        payroll_id = request.query_params.get('payroll_id')
+        year = int(request.query_params.get('year'))
+        month = int(request.query_params.get('month'))
+        if not payroll_id or not year or not month:
+            return Response(
+                {"error": "Missing required query parameters: payroll_id, year, and month."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        revised_salaries = EmployeeSalaryDetails.objects.filter(
+            employee__payroll_id=payroll_id,
+            update_year=year,
+            update_month=month
+        ).select_related('employee')
+        if not revised_salaries.exists():
+            return Response(
+                {"message": "No revised salary records found for the given payroll ID, year, and month."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = SimplifiedEmployeeSalarySerializer(revised_salaries, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
