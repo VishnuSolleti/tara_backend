@@ -567,7 +567,9 @@ class BusinessProfessionalIncomeDocument(models.Model):
                                                              ('GST Returns', 'GST Returns'),
                                                              ('Bank Statements', 'Bank Statements'),
                                                              ('Other', 'Other'),
-                                                             ('AIS', 'AIS')])
+                                                             ('AIS', 'AIS'),
+                                                             ('Profit & Loss Statement', 'Profit & Loss Statement'),
+                                                             ('Balance Sheet', 'Balance Sheet')])
     file = models.FileField(upload_to=business_professional_income_file, null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

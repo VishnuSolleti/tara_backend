@@ -61,7 +61,21 @@ import json
 @api_view(['POST', 'PUT'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_professional_income_upsert(request):
-    request_data = request.data.copy()
+    FILE_KEYS = {
+        'form26as_files': '26AS',
+        'ais_files': 'AIS',
+        'gst_returns_files': 'GST Returns',
+        'bank_statements_files': 'Bank Statements',
+        'other_files': 'Other',
+        'profit_loss_statement_files': 'Profit & Loss Statement',
+        'balance_sheet_files': 'Balance Sheet',
+    }
+
+    # If any file key is in request.FILES, make a mutable copy
+    if any(key in request.FILES for key in FILE_KEYS):
+        request_data = request.data
+    else:
+        request_data = request.data.copy()
 
     # Coerce investment_types if sent as a string
     opting_data = request_data.get('opting_data')
@@ -112,7 +126,9 @@ def _handle_business_professional_income_files(request, income_instance):
         'ais_files': 'AIS',
         'gst_returns_files': 'GST Returns',
         'bank_statements_files': 'Bank Statements',
-        'other_files': 'Other'
+        'other_files': 'Other',
+        'profit_loss_statement_files': 'Profit & Loss Statement',
+        'balance_sheet_files': 'Balance Sheet',
     }
     for field_name, doc_type in doc_map.items():
         files = request.FILES.getlist(field_name)
