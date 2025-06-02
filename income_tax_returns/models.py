@@ -1027,8 +1027,8 @@ class Section80G(models.Model):
         return f"{self.deductions.service_request.id} - Section 80G Donation"
 
 
-class Section80ETTATTBU(models.Model):
-    deductions = models.OneToOneField(Deductions, on_delete=models.CASCADE, related_name='section_80ettattbu')
+class Section80E(models.Model):
+    deductions = models.OneToOneField(Deductions, on_delete=models.CASCADE, related_name='section_80e')
     amount = models.IntegerField(null=True, blank=True)
     education_of = models.CharField(max_length=50, null=True, blank=True, choices=[('self', 'self'),
                                                                                    ('spouse', 'spouse'),
@@ -1036,6 +1036,26 @@ class Section80ETTATTBU(models.Model):
                                                                                    ('dependent', 'dependent')])
     borrower_name = models.CharField(max_length=50, null=True, blank=True)
     is_it_approved_bank = models.BooleanField(default=False)
+    loan_outstanding_as_on_31st_march = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.deductions.service_request.id} - Section 80E Donation"
+
+
+class Section80EDocuments(models.Model):
+    section_80e = models.ForeignKey(Section80E, on_delete=models.CASCADE, related_name='section_80e_documents')
+    document_type = models.CharField(max_length=30, choices=[('Sanction Letter', 'Sanction Letter'), ('Interest Certificate', 'Interest Certificate'),
+                                                                ('Repayment Schedule', 'Repayment Schedule'),
+                                                                ('Other', 'Other')])
+    file = models.FileField(upload_to=section_80e_file, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.section_80e.deductions.service_request.id} - {self.uploaded_at}"
+
+
+class Section80TTATTBU(models.Model):
+    deductions = models.OneToOneField(Deductions, on_delete=models.CASCADE, related_name='section_80ettattbu')
     total_saving_interest = models.IntegerField(null=True, blank=True)
     total_fd_interest = models.IntegerField(null=True, blank=True)
     nature_of_disability = models.CharField(max_length=50, null=True, blank=True,
@@ -1082,6 +1102,27 @@ class Section80C(models.Model):
         return f"{self.deductions.service_request.id} - Section 80c Donation"
 
 
+class Section80EE(models.Model):
+    deductions = models.ForeignKey(Deductions, on_delete=models.CASCADE, related_name='section_80ee')
+    loan_outstanding_as_on_31st_march = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.deductions.service_request.id} - Section 80EE Donation"
+
+
+class Section80EEDocuments(models.Model):
+    section_80ee = models.ForeignKey(Section80EE, on_delete=models.CASCADE, related_name='section_80ee_documents')
+    document_type = models.CharField(max_length=30, choices=[('Sanction Letter', 'Sanction Letter'),
+                                                             ('Interest Certificate', 'Interest Certificate'),
+                                                             ('Repayment Schedule', 'Repayment Schedule'),
+                                                             ('Other', 'Other')])
+    file = models.FileField(upload_to=section_80ee_file, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.section_80ee.deductions.service_request.id} - {self.uploaded_at}"
+
+
 class Section80D(models.Model):
     deductions = models.OneToOneField(Deductions, on_delete=models.CASCADE, related_name='section_80d')
     self_family_non_senior_citizen = models.IntegerField(null=True, blank=True)
@@ -1102,6 +1143,44 @@ class Section80DFile(models.Model):
 
     def __str__(self):
         return f"{self.section_80d.deductions.service_request.id} - {self.uploaded_at}"
+
+
+class Section80DDB(models.Model):
+    deductions = models.OneToOneField(Deductions, on_delete=models.CASCADE, related_name='section_80ddb')
+    name_of_disease = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.deductions.service_request.id} - Section 80DDB Donation"
+
+
+class Section80DDBDocuments(models.Model):
+    section_80ddb = models.ForeignKey(Section80D, on_delete=models.CASCADE, related_name='section_80ddb_documents')
+    file = models.FileField(upload_to=section_80ddb_file, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.section_80d.deductions.service_request.id} - {self.uploaded_at}"
+
+
+class Section80EEB(models.Model):
+    deductions = models.OneToOneField(Deductions, on_delete=models.CASCADE, related_name='section_80eeb')
+    vehicle_registration_number = models.CharField(max_length=50, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.deductions.service_request.id} - Section 80EEB Donation"
+
+
+class Section80EEBDocuments(models.Model):
+    section_80eeb = models.ForeignKey(Section80EEB, on_delete=models.CASCADE, related_name='section_80eeb_documents')
+    document_type = models.CharField(max_length=30, choices=[('Sanction Letter', 'Sanction Letter'),
+                                                             ('Interest Certificate', 'Interest Certificate'),
+                                                             ('Repayment Schedule', 'Repayment Schedule'),
+                                                             ('Other', 'Other')])
+    file = models.FileField(upload_to=section_80eeb_file, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.section_80eeb.deductions.service_request.id} - {self.uploaded_at}"
 
 
 class ReviewFilingCertificate(models.Model):
