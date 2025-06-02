@@ -148,11 +148,39 @@ def section_80ettattbu_file(instance, filename):
     return os.path.join('service_requests', 'deductions', service_request_id, 'section_80ettattbu_file', filename)
 
 
+def section_80e_file(instance, filename):
+    # Get the name of the business, replace spaces with underscores
+    service_request_id = str(instance.section_80c.deductions.service_request_id)
+    # Construct the upload path
+    return os.path.join('service_requests', 'deductions', service_request_id, 'section_80e_file', filename)
+
+
+def section_80ee_file(instance, filename):
+    # Get the name of the business, replace spaces with underscores
+    service_request_id = str(instance.section_80c.deductions.service_request_id)
+    # Construct the upload path
+    return os.path.join('service_requests', 'deductions', service_request_id, 'section_80ee_file', filename)
+
+
 def section_80d_file(instance, filename):
     # Get the name of the business, replace spaces with underscores
     service_request_id = str(instance.section_80d.deductions.service_request_id)
     # Construct the upload path
     return os.path.join('service_requests', 'deductions', service_request_id, 'section_80d_file', filename)
+
+
+def section_80ddb_file(instance, filename):
+    # Get the name of the business, replace spaces with underscores
+    service_request_id = str(instance.section_80ddb.deductions.service_request_id)
+    # Construct the upload path
+    return os.path.join('service_requests', 'deductions', service_request_id, 'section_80ddb_file', filename)
+
+
+def section_80eeb_file(instance, filename):
+    # Get the name of the business, replace spaces with underscores
+    service_request_id = str(instance.section_80eeb.deductions.service_request_id)
+    # Construct the upload path
+    return os.path.join('service_requests', 'deductions', service_request_id, 'section_80eeb_file', filename)
 
 
 def capital_gains_property_purchase_doc(instance, filename):
