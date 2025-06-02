@@ -353,6 +353,7 @@ class ServiceTaskWithDataSerializer(serializers.ModelSerializer):
 
 
 class CapitalGainsPropertySerializer(serializers.ModelSerializer):
+    reinvestment_details = serializers.JSONField(required=False, allow_null=True)
     class Meta:
         model = CapitalGainsProperty
         fields = '__all__'
