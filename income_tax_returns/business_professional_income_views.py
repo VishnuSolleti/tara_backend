@@ -61,13 +61,13 @@ import json
 @api_view(['POST', 'PUT'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_professional_income_upsert(request):
-    request_data = request.data
+    request_data = request.data.copy()
 
     # Coerce investment_types if sent as a string
     opting_data = request_data.get('opting_data')
     if isinstance(opting_data, str):
         try:
-            request_data['opting_data'] = json.loads(opting_data)
+            request_data['opting_data'] = json.dumps(json.loads(opting_data))
         except json.JSONDecodeError:
             return Response({"opting_data": "Invalid JSON format"}, status=400)
 
