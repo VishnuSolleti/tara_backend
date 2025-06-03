@@ -21,6 +21,8 @@ from botocore.exceptions import ClientError
 import logging
 from rest_framework_simplejwt.tokens import RefreshToken
 from .serializers import *
+from .get_login_data import get_login_response
+
 
 User = get_user_model()
 # Configure logging
@@ -203,12 +205,9 @@ def initial_registration(request):
 
         # OTP is now used; delete it
         otp_obj.delete()
+        login_response_data = get_login_response(user)
 
-        return Response({
-            "message": "Registration successful. You can now log in.",
-            "user_id": user.id,
-            "email": user.email
-        }, status=status.HTTP_201_CREATED)
+        return Response(login_response_data, status=status.HTTP_201_CREATED)
 
     except Exception as e:
         logger.error(f"Error during registration: {str(e)}")
@@ -309,7 +308,6 @@ def select_context(request):
         return Response({"error": e.message_dict if hasattr(e, 'message_dict') else str(e)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({"error": f"Context selection failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 
 @api_view(['POST'])

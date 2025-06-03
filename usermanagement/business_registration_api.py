@@ -12,6 +12,7 @@ from botocore.exceptions import ClientError
 import logging
 from Tara.settings.default import *
 import json
+from .get_login_data import get_login_response
 
 from .models import (
     Users, Context, Role, UserContextRole, Module,
@@ -180,16 +181,9 @@ def register_business(request):
             # Delete used OTP
             otp_obj.delete()
 
-            return Response({
-                "message": "Business registration successful.",
-                "user_id": user.id,
-                "context_id": context.id,
-                "module_subscription_id": module_subscription.id,
-                "trial_end_date": end_date,
-                "active_context_id": user.active_context.id,
-                "initial_selection": user.initial_selection,
-                "registration_flow": user.registration_flow
-            }, status=status.HTTP_201_CREATED)
+            login_response_data = get_login_response(user)
+
+            return Response(login_response_data, status=status.HTTP_201_CREATED)
 
             # # 12. Send activation email - This is a required step
             # token = default_token_generator.make_token(user)
