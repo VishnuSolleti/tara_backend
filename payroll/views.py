@@ -3401,13 +3401,13 @@ def get_financial_year_summary(request):
         if not total_ctc:
             if year == current_date.year and month == current_month:
                 if current_day < 20:
-                    status = "-"
-                    action = "-"
+                    status = ""
+                    action = ""
                 elif 20 <= current_day <= 26:
-                    status = "draft"
+                    status = "Draft"
                     action = "start_payroll"
                 else:
-                    status = "processed"
+                    status = "Processed"
                     action = "view"
             else:
                 status = ""
@@ -3415,7 +3415,7 @@ def get_financial_year_summary(request):
             ctc = ""
         else:
             ctc = total_ctc
-            status = "processed"
+            status = "Processed"
             action = "view"
 
         summary.append({
