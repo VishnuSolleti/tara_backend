@@ -68,7 +68,7 @@ def add_capital_gains_property(request):
     serializer = CapitalGainsPropertySerializer(data=request_data)
     if serializer.is_valid():
         serializer.save()
-        return Response({'message': 'Property added successfully'}, status=status.HTTP_201_CREATED)
+        return Response({'data': serializer.data, 'message': 'Property added successfully'}, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
