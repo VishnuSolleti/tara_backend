@@ -136,14 +136,14 @@ def review_filing_certificate(instance, filename):
 
 def section_80g_file(instance, filename):
     # Get the name of the business, replace spaces with underscores
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.deductions.service_request_id)
     # Construct the upload path
     return os.path.join('service_requests', 'deductions', service_request_id, 'section_80g_file', filename)
 
 
 def section_80ettattbu_file(instance, filename):
     # Get the name of the business, replace spaces with underscores
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.deductions.service_request_id)
     # Construct the upload path
     return os.path.join('service_requests', 'deductions', service_request_id, 'section_80ettattbu_file', filename)
 
