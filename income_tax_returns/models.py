@@ -405,10 +405,10 @@ class CapitalGainsProperty(models.Model):
     property_type = models.CharField(max_length=120, null=False, blank=False, choices=[('land', 'land'),
                                                                                        ('plot', 'plot'),
                                                                                        ('building', 'building')])
-    date_of_purchase = models.DateField()
-    purchase_cost = models.IntegerField()
-    date_of_sale = models.DateField()
-    sale_value = models.IntegerField()
+    date_of_purchase = models.DateField(null=True, blank=True)
+    purchase_cost = models.IntegerField(null=True, blank=True)
+    date_of_sale = models.DateField(null=True, blank=True)
+    sale_value = models.IntegerField(null=True, blank=True)
     purchase_doc = models.FileField(upload_to=capital_gains_property_purchase_doc, null=True, blank=True)
     sale_doc = models.FileField(upload_to=capital_gains_property_sale_doc, null=True, blank=True)
     reinvestment_made = models.CharField(max_length=20, choices=[('yes', 'Yes'), ('no', 'No')], default='no')

@@ -58,18 +58,24 @@ def get_capital_gains_details(request):
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def add_capital_gains_property(request):
-    request_data = request.data
-    reinvestment = request_data.get('reinvestment_details')
-    if isinstance(reinvestment, str):
+    try:
+        request_data = request.data
+        reinvestment = request_data.get('reinvestment_details')
+        if isinstance(reinvestment, str):
+            try:
+                request_data['reinvestment_details'] = json.dumps(json.loads(reinvestment))
+            except json.JSONDecodeError:
+                return Response({'reinvestment_details': 'Invalid JSON format.'}, status=400)
+        serializer = CapitalGainsPropertySerializer(data=request_data)
         try:
-            request_data['reinvestment_details'] = json.dumps(json.loads(reinvestment))
-        except json.JSONDecodeError:
-            return Response({'reinvestment_details': 'Invalid JSON format.'}, status=400)
-    serializer = CapitalGainsPropertySerializer(data=request_data)
-    if serializer.is_valid():
-        serializer.save()
-        return Response({'data': serializer.data, 'message': 'Property added successfully'}, status=status.HTTP_201_CREATED)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({'data': serializer.data, 'message': 'Property added successfully'}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['DELETE'])
@@ -107,8 +113,10 @@ def update_capital_gains_property(request, property_id):
             return Response({'reinvestment_details': 'Invalid JSON format.'}, status=400)
 
     serializer = CapitalGainsPropertySerializer(property_obj, data=request_data, partial=True)
-
-    if serializer.is_valid():
-        serializer.save()
-        return Response({'message': 'Property updated successfully', 'data': serializer.data}, status=status.HTTP_200_OK)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        if serializer.is_valid():
+            serializer.save()
+            return Response({'message': 'Property updated successfully', 'data': serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
