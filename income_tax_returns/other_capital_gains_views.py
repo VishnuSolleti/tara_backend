@@ -12,12 +12,13 @@ def upsert_other_capital_gains_with_files(request):
     try:
         service_request = request.data.get('service_request')
         service_task = request.data.get('service_task')
+        pk = request.data.get('id')
 
         if not service_request or not service_task:
             return Response({"error": "Missing service_request or service_task"}, status=400)
 
         try:
-            instance = OtherCapitalGains.objects.get(service_request=service_request)
+            instance = OtherCapitalGains.objects.get(service_request=service_request, pk=pk)
             serializer = OtherCapitalGainsSerializer(instance, data=request.data, partial=True)
         except OtherCapitalGains.DoesNotExist:
             serializer = OtherCapitalGainsSerializer(data=request.data)
