@@ -62,7 +62,7 @@ def add_capital_gains_property(request):
     reinvestment = request_data.get('reinvestment_details')
     if isinstance(reinvestment, str):
         try:
-            request_data['reinvestment_details'] = json.loads(reinvestment)
+            request_data['reinvestment_details'] = json.dumps(json.loads(reinvestment))
         except json.JSONDecodeError:
             return Response({'reinvestment_details': 'Invalid JSON format.'}, status=400)
     serializer = CapitalGainsPropertySerializer(data=request_data)
@@ -98,7 +98,15 @@ def update_capital_gains_property(request, property_id):
     except CapitalGainsProperty.DoesNotExist:
         return Response({'error': 'CapitalGainsProperty not found'}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = CapitalGainsPropertySerializer(property_obj, data=request.data, partial=True)
+    request_data = request.data.copy()
+    reinvestment = request_data.get('reinvestment_details')
+    if isinstance(reinvestment, str):
+        try:
+            request_data['reinvestment_details'] = json.dumps(json.loads(reinvestment))
+        except json.JSONDecodeError:
+            return Response({'reinvestment_details': 'Invalid JSON format.'}, status=400)
+
+    serializer = CapitalGainsPropertySerializer(property_obj, data=request_data, partial=True)
 
     if serializer.is_valid():
         serializer.save()
