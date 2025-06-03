@@ -1157,7 +1157,7 @@ class Section80DDB(models.Model):
 
 
 class Section80DDBDocuments(models.Model):
-    section_80ddb = models.ForeignKey(Section80D, on_delete=models.CASCADE, related_name='section_80ddb_documents')
+    section_80ddb = models.ForeignKey(Section80DDB, on_delete=models.CASCADE, related_name='section_80ddb_documents')
     file = models.FileField(upload_to=section_80ddb_file, null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 

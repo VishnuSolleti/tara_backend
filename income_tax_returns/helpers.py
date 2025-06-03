@@ -157,7 +157,7 @@ def section_80e_file(instance, filename):
 
 def section_80ee_file(instance, filename):
     # Get the name of the business, replace spaces with underscores
-    service_request_id = str(instance.section_80c.deductions.service_request_id)
+    service_request_id = str(instance.section_80ee.deductions.service_request_id)
     # Construct the upload path
     return os.path.join('service_requests', 'deductions', service_request_id, 'section_80ee_file', filename)
 
