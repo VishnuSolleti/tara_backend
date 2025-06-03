@@ -580,7 +580,7 @@ class DeductionsSerializer(serializers.ModelSerializer):
     section_80e = Section80ESerializer(read_only=True)
     section_80ee = Section80EESerializer(many=True, read_only=True)
     section_80eeb = Section80EEBSerializer(read_only=True)
-    section_80ttattbu = Section80TTATTBUSerializer(read_only=True)
+    section_80ettattbu = Section80TTATTBUSerializer(read_only=True)
     section_80c = Section80CSerializer(many=True, read_only=True)
     section_80d = Section80DSerializer(read_only=True)
     section_80ddb = Section80DDBSerializer(read_only=True)

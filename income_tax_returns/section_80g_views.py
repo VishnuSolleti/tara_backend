@@ -13,7 +13,7 @@ def add_section_80g(request):
         if serializer.is_valid():
             serializer.save()
             return Response(
-                {"message": "Section 80G donation added successfully"},
+                {"message": "Section 80G donation added successfully", 'data': serializer.data},
                 status=status.HTTP_201_CREATED
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
