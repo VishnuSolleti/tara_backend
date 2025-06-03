@@ -10,7 +10,7 @@ from django.contrib.auth import get_user_model
 from botocore.exceptions import ClientError
 import boto3
 import logging
-
+from .get_login_data import get_login_response
 from .models import Context, Role, UserContextRole, Service, ServiceRequest, PendingUserOTP
 from Tara.settings.default import *
 
@@ -128,13 +128,9 @@ def register_user_with_service(request):
             # 5. Delete OTP after use
             otp_obj.delete()
 
-            return Response({
-                "message": "Registration successful.",
-                "user_id": user.id,
-                "context_id": context.id,
-                "service_id": service.id,
-                "account_type": account_type
-            }, status=status.HTTP_201_CREATED)
+            login_response_data = get_login_response(user)
+
+            return Response(login_response_data, status=status.HTTP_201_CREATED)
 
     except Exception as e:
         logger.exception("Registration failed")
