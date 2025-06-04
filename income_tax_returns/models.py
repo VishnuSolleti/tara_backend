@@ -1092,12 +1092,12 @@ class Section80TTATTBU(models.Model):
 
 class Section80C(models.Model):
     deductions = models.ForeignKey(Deductions, on_delete=models.CASCADE, related_name='section_80c')
-    investment = models.CharField(max_length=50, null=True, blank=True,choices=[('ppf', 'ppf'),
-                                                                                ('nsc', 'nsc'),
-                                                                                ('elss', 'elss'),
-                                                                                ('life insurance', 'life insurance'),
-                                                                                ('tution fees', 'tution fees'),
-                                                                                ('others', 'others')])
+    investment = models.CharField(max_length=50, null=True, blank=True,choices=[('PPF', 'PPF'),
+                                                                                ('NSC', 'NSC'),
+                                                                                ('ELSS', 'ELSS'),
+                                                                                ('Life Insurance', 'Life Insurance'),
+                                                                                ('Tuition Fees', 'Tuition Fees'),
+                                                                                ('Others', 'Others')])
     amount = models.IntegerField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     def __str__(self):
