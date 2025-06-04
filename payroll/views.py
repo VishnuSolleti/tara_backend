@@ -3175,7 +3175,7 @@ def detail_employee_monthly_salary(request):
                         if name not in exclude_earnings:
                             other_earnings += prorate(earning.get("monthly", 0))
 
-                epf_value = 0
+                epf_value = pf
                 ept_value = 0
                 other_deductions = 0
                 employee_deductions = 0
@@ -3184,8 +3184,6 @@ def detail_employee_monthly_salary(request):
                         name = deduction.get("component_name", "").lower().replace(" ", "_")
                         value = deduction.get("monthly", 0)
                         value = value if isinstance(value, (int, float)) else 0  # Ensure numeric
-                        if name == "pf":
-                            epf_value = value
                         if name == "pt" and value > 0:
                             ept_value = value
                         if "tax" not in name:
@@ -3230,6 +3228,9 @@ def detail_employee_monthly_salary(request):
                             annual_tds = annual_tds
                         else:
                             annual_tds = entry.annual_tds
+                    else:
+                        tds_ytd = monthly_tds
+                        annual_tds = annual_tds
                 except EmployeeSalaryHistory.DoesNotExist:
                     tds_ytd = monthly_tds
                     annual_tds = annual_tds
