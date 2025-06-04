@@ -242,10 +242,28 @@ class Section80TTATTBUSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class Section80CDocumentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section80CDocuments
+        fields = '__all__'
+
+
 class Section80CSerializer(serializers.ModelSerializer):
+    documents = serializers.SerializerMethodField()
+
     class Meta:
         model = Section80C
         fields = '__all__'
+
+    def get_documents(self, obj):
+        return [
+            {
+                "id": doc.id,
+                "file_url": doc.file.url if doc.file else None,
+                "uploaded_at": doc.uploaded_at
+            }
+            for doc in obj.section_80c_documents.all()
+        ]
 
 
 class Section80DFileSerializer(serializers.ModelSerializer):

@@ -277,6 +277,8 @@ urlpatterns = [
         name='section_80c_detail'
     ),
 
+    path('section-80c-files/<int:file_id>/', section_80c_views.delete_section_80c_file, name='delete_section_80c_file'),
+
     path(
             'section-80d/full/',
             section_80d_views.upsert_section_80d_with_files,

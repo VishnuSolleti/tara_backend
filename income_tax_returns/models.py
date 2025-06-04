@@ -1100,9 +1100,17 @@ class Section80C(models.Model):
                                                                                 ('others', 'others')])
     amount = models.IntegerField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
-
     def __str__(self):
         return f"{self.deductions.service_request.id} - Section 80c Donation"
+
+
+class Section80CDocuments(models.Model):
+    section_80c = models.ForeignKey(Section80C, on_delete=models.CASCADE, related_name='section_80c_documents')
+    file = models.FileField(upload_to=section_80c_file, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.section_80c.deductions.service_request.id} - {self.uploaded_at}"
 
 
 class Section80EE(models.Model):
