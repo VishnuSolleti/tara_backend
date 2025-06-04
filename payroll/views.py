@@ -3745,45 +3745,73 @@ def bonus_incentive_detail(request, pk):
 def bonus_by_payroll_month_year(request):
     """
     Returns all BonusIncentives for a given payroll_id, month, and year.
+    Excludes employees without current bonus records for the given month.
     """
     try:
         payroll_id = request.query_params.get('payroll_id')
         month = request.query_params.get('month')
-        year = request.query_params.get('year')
+        financial_year = request.query_params.get('financial_year')
 
-        if not payroll_id or not month or not year:
+        if not all([payroll_id, month, financial_year]):
             return Response(
-                {"error": "Both payroll_id, month and year are required."},
+                {'error': 'Missing parameters: payroll_id, month, financial_year required.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Convert to integers to avoid type mismatch issues
         try:
-            payroll_id = int(payroll_id)
             month = int(month)
-            year = int(year)
         except ValueError:
-            return Response({"error": "payroll_id, month and year must be integers."},
-                            status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Invalid month. Must be an integer.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Query the DB
-        bonus_qs = BonusIncentive.objects.filter(
+        # Get bonuses for the payroll ID
+        bonuses = BonusIncentive.objects.filter(
             employee__payroll=payroll_id,
-            month=month,
-            year=year
-        )
+            financial_year=financial_year
+        ).select_related('employee')
 
-        if not bonus_qs.exists():
-            return Response(
-                {"message": "No bonus incentive data found for the given criteria."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+        employee_ids = set(bonuses.values_list('employee_id', flat=True))
 
-        serializer = BonusIncentiveSerializer(bonus_qs, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        results = []
+        for emp_id in employee_ids:
+            emp_bonuses = bonuses.filter(employee_id=emp_id)
+            current_bonus = emp_bonuses.filter(month=month).first()
+
+            # Only include employees with a current bonus entry for the given month
+            if not current_bonus:
+                continue
+
+            ytd_bonus = emp_bonuses.filter(month__lte=month).aggregate(total=Sum('amount'))['total'] or 0
+
+            employee = current_bonus.employee
+            salary = EmployeeSalaryDetails.objects.filter(employee=employee, valid_to__isnull=True).first()
+
+            committed_bonus = 0
+            if salary:
+                for earning in salary.earnings:
+                    if (
+                        earning.get("component_name") == "Bonus"
+                        and earning.get("component_type") == "Variable"
+                    ):
+                        calc_type = earning.get("calculation_type", {})
+                        if calc_type.get("type") == "Flat Amount":
+                            committed_bonus = calc_type.get("value", 0)
+                            break
+
+            results.append({
+                'id': current_bonus.id,
+                'employee_id': employee.id,
+                'employee_name': employee.first_name,
+                'current_bonus': current_bonus.amount,
+                'committed_bonus': committed_bonus,
+                'ytd_bonus_paid': ytd_bonus,
+                'remarks': current_bonus.remarks or ''
+            })
+
+        return Response(results, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 # @api_view(['GET'])
