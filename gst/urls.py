@@ -1,25 +1,29 @@
 from django.urls import path
-from .views import *
+from . import views
 
 urlpatterns = [
-    # Entrepreneur Details
-    path('basic-detail/', create_basic_details, name='basic-detail'),
-    path('basic-detail/<int:pk>/', basic_details_view, name='basic-detail-view'),
+    # BasicBusinessInfo
+    path('basic-business-info/', views.basic_business_info_list_create, name='basic_business_info_list_create'),
+    path('basic-business-info/by-service-request/', views.basic_business_info_by_service_request, name='basic_business_info_by_service_request'),
+    path('basic-business-info/<int:pk>/', views.basic_business_info_detail, name='basic_business_info_detail'),
 
-    path('business-detail/', business_details_list, name='business-details-list'),
-    path('business-detail/<int:pk>/', business_details_view, name='business-details-detail'),
+    # RegistrationInfo
+    path('registration-info/', views.registration_info_list_create, name='registration_info_list_create'),
+    path('registration-info/by-service-request/', views.registration_info_by_service_request, name='registration_info_by_service_request'),
+    path('registration-info/<int:pk>/', views.registration_info_detail, name='registration_info_detail'),
 
-    path('business-documents/', business_document_list_create, name='business-documents-list-create'),
-    path('business-documents/<int:pk>/', business_document_detail, name='business-documents-detail'),
+    # PrincipalPlaceDetails
+    path('principal-place-details/', views.principal_place_details_list_create, name='principal_place_details_list_create'),
+    path('principal-place-details/by-service-request/', views.principal_place_details_by_service_request, name='principal_place_details_by_service_request'),
+    path('principal-place-details/<int:pk>/', views.principal_place_details_detail, name='principal_place_details_detail'),
 
-    path('partners/', partner_list, name='partner-list'),
-    path('partners/<int:pk>/', partner_detail, name='partner-detail'),
+    # PromoterSignatoryDetails
+    path('promoter-signatory-details/', views.promoter_signatory_details_list_create, name='promoter_signatory_details_list_create'),
+    path('promoter-signatory-details/by-service-request/', views.promoter_signatory_details_by_service_request, name='promoter_signatory_details_by_service_request'),
+    path('promoter-signatory-details/<int:pk>/', views.promoter_signatory_details_detail, name='promoter_signatory_details_detail'),
 
-    path('principal-place/', principal_place_list, name='principal_place_list'),
-    path('principal-place/<int:pk>/', principal_place_detail_view, name='principal_place_detail'),
-    
-    # Comprehensive data retrieval
-    path('service-request-gst/<int:service_request_id>/', get_gst_service_request_data, name='get-gst-service-request-data'),
-
-    
-    ]
+    # GSTReviewFilingCertificate
+    path('gst-review-filing-certificate/', views.gst_review_filing_certificate_list_create, name='gst_review_filing_certificate_list_create'),
+    path('gst-review-filing-certificate/by-service-request/', views.gst_review_filing_certificate_by_service_request, name='gst_review_filing_certificate_by_service_request'),
+    path('gst-review-filing-certificate/<int:pk>/', views.gst_review_filing_certificate_detail, name='gst_review_filing_certificate_detail'),
+]
