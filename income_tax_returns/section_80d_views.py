@@ -84,7 +84,7 @@ def get_section_80d(request):
     except Section80D.DoesNotExist:
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = Section80DFileSerializer(entry)
+    serializer = Section80DSerializer(entry)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
