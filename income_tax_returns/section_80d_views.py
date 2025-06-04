@@ -18,7 +18,7 @@ def upsert_section_80d_with_files(request):
 
     try:
         instance = Section80D.objects.get(deductions_id=deductions_id)
-        serializer = Section80DFileSerializer(instance, data=request.data, partial=True)
+        serializer = Section80DSerializer(instance, data=request.data, partial=True)
     except Section80D.DoesNotExist:
         serializer = Section80DSerializer(data=request.data)
 
