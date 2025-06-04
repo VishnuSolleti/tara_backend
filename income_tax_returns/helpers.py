@@ -254,3 +254,10 @@ def foreign_income_file(instance, filename):
         'service_requests', 'itr', service_request_id, 'foreign_income_file', "form 67", filename
     )
 
+
+def section_80c_file(instance, filename):
+    # instance is of Section80CFile
+    service_request_id = str(instance.section_80c.deductions.service_request_id)
+
+    # Construct an upload path
+    return os.path.join('service_requests', 'itr', service_request_id, 'section_80c_file', filename)
