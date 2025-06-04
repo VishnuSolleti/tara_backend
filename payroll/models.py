@@ -687,6 +687,7 @@ class BonusIncentive(models.Model):
     month = models.IntegerField(null=False)
     year = models.IntegerField(null=False, editable=False)
     financial_year = models.CharField(max_length=10, null=False, blank=False)
+    remarks = models.TextField(null=True, blank=True, default='')
 
     def save(self, *args, **kwargs):
         try:
@@ -845,6 +846,8 @@ class EmployeeSalaryHistory(models.Model):
 
     def __str__(self):
         return f"{self.employee.associate_id} - {self.change_date}"
+
+
 
 
 
