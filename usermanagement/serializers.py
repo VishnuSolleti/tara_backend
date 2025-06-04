@@ -444,6 +444,7 @@ class BusinessSerializer(serializers.ModelSerializer):
     entityType = serializers.CharField(max_length=50, required=False)
     pan = serializers.CharField(max_length=15, required=False, default=None)
     headOffice = serializers.JSONField(default=dict)
+    logos = LogoSerializer(read_only=True)
 
     class Meta:
         model = Business
