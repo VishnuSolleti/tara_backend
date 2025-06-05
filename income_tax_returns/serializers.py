@@ -29,7 +29,6 @@ class TaxPaidDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaxPaidDetails
         fields = '__all__'  # or list the fields explicitly
-        depth = 1  # optional, if you want nested object fields expanded
 
     def get_documents(self, obj):
         grouped = {}
