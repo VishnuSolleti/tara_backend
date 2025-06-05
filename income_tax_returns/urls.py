@@ -80,7 +80,9 @@ urlpatterns = [
          name='get_capital_gains_details'),
     path('capital-gains/add-property/', capital_gains_views.add_capital_gains_property,
          name='add_capital_gains_property'),
-    path('capital-gains/delete-property/<str:file_type>/<int:property_id>/', capital_gains_views.delete_capital_gains_property,
+    path('capital-gains/delete-property/<str:file_type>/<int:property_id>/', capital_gains_views.delete_capital_gains_property_file,
+         name='delete_capital_gains_property_file'),
+    path('capital-gains/delete-property/<int:pk>/', capital_gains_views.delete_capital_gains_property,
          name='delete_capital_gains_property'),
 
     path('capital-gains/update-property/<int:property_id>/',capital_gains_views.update_capital_gains_property,
@@ -132,6 +134,8 @@ urlpatterns = [
     path('house-property-details/delete-file/<str:file_type>/<int:service_request_id>/',
          house_property_income_views.delete_house_property_file,
          name='delete_house_property_file'),
+    path('house-property-details/<int:pk>/delete', house_property_income_views.delete_house_property,
+         name='delete_house_property'),
 
     # InterestIncome endpoints
     path('interest-income/upsert/', interest_income_views.upsert_interest_income, name='upsert_interest_income'),
