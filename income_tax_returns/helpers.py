@@ -43,7 +43,7 @@ def salary_income_details_file(instance, filename):
 
 def outcome_income_details_file(instance, filename):
     # Get the name of the business, replace spaces with underscores
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.other_income_details.service_request_id)
     # Construct the upload path
     return os.path.join('service_requests', 'itr', service_request_id, 'outcome_income_details_file', filename)
 
@@ -61,7 +61,7 @@ def foreign_emp_salary_details_file(instance, filename):
 
 def house_property_details_municipal_tax_receipt(instance, filename):
     # instance is of HousePropertyDetailsMunicipalTaxReceipt
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.house_property_details.service_request_id)
 
     # Construct an upload path
     return os.path.join(
@@ -70,7 +70,7 @@ def house_property_details_municipal_tax_receipt(instance, filename):
 
 def house_property_details_loan_statement(instance, filename):
     # instance is of HousePropertyDetailsOwnershipDocument
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.house_property_details.service_request_id)
 
     # Construct an upload path
     return os.path.join(
@@ -79,7 +79,7 @@ def house_property_details_loan_statement(instance, filename):
 
 def house_property_details_loan_interest_certificate(instance, filename):
     # instance is of HousePropertyDetailsOwnershipDocument
-    service_request_id = str(instance.service_request_id)
+    service_request_id = str(instance.house_property_details.service_request_id)
 
     # Construct an upload path
     return os.path.join(
