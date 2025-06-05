@@ -81,27 +81,28 @@ def upsert_house_property_details(request):
         main_instance = main_serializer.save()
 
         id = request.data.get('id', None)
-        data['house_property_details'] = main_instance.id
         if 'property_address' in data and isinstance(data["property_address"], str):
             try:
                 property_address = json.loads(data["property_address"])
             except json.JSONDecodeError:
                 return Response({"error": "Invalid property_address format"}, status=status.HTTP_400_BAD_REQUEST)
-        data["property_address"] = json.dumps(property_address)
-        if id:
-            try:
-                info_instance = HousePropertyIncomeDetailsInfo.objects.get(pk=id, house_property_details=main_instance)
-                info_serializer = HousePropertyIncomeDetailsInfoSerializer(info_instance, data=data, partial=True)
-            except HousePropertyIncomeDetailsInfo.DoesNotExist:
+            data["property_address"] = json.dumps(property_address)
+        if data:
+            if id:
+                data['house_property_details'] = main_instance.id
+                try:
+                    info_instance = HousePropertyIncomeDetailsInfo.objects.get(pk=id, house_property_details=main_instance)
+                    info_serializer = HousePropertyIncomeDetailsInfoSerializer(info_instance, data=data, partial=True)
+                except HousePropertyIncomeDetailsInfo.DoesNotExist:
+                    info_serializer = HousePropertyIncomeDetailsInfoSerializer(data=data)
+            else:
                 info_serializer = HousePropertyIncomeDetailsInfoSerializer(data=data)
-        else:
-            info_serializer = HousePropertyIncomeDetailsInfoSerializer(data=data)
 
-        if not info_serializer.is_valid():
-            main_instance.delete()
-            return Response(info_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            if not info_serializer.is_valid():
+                main_instance.delete()
+                return Response(info_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        info_serializer.save()
+            info_serializer.save()
 
         return Response({
             'data': main_serializer.data,
