@@ -79,7 +79,7 @@ def add_capital_gains_property(request):
 
 
 @api_view(['DELETE'])
-def delete_capital_gains_property(request, file_type, property_id):
+def delete_capital_gains_property_file(request, file_type, property_id):
     try:
         prop = CapitalGainsProperty.objects.get(pk=property_id)
         if file_type == 'purchase_doc':
@@ -126,3 +126,22 @@ def update_capital_gains_property(request, property_id):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['DELETE'])
+@parser_classes([MultiPartParser, JSONParser, FormParser])
+def delete_capital_gains_property(request, pk):
+    try:
+        prop = CapitalGainsProperty.objects.get(pk=property_id)
+        if prop.purchase_doc:
+                prop.purchase_doc.storage.delete(prop.purchase_doc.name)
+        if prop.sale_doc:
+            prop.sale_doc.storage.delete(prop.sale_doc.name)
+        if prop.reinvestment_details_docs:
+            prop.reinvestment_details_docs.storage.delete(prop.reinvestment_details_docs.name)
+        else:
+            return Response({"error": "Invalid file type"}, status=status.HTTP_400_BAD_REQUEST)
+        prop.delete()
+        return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    except CapitalGainsProperty.DoesNotExist:
+        return Response({"error": "Property not found"}, status=status.HTTP_404_NOT_FOUND)
