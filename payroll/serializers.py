@@ -835,3 +835,14 @@ class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
             return obj.employee.employee_personal_details.pan
         except AttributeError:
             return None
+
+
+class EmployeeSimpleSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmployeeManagement
+        fields = ['id', 'associate_id', 'full_name']
+
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.middle_name or ''} {obj.last_name}".strip()

@@ -1,5 +1,7 @@
 from django.urls import path
 from . import views
+from . import employee_management
+from . import generate_salary_upload_template
 
 urlpatterns = [
     # URL for listing and creating PayrollOrg instances
@@ -178,6 +180,12 @@ urlpatterns = [
     path("employee-tds/<int:pk>",views.employee_tds_detail,name="employee-tds-detail"),
 
     path("salary-revision", views.salary_revision_list, name="salary-revision-list"),
+
+    path('download-template/<int:payroll_id>/', employee_management.generate_employee_upload_template,
+         name='download_employee_template'),
+
+    path('employee-salary-template/<int:payroll_id>/',
+         generate_salary_upload_template.generate_salary_upload_template, name='salary-template'),
 
 
 ]
