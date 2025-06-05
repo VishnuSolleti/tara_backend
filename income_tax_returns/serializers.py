@@ -80,7 +80,14 @@ class SalaryIncomeSerializer(serializers.ModelSerializer):
         return grouped
 
 
+class OtherIncomeDetailsInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OtherIncomeDetailsInfo
+        fields = '__all__'
+
+
 class OtherIncomeDetailsSerializer(serializers.ModelSerializer):
+    other_income_info = OtherIncomeDetailsInfoSerializer(many=True, read_only=True)
     class Meta:
         model = OtherIncomeDetails
         fields = '__all__'
@@ -124,8 +131,16 @@ class NRIEmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
         return grouped
 
 
-class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
+class HousePropertyIncomeDetailsInfoSerializer(serializers.ModelSerializer):
     property_address = serializers.JSONField(required=False, allow_null=True)
+    class Meta:
+        model = HousePropertyIncomeDetailsInfo
+        fields = '__all__'
+
+
+class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
+    property_info = HousePropertyIncomeDetailsInfoSerializer(many=True, read_only=True)
+    
     class Meta:
         model = HousePropertyIncomeDetails
         fields = '__all__'

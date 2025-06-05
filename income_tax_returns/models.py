@@ -221,12 +221,6 @@ class OtherIncomeDetails(models.Model):
         blank=True,
         related_name='other_income_details_reviewed'
     )
-    details = models.CharField(max_length=255, null=True, blank=True)
-    amount = models.IntegerField()
-    file = models.FileField(upload_to=outcome_income_details_file,
-                            null=True, blank=True)
-    notes = models.TextField(null=True, blank=True)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
@@ -238,6 +232,19 @@ class OtherIncomeDetails(models.Model):
 
     def __str__(self):
         return f"{self.service_request.id} - Foreign Employee Salary Details"
+
+
+class OtherIncomeDetailsInfo(models.Model):
+    other_income_details = models.ForeignKey(OtherIncomeDetails, on_delete=models.CASCADE, related_name='other_income_info')
+    details = models.CharField(max_length=255, null=True, blank=True)
+    amount = models.IntegerField()
+    file = models.FileField(upload_to=outcome_income_details_file,
+                            null=True, blank=True)
+    notes = models.TextField(null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.other_income_details.service_request.id} - {self.income_type} Details"
 
 
 class NRIEmployeeSalaryDetails(models.Model):
@@ -319,7 +326,6 @@ class HousePropertyIncomeDetails(models.Model):
         blank=True,
         related_name='house_property_details_assigned'
     )
-
     reviewer = models.ForeignKey(
         Users,
         on_delete=models.SET_NULL,
@@ -327,6 +333,22 @@ class HousePropertyIncomeDetails(models.Model):
         blank=True,
         related_name='house_property_details_reviewed'
     )
+
+    def save(self, *args, **kwargs):
+        # Default to service_request values if not set
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.service_request.id} - House Property Details"
+
+
+class HousePropertyIncomeDetailsInfo(models.Model):
+    house_property_details = models.ForeignKey(HousePropertyIncomeDetails, on_delete=models.CASCADE,
+                                             related_name='property_info')
     type_of_property = models.CharField(max_length=255, null=True, blank=True)
     property_address = JSONField(null=True, blank=True, default=dict)
     owned_property = models.BooleanField(default=False)
@@ -344,16 +366,8 @@ class HousePropertyIncomeDetails(models.Model):
     loan_statement = models.FileField(upload_to=house_property_details_loan_statement, null=True, blank=True)
     upload_loan_interest_certificate = models.FileField(upload_to=house_property_details_loan_interest_certificate, null=True, blank=True)
 
-    def save(self, *args, **kwargs):
-        # Default to service_request values if not set
-        if not self.assignee and self.service_task.assignee:
-            self.assignee = self.service_task.assignee
-        if not self.reviewer and self.service_task.reviewer:
-            self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
-
     def __str__(self):
-        return f"{self.service_request.id} - House Property Details"
+        return f"{self.house_property_details.service_request.id} - Property Info"
 
 
 class CapitalGainsApplicableDetails(models.Model):
