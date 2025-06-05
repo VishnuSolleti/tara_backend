@@ -113,6 +113,7 @@ class RegistrationInfo(models.Model):
     def __str__(self):
         return f"Registration Info - {self.registration_number or 'N/A'}"
 
+
 class PrincipalPlaceDetails(models.Model):
     service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE, related_name='principal_place_details')
     service_type = models.CharField(max_length=20, default="GST", editable=False)
@@ -157,6 +158,20 @@ class PrincipalPlaceDetails(models.Model):
             address_line = self.principal_place.get('address_line_1') or 'N/A'
             city = self.principal_place.get('city') or 'N/A'
         return f"Principal Place - {address_line} - {city}"
+
+
+@receiver(post_save, sender=PrincipalPlaceDetails)
+def sync_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
 
 
 class PromoterSignatoryDetails(models.Model):
@@ -214,11 +229,7 @@ class GSTReviewFilingCertificate(models.Model):
                                             related_name='GST_review_filing_certificate')
     service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='ServiceTask_GST_review_filing_certificate')
 
-    REVIEW_STATUS_CHOICES = [
-        ('in progress', 'In Progress'),
-        ('resubmission', 'Resubmission'),
-        ('done', 'Done'),
-    ]
+
     FILING_STATUS_CHOICES = [
         ('in progress', 'In Progress'),
         ('filed', 'Filed'),
@@ -231,8 +242,10 @@ class GSTReviewFilingCertificate(models.Model):
         ('approved', 'Approved'),
     ]
     review_certificate = models.FileField(upload_to=review_filing_certificate, null=True, blank=True)
-    review_certificate_status = models.CharField(max_length=20, choices=REVIEW_STATUS_CHOICES,
-                                                 null=False, blank=False, default=None)
+    status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')], default='in progress', null=False,
+                              blank=False)
     filing_status = models.CharField(
         max_length=20,
         choices=FILING_STATUS_CHOICES,
@@ -266,3 +279,90 @@ class GSTReviewFilingCertificate(models.Model):
 
     def __str__(self):
         return self.review_certificate_status or "No Review Status"
+
+
+def calculate_completion_percentage(instance, exclude_fields=None):
+    exclude_fields = exclude_fields or ['id', 'created_at', 'updated_at', 'service_request', 'service_task']
+    total_fields = 0
+    filled_fields = 0
+
+    for field in instance._meta.fields:
+        if field.name in exclude_fields:
+            continue
+        total_fields += 1
+        value = getattr(instance, field.name)
+        if value not in [None, '', []]:
+            filled_fields += 1
+
+    if total_fields == 0:
+        return 0
+    return round((filled_fields / total_fields) * 100)
+
+@receiver(post_save, sender=BasicBusinessInfo)
+def sync_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=RegistrationInfo)
+def sync_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=PrincipalPlaceDetails)
+def sync_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=PromoterSignatoryDetails)
+def sync_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=GSTReviewFilingCertificate)
+def sync_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
