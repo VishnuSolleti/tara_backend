@@ -80,7 +80,7 @@ urlpatterns = [
          name='get_capital_gains_details'),
     path('capital-gains/add-property/', capital_gains_views.add_capital_gains_property,
          name='add_capital_gains_property'),
-    path('capital-gains/delete-property/<int:property_id>/', capital_gains_views.delete_capital_gains_property,
+    path('capital-gains/delete-property/<str:file_type>/<int:property_id>/', capital_gains_views.delete_capital_gains_property,
          name='delete_capital_gains_property'),
 
     path('capital-gains/update-property/<int:property_id>/',capital_gains_views.update_capital_gains_property,
