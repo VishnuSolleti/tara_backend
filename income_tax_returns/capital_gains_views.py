@@ -132,15 +132,13 @@ def update_capital_gains_property(request, property_id):
 @parser_classes([MultiPartParser, JSONParser, FormParser])
 def delete_capital_gains_property(request, pk):
     try:
-        prop = CapitalGainsProperty.objects.get(pk=property_id)
+        prop = CapitalGainsProperty.objects.get(pk=pk)
         if prop.purchase_doc:
                 prop.purchase_doc.storage.delete(prop.purchase_doc.name)
         if prop.sale_doc:
             prop.sale_doc.storage.delete(prop.sale_doc.name)
         if prop.reinvestment_details_docs:
             prop.reinvestment_details_docs.storage.delete(prop.reinvestment_details_docs.name)
-        else:
-            return Response({"error": "Invalid file type"}, status=status.HTTP_400_BAD_REQUEST)
         prop.delete()
         return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
     except CapitalGainsProperty.DoesNotExist:

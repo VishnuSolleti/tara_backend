@@ -67,6 +67,8 @@ urlpatterns = [
          name='other_income_details_detail'),
     path('other-income-details/by-request-or-task', other_income_views.other_income_details_by_service_request,
          name='other_income_details_by_service_request'),
+    path('other-income-details/<int:pk>/delete', other_income_views.delete_other_income_info,
+         name="delete_other_income_info"),
 
     path('other-income-documents/', other_income_views.add_other_income_document,
          name='add_other_income_document'),
