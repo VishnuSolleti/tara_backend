@@ -78,7 +78,7 @@ def business_professional_income_upsert(request):
         request_data = request.data.copy()
 
     # Coerce investment_types if sent as a string
-        opting_data = request_data.get('opting_data')
+    opting_data = request_data.get('opting_data')
     if isinstance(opting_data, str):
         try:
             request_data['opting_data'] = json.dumps(json.loads(opting_data))
