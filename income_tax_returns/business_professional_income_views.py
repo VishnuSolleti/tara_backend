@@ -91,11 +91,11 @@ def business_professional_income_upsert(request):
         'assignee': request.data.get('assignee'),
         'reviewer': request.data.get('reviewer')
     }
-    data.pop('service_request', None)
-    data.pop('service_task', None)
-    data.pop('status', None)
-    data.pop('assignee', None)
-    data.pop('reviewer', None)
+    request_data.pop('service_request', None)
+    request_data.pop('service_task', None)
+    request_data.pop('status', None)
+    request_data.pop('assignee', None)
+    request_data.pop('reviewer', None)
 
     serializer = BusinessProfessionalIncomeSerializer(data=main_details_data)
     if serializer.is_valid():
