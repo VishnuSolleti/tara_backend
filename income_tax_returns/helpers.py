@@ -235,7 +235,7 @@ def other_capital_gains_file(instance, filename):
 
 def business_professional_income_file(instance, filename):
     # instance is of BusinessProfessionalIncomeFile
-    service_request_id = str(instance.business_professional_income.service_request_id)
+    service_request_id = str(instance.business_professional_income_info.business_professional_income.service_request_id)
     document_type = instance.document_type or "unknown_type"
 
     # Construct an upload path

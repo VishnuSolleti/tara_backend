@@ -122,7 +122,7 @@ def business_professional_income_upsert(request):
                 _handle_business_professional_income_files(request, info_instances)
         return Response({
             "message": "Business Professional Income created successfully",
-            "id": income_instance.id
+            "id": serializer.data
         }, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -162,7 +162,7 @@ def _handle_business_professional_income_files(request, income_instance):
         files = request.FILES.getlist(field_name)
         for file in files:
             BusinessProfessionalIncomeDocument.objects.create(
-                business_professional_income=income_instance,
+                business_professional_income_info=income_instance,
                 document_type=doc_type,
                 file=file
             )
