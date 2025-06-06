@@ -225,7 +225,7 @@ def capital_gains_equity_mutual_fund_file(instance, filename):
 
 def other_capital_gains_file(instance, filename):
     # instance is of OtherIncomeFile
-    service_request_id = str(instance.other_capital_gains.service_request_id)
+    service_request_id = str(instance.other_capital_gains_info.other_capital_gains.service_request_id)
 
     # Construct an upload path
     return os.path.join(

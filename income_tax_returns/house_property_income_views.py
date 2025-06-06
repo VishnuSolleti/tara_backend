@@ -88,8 +88,8 @@ def upsert_house_property_details(request):
                 return Response({"error": "Invalid property_address format"}, status=status.HTTP_400_BAD_REQUEST)
             data["property_address"] = json.dumps(property_address)
         if data:
+            data['house_property_details'] = main_instance.id
             if id:
-                data['house_property_details'] = main_instance.id
                 try:
                     info_instance = HousePropertyIncomeDetailsInfo.objects.get(pk=id, house_property_details=main_instance)
                     info_serializer = HousePropertyIncomeDetailsInfoSerializer(info_instance, data=data, partial=True)

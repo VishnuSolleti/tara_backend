@@ -47,7 +47,7 @@ def add_winning_income_document(request):
     serializer = WinningIncomeDocumentSerializer(data=request.data)
     if serializer.is_valid():
         serializer.save()
-        return Response({"message": "Winning Income Document added successfully"}, status=status.HTTP_201_CREATED)
+        return Response({"message": "Winning Income Document added successfully", "data": serializer.data}, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 

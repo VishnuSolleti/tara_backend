@@ -58,7 +58,7 @@ import json
 #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@api_view(['POST', 'PUT'])
+@api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def business_professional_income_upsert(request):
     FILE_KEYS = {
@@ -84,40 +84,65 @@ def business_professional_income_upsert(request):
             request_data['opting_data'] = json.dumps(json.loads(opting_data))
         except json.JSONDecodeError:
             return Response({"opting_data": "Invalid JSON format"}, status=400)
+    main_details_data = {
+        'service_request': request.data.get('service_request'),
+        'service_task': request.data.get('service_task'),
+        'status': request.data.get('status'),
+        'assignee': request.data.get('assignee'),
+        'reviewer': request.data.get('reviewer')
+    }
+    request_data.pop('service_request', None)
+    request_data.pop('service_task', None)
+    request_data.pop('status', None)
+    request_data.pop('assignee', None)
+    request_data.pop('reviewer', None)
 
-    # POST: Create new record (no check for existing)
-    if request.method == 'POST':
-        serializer = BusinessProfessionalIncomeSerializer(data=request_data)
-        if serializer.is_valid():
-            with transaction.atomic():
-                income_instance = serializer.save()
-                _handle_business_professional_income_files(request, income_instance)
-            return Response({
-                "message": "Business Professional Income created successfully",
-                "id": income_instance.id
-            }, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer = BusinessProfessionalIncomeSerializer(data=main_details_data)
+    if serializer.is_valid():
+        with transaction.atomic():
+            income_instance = serializer.save()
+            if request_data:
+                id = request_data.get('id', None)
+                request_data['business_professional_income'] = income_instance.id
+                if id:
+                    try:
+                        info_instance = BusinessProfessionalIncomeInfo.objects.get(pk=id)
+                        info_serializer = BusinessProfessionalIncomeInfoSerializer(info_instance, data=request_data, partial=True)
+                    except BusinessProfessionalIncome.DoesNotExist:
+                        info_serializer = BusinessProfessionalIncomeInfoSerializer(data=request_data)
+                else:
+                    info_serializer = BusinessProfessionalIncomeInfoSerializer(data=request_data)
+                if not info_serializer.is_valid():
+                    income_instance.delete()
+                    return Response(info_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                info_instance = info_serializer.save()
+            _handle_business_professional_income_files(request, info_instance)
+        return Response({
+            "message": "Business Professional Income created successfully",
+            "id": income_instance.id
+        }, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    # PUT: Update existing record by id
-    elif request.method == 'PUT':
-        instance_id = request_data.get('id')
-        if not instance_id:
-            return Response({"error": "Missing id for update"}, status=status.HTTP_400_BAD_REQUEST)
-        try:
-            instance = BusinessProfessionalIncome.objects.get(id=instance_id)
-        except BusinessProfessionalIncome.DoesNotExist:
-            return Response({"error": "BusinessProfessionalIncome with this id does not exist"}, status=status.HTTP_404_NOT_FOUND)
-
-        serializer = BusinessProfessionalIncomeSerializer(instance, data=request_data, partial=True)
-        if serializer.is_valid():
-            with transaction.atomic():
-                income_instance = serializer.save()
-                _handle_business_professional_income_files(request, income_instance)
-            return Response({
-                "message": "Business Professional Income updated successfully",
-                "id": income_instance.id
-            }, status=status.HTTP_200_OK)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    # # PUT: Update existing record by id
+    # elif request.method == 'PUT':
+    #     instance_id = request_data.get('id')
+    #     if not instance_id:
+    #         return Response({"error": "Missing id for update"}, status=status.HTTP_400_BAD_REQUEST)
+    #     try:
+    #         instance = BusinessProfessionalIncome.objects.get(id=instance_id)
+    #     except BusinessProfessionalIncome.DoesNotExist:
+    #         return Response({"error": "BusinessProfessionalIncome with this id does not exist"}, status=status.HTTP_404_NOT_FOUND)
+    #
+    #     serializer = BusinessProfessionalIncomeSerializer(instance, data=request_data, partial=True)
+    #     if serializer.is_valid():
+    #         with transaction.atomic():
+    #             income_instance = serializer.save()
+    #             _handle_business_professional_income_files(request, income_instance)
+    #         return Response({
+    #             "message": "Business Professional Income updated successfully",
+    #             "id": income_instance.id
+    #         }, status=status.HTTP_200_OK)
+    #     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 def _handle_business_professional_income_files(request, income_instance):
