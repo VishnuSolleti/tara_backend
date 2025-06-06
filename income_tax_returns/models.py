@@ -594,7 +594,7 @@ class BusinessProfessionalIncomeInfo(models.Model):
 
 
 class BusinessProfessionalIncomeDocument(models.Model):
-    business_professional_income_info = models.ForeignKey(BusinessProfessionalIncome, on_delete=models.CASCADE,
+    business_professional_income_info = models.ForeignKey(BusinessProfessionalIncomeInfo, on_delete=models.CASCADE,
                                                      related_name='documents')
     document_type = models.CharField(max_length=30, choices=[('26AS', '26AS'),
                                                              ('GST Returns', 'GST Returns'),
