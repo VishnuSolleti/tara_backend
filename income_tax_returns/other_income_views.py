@@ -41,22 +41,23 @@ def other_income_details_list(request):
 
             main_instance = main_serializer.save()
 
-            data['other_income_details'] = main_instance.id
 
             id = request.data.get('id')
-            if id:
-                try:
-                    other_income_detail = OtherIncomeDetailsInfo.objects.get(pk=id, other_income_details=main_instance)
-                    serializers = OtherIncomeDetailsInfoSerializer(other_income_detail, data=data, partial=True)
-                except OtherIncomeDetailsInfo.DoesNotExist:
+            if data:
+                data['other_income_details'] = main_instance.id
+                if id:
+                    try:
+                        other_income_detail = OtherIncomeDetailsInfo.objects.get(pk=id, other_income_details=main_instance)
+                        serializers = OtherIncomeDetailsInfoSerializer(other_income_detail, data=data, partial=True)
+                    except OtherIncomeDetailsInfo.DoesNotExist:
+                        serializers = OtherIncomeDetailsInfoSerializer(data=data)
+                else:
                     serializers = OtherIncomeDetailsInfoSerializer(data=data)
-            else:
-                serializers = OtherIncomeDetailsInfoSerializer(data=data)
 
-            if serializers.is_valid():
-                serializers.save()
-                return Response(main_serializer.data, status=status.HTTP_201_CREATED)
-            return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
+                if serializers.is_valid():
+                    serializers.save()
+                    return Response(main_serializer.data, status=status.HTTP_201_CREATED)
+                return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

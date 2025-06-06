@@ -508,6 +508,15 @@ class OtherCapitalGains(models.Model):
         blank=True,
         related_name='capital_gains_other_capital_gains_reviewed'
     )
+
+    def __str__(self):
+        return f"{self.service_request.id} - Other Capital Gains Details"
+
+
+class OtherCapitalGainsInfo(models.Model):
+    other_capital_gains = models.ForeignKey(OtherCapitalGains, on_delete=models.CASCADE,
+                                            related_name='other_capital_gain_info')
+
     asset_details = models.CharField(max_length=120, null=False, blank=False)
     purchase_date = models.DateField()
     sale_date = models.DateField()
@@ -515,17 +524,17 @@ class OtherCapitalGains(models.Model):
     purchase_value = models.IntegerField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.service_request.id} - Other Capital Gains Details"
+        return f"{self.other_capital_gains.service_request.id}"
 
 
 class OtherCapitalGainsDocument(models.Model):
-    other_capital_gains = models.ForeignKey(OtherCapitalGains, on_delete=models.CASCADE, related_name='documents')
+    other_capital_gains_info = models.ForeignKey(OtherCapitalGainsInfo, on_delete=models.CASCADE, related_name='documents')
     file = models.FileField(upload_to=other_capital_gains_file,
                             null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.other_capital_gains.service_request.id} - {self.file.name}"
+        return f"{self.other_capital_gains_info.other_capital_gains.service_request.id} - {self.file.name}"
 
 
 class BusinessProfessionalIncome(models.Model):
@@ -555,13 +564,7 @@ class BusinessProfessionalIncome(models.Model):
         blank=True,
         related_name='business_professional_income_reviewed'
     )
-    business_name = models.CharField(max_length=255, null=False, blank=False)
-    business_type = models.CharField(max_length=255, null=False, blank=False)
-    opting_for_presumptive_taxation = models.CharField(max_length=255, null=False, blank=False,
-                                                       choices=[('yes', 'Yes'), ('no', 'No')], default='no')
-    opting_data = JSONField(default={}, null=True, blank=True)
-    gst_registered = models.CharField(max_length=255, null=False, blank=False,
-                                      choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
@@ -575,8 +578,23 @@ class BusinessProfessionalIncome(models.Model):
         return f"{self.service_request.id} - Business Professional Income Details"
 
 
-class BusinessProfessionalIncomeDocument(models.Model):
+class BusinessProfessionalIncomeInfo(models.Model):
     business_professional_income = models.ForeignKey(BusinessProfessionalIncome, on_delete=models.CASCADE,
+                                                     related_name='business_professional_income_info')
+    business_name = models.CharField(max_length=255, null=False, blank=False)
+    business_type = models.CharField(max_length=255, null=False, blank=False)
+    opting_for_presumptive_taxation = models.CharField(max_length=255, null=False, blank=False,
+                                                       choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+    opting_data = JSONField(default={}, null=True, blank=True)
+    gst_registered = models.CharField(max_length=255, null=False, blank=False,
+                                      choices=[('yes', 'Yes'), ('no', 'No')], default='no')
+
+    def __str__(self):
+        return f"{self.business_professional_income.service_request.id} - {self.business_name} Details"
+
+
+class BusinessProfessionalIncomeDocument(models.Model):
+    business_professional_income_info = models.ForeignKey(BusinessProfessionalIncome, on_delete=models.CASCADE,
                                                      related_name='documents')
     document_type = models.CharField(max_length=30, choices=[('26AS', '26AS'),
                                                              ('GST Returns', 'GST Returns'),

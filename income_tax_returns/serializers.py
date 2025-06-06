@@ -421,10 +421,15 @@ class OtherCapitalGainsDocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class OtherCapitalGainsInfoSerializer(serializers.ModelSerializer):
+    documents = OtherCapitalGainsDocumentSerializer(many=True, read_only=True)
+    class Meta:
+        model = OtherCapitalGainsInfo
+        fields = '__all__'
+
 class OtherCapitalGainsSerializer(serializers.ModelSerializer):
     # Using the custom serializer for documents to handle multiple file uploads
-    documents = OtherCapitalGainsDocumentSerializer(many=True, read_only=True)
-
+    other_capital_gain_info = OtherCapitalGainsInfoSerializer(many=True, read_only=True)
     class Meta:
         model = OtherCapitalGains
         fields = '__all__'
@@ -436,12 +441,12 @@ class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
+class BusinessProfessionalIncomeInfoSerializer(serializers.ModelSerializer):
     opting_data = serializers.JSONField(required=False, allow_null=True)
     documents = serializers.SerializerMethodField()
 
     class Meta:
-        model = BusinessProfessionalIncome
+        model = BusinessProfessionalIncomeInfo
         fields = '__all__'
 
     def get_documents(self, obj):
@@ -461,6 +466,15 @@ class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
                 ]
             }
         return grouped
+
+
+class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
+    business_professional_income_info = BusinessProfessionalIncomeInfoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = BusinessProfessionalIncome
+        fields = '__all__'
+
 
 
 class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):
