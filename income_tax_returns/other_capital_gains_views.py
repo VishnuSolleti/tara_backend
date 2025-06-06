@@ -1,5 +1,5 @@
 from rest_framework.decorators import api_view, parser_classes
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.response import Response
 from django.db import transaction
 from .models import OtherCapitalGains, OtherCapitalGainsDocument, OtherCapitalGainsInfo
@@ -7,7 +7,7 @@ from .serializers import OtherCapitalGainsSerializer, OtherCapitalGainsDocumentS
 
 
 @api_view(['POST'])
-@parser_classes([MultiPartParser, FormParser])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def upsert_other_capital_gains_with_files(request):
     try:
         service_request = request.data.get('service_request')
