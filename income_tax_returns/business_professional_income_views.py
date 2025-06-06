@@ -78,7 +78,7 @@ def business_professional_income_upsert(request):
         request_data = request.data.copy()
 
     # Coerce investment_types if sent as a string
-    opting_data = request_data.get('opting_data')
+        opting_data = request_data.get('opting_data')
     if isinstance(opting_data, str):
         try:
             request_data['opting_data'] = json.dumps(json.loads(opting_data))
@@ -96,8 +96,11 @@ def business_professional_income_upsert(request):
     request_data.pop('status', None)
     request_data.pop('assignee', None)
     request_data.pop('reviewer', None)
-
-    serializer = BusinessProfessionalIncomeSerializer(data=main_details_data)
+    try:
+        instance = BusinessProfessionalIncome.objects.get(service_request_id=main_details_data['service_request'])
+        serializer = BusinessProfessionalIncomeSerializer(instance, data=main_details_data, partial=True)
+    except BusinessProfessionalIncome.DoesNotExist:
+        serializer = BusinessProfessionalIncomeSerializer(data=main_details_data)
     if serializer.is_valid():
         with transaction.atomic():
             income_instance = serializer.save()
@@ -115,8 +118,8 @@ def business_professional_income_upsert(request):
                 if not info_serializer.is_valid():
                     income_instance.delete()
                     return Response(info_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-                info_instance = info_serializer.save()
-            _handle_business_professional_income_files(request, info_instance)
+                info_instances = info_serializer.save()
+                _handle_business_professional_income_files(request, info_instances)
         return Response({
             "message": "Business Professional Income created successfully",
             "id": income_instance.id

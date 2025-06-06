@@ -58,6 +58,8 @@ def other_income_details_list(request):
                     serializers.save()
                     return Response(main_serializer.data, status=status.HTTP_201_CREATED)
                 return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({"message": "Status Updated Successfully"}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
