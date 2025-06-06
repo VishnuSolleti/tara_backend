@@ -12,7 +12,6 @@ def upsert_other_capital_gains_with_files(request):
     try:
         service_request = request.data.get('service_request')
         service_task = request.data.get('service_task')
-        pk = request.data.get('id')
         data = request.data.copy()
         main_details_data = {
             'service_request': request.data.get('service_request'),
@@ -31,7 +30,7 @@ def upsert_other_capital_gains_with_files(request):
             return Response({"error": "Missing service_request or service_task"}, status=400)
 
         try:
-            instance = OtherCapitalGains.objects.get(service_request=service_request, pk=pk)
+            instance = OtherCapitalGains.objects.get(service_request=service_request)
             serializer = OtherCapitalGainsSerializer(instance, data=main_details_data, partial=True)
         except OtherCapitalGains.DoesNotExist:
             serializer = OtherCapitalGainsSerializer(data=main_details_data)
