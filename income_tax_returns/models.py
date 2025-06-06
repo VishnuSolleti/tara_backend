@@ -194,14 +194,14 @@ class SalaryDocumentFile(models.Model):
 
 
 class OtherIncomeDetails(models.Model):
-    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                            related_name='other_income_details')
     service_type = models.CharField(
         max_length=20,
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
                                      related_name='service_task_other_income_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
@@ -307,14 +307,14 @@ class ForeignEmployeeSalaryDetailsFiles(models.Model):
 
 
 class HousePropertyIncomeDetails(models.Model):
-    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                         related_name='house_property_details')
     service_type = models.CharField(
         max_length=20,
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
                                      related_name='service_task_house_property_details')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
@@ -481,14 +481,14 @@ class CapitalGainsEquityMutualFundDocument(models.Model):
 
 
 class OtherCapitalGains(models.Model):
-    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                         related_name='capital_gains_other_capital_gains')
     service_type = models.CharField(
         max_length=20,
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
                                      related_name='service_task_capital_gains_other_capital_gains')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
@@ -538,14 +538,14 @@ class OtherCapitalGainsDocument(models.Model):
 
 
 class BusinessProfessionalIncome(models.Model):
-    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                         related_name='business_professional_income')
     service_type = models.CharField(
         max_length=20,
         default="Income Tax Returns",
         editable=False
     )
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='service_task_business_professional_income')
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='service_task_business_professional_income')
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
