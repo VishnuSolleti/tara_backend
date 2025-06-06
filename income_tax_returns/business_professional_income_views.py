@@ -194,9 +194,9 @@ def delete_business_professional_income(request, service_request_id):
 @api_view(['DELETE'])
 def delete_business_professional_income_file(request, file_id):
     try:
-        file = BusinessProfessionalIncomeDocument.objects.get(id=file_id)
+        file = BusinessProfessionalIncomeInfo.objects.get(id=file_id)
         file.delete()
-        return Response({"message": "File deleted"}, status=status.HTTP_200_OK)
+        return Response({"message": "Deleted Successfully"}, status=status.HTTP_204_NO_CONTENT)
 
     except BusinessProfessionalIncomeDocument.DoesNotExist:
         return Response({"error": "File not found"}, status=status.HTTP_404_NOT_FOUND)
