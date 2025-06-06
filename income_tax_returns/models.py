@@ -1227,11 +1227,9 @@ class Section80EEBDocuments(models.Model):
 
 
 class ReviewFilingCertificate(models.Model):
-    REVIEW_STATUS_CHOICES = [
-        ('in progress', 'In Progress'),
-        ('resubmission', 'Resubmission'),
-        ('done', 'Done'),
-    ]
+    REVIEW_STATUS_CHOICES = [('in progress', 'In Progress'), ('completed', 'Completed'),
+                                                      ('sent for approval', 'Sent for Approval'),
+                                                      ('revoked', 'Revoked')]
 
     FILING_STATUS_CHOICES = [
         ('in progress', 'In Progress'),
@@ -1278,6 +1276,9 @@ class ReviewFilingCertificate(models.Model):
         blank=True,
         default=None
     )
+
+    draft_income_file = models.FileField(upload_to=draft_filing_certificate,
+                                                null=True, blank=True)
 
     approval_status = models.CharField(
         max_length=20,
@@ -1566,6 +1567,20 @@ def sync_service_task_status(sender, instance, **kwargs):
     # Sync status
     if task.status != instance.status:
         task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=ReviewFilingCertificate)
+def sync_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.review_certificate_status:
+        task.status = instance.review_certificate_status
 
     # Sync completion %
     task.completion_percentage = calculate_completion_percentage(instance)
