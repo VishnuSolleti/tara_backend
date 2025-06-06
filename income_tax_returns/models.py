@@ -1287,6 +1287,12 @@ class ReviewFilingCertificate(models.Model):
         blank=True,
         default=None
     )
+    status = models.CharField(
+        max_length=20,
+        choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                 ('sent for approval', 'Sent for Approval'), ('revoked', 'Revoked')],
+        null=True, blank=True
+    )
     assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='assigned_ITR_review_filing_certificate')
     reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
@@ -1579,8 +1585,8 @@ def sync_service_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
-    if task.status != instance.review_certificate_status:
-        task.status = instance.review_certificate_status
+    if task.status != instance.status:
+        task.status = instance.status
 
     # Sync completion %
     task.completion_percentage = calculate_completion_percentage(instance)
