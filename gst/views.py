@@ -377,17 +377,8 @@ def get_promoter_signatory_data(request):
     except PromoterSignatoryDetails.DoesNotExist:
         return Response({"error": "PromoterSignatoryDetails not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    try:
-        info = PromoterSignatoryInfo.objects.get(promoter_detail=details)
-        info_data = PromoterSignatoryInfoSerializer(info).data
-    except PromoterSignatoryInfo.DoesNotExist:
-        info_data = None
-
-    return Response({
-        "details": PromoterSignatoryDetailsSerializer(details).data,
-        "info": info_data
-    }, status=status.HTTP_200_OK)
-
+    serializer = PromoterSignatoryDetailsSerializer(details)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['DELETE'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
