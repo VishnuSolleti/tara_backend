@@ -7,6 +7,7 @@ from usermanagement.models import ServiceRequest, Users
 from servicetasks.models import ServiceTask
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from docwallet.models import PrivateS3Storage
 
 
 class PersonalInformation(models.Model):
@@ -24,10 +25,10 @@ class PersonalInformation(models.Model):
     last_name = models.CharField(max_length=255, null=False, blank=False)
     gender = models.CharField(max_length=255, null=False, blank=False)
     residentail_status = models.CharField(max_length=255, null=False, blank=False)
-    pan = models.FileField(upload_to=personal_information_pan, null=True, blank=True)
+    pan = models.FileField(upload_to=personal_information_pan, null=True, blank=True, storage=PrivateS3Storage())
     mobile_number = models.CharField(max_length=20, null=False, blank=False, default=None)
     email = models.EmailField(max_length=255, null=False, blank=False, default=None)
-    aadhar = models.FileField(upload_to=personal_information_aadhar, null=True, blank=True)
+    aadhar = models.FileField(upload_to=personal_information_aadhar, null=True, blank=True, storage=PrivateS3Storage())
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -124,7 +125,7 @@ class TaxPaidDetailsFile(models.Model):
     tax_paid = models.ForeignKey(TaxPaidDetails, on_delete=models.CASCADE, related_name='tax_paid_documents')
     document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
     file = models.FileField(upload_to=tax_paid_details_file,
-                           null=True, blank=True)
+                           null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -186,7 +187,7 @@ class SalaryDocumentFile(models.Model):
     income = models.ForeignKey(SalaryIncome, on_delete=models.CASCADE, related_name='documents')
     document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
     file = models.FileField(upload_to=salary_income_details_file,
-                            null=True, blank=True)
+                            null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -239,7 +240,7 @@ class OtherIncomeDetailsInfo(models.Model):
     details = models.CharField(max_length=255, null=True, blank=True)
     amount = models.IntegerField()
     file = models.FileField(upload_to=outcome_income_details_file,
-                            null=True, blank=True)
+                            null=True, blank=True, storage=PrivateS3Storage())
     notes = models.TextField(null=True, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -299,7 +300,7 @@ class ForeignEmployeeSalaryDetailsFiles(models.Model):
     nri = models.ForeignKey(NRIEmployeeSalaryDetails, on_delete=models.CASCADE, related_name='foreigner_documents')
     document_type = models.CharField(max_length=30, choices=DOCUMENT_TYPES)
     file = models.FileField(upload_to=foreign_emp_salary_details_file,
-                            null=True, blank=True)
+                            null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -359,12 +360,15 @@ class HousePropertyIncomeDetailsInfo(models.Model):
     rent_received = models.CharField(max_length=255, null=True, blank=True)
     pay_municipal_tax = models.BooleanField(default=False)
     municipal_tax_paid = models.IntegerField(null=True, blank=True)
-    municipal_tax_receipt = models.FileField(upload_to=house_property_details_municipal_tax_receipt, null=True, blank=True)
+    municipal_tax_receipt = models.FileField(upload_to=house_property_details_municipal_tax_receipt, null=True,
+                                             blank=True, storage=PrivateS3Storage())
     home_loan_on_property = models.BooleanField(default=False)
     interest_during_financial_year = models.IntegerField(null=True, blank=True)
     principal_during_financial_year = models.IntegerField(null=True, blank=True)
-    loan_statement = models.FileField(upload_to=house_property_details_loan_statement, null=True, blank=True)
-    upload_loan_interest_certificate = models.FileField(upload_to=house_property_details_loan_interest_certificate, null=True, blank=True)
+    loan_statement = models.FileField(upload_to=house_property_details_loan_statement,
+                                      null=True, blank=True, storage=PrivateS3Storage())
+    upload_loan_interest_certificate = models.FileField(upload_to=house_property_details_loan_interest_certificate,
+                                                        null=True, blank=True, storage=PrivateS3Storage())
 
     def __str__(self):
         return f"{self.house_property_details.service_request.id} - Property Info"
@@ -423,12 +427,14 @@ class CapitalGainsProperty(models.Model):
     purchase_cost = models.IntegerField(null=True, blank=True)
     date_of_sale = models.DateField(null=True, blank=True)
     sale_value = models.IntegerField(null=True, blank=True)
-    purchase_doc = models.FileField(upload_to=capital_gains_property_purchase_doc, null=True, blank=True)
-    sale_doc = models.FileField(upload_to=capital_gains_property_sale_doc, null=True, blank=True)
+    purchase_doc = models.FileField(upload_to=capital_gains_property_purchase_doc, null=True, blank=True,
+                                    storage=PrivateS3Storage())
+    sale_doc = models.FileField(upload_to=capital_gains_property_sale_doc, null=True, blank=True,
+                                storage=PrivateS3Storage())
     reinvestment_made = models.CharField(max_length=20, choices=[('yes', 'Yes'), ('no', 'No')], default='no')
     reinvestment_details = JSONField(default=dict, null=True, blank=True)
     reinvestment_details_docs = models.FileField(upload_to=capital_gains_property_reinvestment_docs,
-                                                 null=True, blank=True)
+                                                 null=True, blank=True, storage=PrivateS3Storage())
 
     def __str__(self):
         return f"{self.capital_gains_applicable.service_request.id} - {self.property_type} Details"
@@ -473,7 +479,8 @@ class CapitalGainsEquityMutualFund(models.Model):
 class CapitalGainsEquityMutualFundDocument(models.Model):
     capital_gains_equity_mutual_fund = models.ForeignKey(CapitalGainsEquityMutualFund, on_delete=models.CASCADE,
                                                           related_name='documents')
-    file = models.FileField(upload_to=capital_gains_equity_mutual_fund_file, null=True, blank=True)
+    file = models.FileField(upload_to=capital_gains_equity_mutual_fund_file, null=True,
+                            blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -530,7 +537,7 @@ class OtherCapitalGainsInfo(models.Model):
 class OtherCapitalGainsDocument(models.Model):
     other_capital_gains_info = models.ForeignKey(OtherCapitalGainsInfo, on_delete=models.CASCADE, related_name='documents')
     file = models.FileField(upload_to=other_capital_gains_file,
-                            null=True, blank=True)
+                            null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -603,7 +610,8 @@ class BusinessProfessionalIncomeDocument(models.Model):
                                                              ('AIS', 'AIS'),
                                                              ('Profit & Loss Statement', 'Profit & Loss Statement'),
                                                              ('Balance Sheet', 'Balance Sheet')])
-    file = models.FileField(upload_to=business_professional_income_file, null=True, blank=True)
+    file = models.FileField(upload_to=business_professional_income_file,
+                            null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -663,7 +671,7 @@ class InterestIncomeDocument(models.Model):
     interest_earned = models.IntegerField(null=True, blank=True)
     bank_name = models.CharField(max_length=255, null=True, blank=True)
     file = models.FileField(upload_to=interest_income_details_file,
-                            null=True, blank=True)
+                            null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -717,7 +725,7 @@ class DividendIncomeDocument(models.Model):
     received_from = models.CharField(max_length=255, null=True, blank=True)
     dividend_received = models.IntegerField(null=True, blank=True)
     file = models.FileField(upload_to=dividend_income_file,
-                            null=True, blank=True)
+                            null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -889,7 +897,7 @@ class ForeignIncomeInfo(models.Model):
     currency = models.CharField(max_length=3)
     amount = models.IntegerField()
     tax_paid_abroad = models.CharField(max_length=20, choices=[('yes', 'Yes'), ('no', 'No')], default='No')
-    form67_file = models.FileField(upload_to=foreign_income_file, null=True, blank=True)
+    form67_file = models.FileField(upload_to=foreign_income_file, null=True, blank=True, storage=PrivateS3Storage())
 
     def __str__(self):
         return f"{self.foreign_income.service_request.id}- {self.type_of_income}"
@@ -945,7 +953,7 @@ class WinningIncomeDocument(models.Model):
                                                       ('Others', 'Others')])
     amount = models.IntegerField()
     file = models.FileField(upload_to=winning_income_file,
-                            null=True, blank=True)
+                            null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -1000,7 +1008,7 @@ class AgricultureIncomeDocument(models.Model):
                                        related_name='agriculture_income_docs')
     amount = models.IntegerField()
     file = models.FileField(upload_to=agriculture_income_file,
-                            null=True, blank=True)
+                            null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -1055,7 +1063,7 @@ class Section80G(models.Model):
     mode = models.CharField(max_length=50, null=True, blank=True,choices=[('Cash', 'Cash'),
                                                                           ('Cheque', 'Cheque'),
                                                                           ('Online Transfer', 'Online Transfer')])
-    file = models.FileField(upload_to=section_80g_file, null=True, blank=True)
+    file = models.FileField(upload_to=section_80g_file, null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -1082,7 +1090,7 @@ class Section80EDocuments(models.Model):
     document_type = models.CharField(max_length=30, choices=[('Sanction Letter', 'Sanction Letter'), ('Interest Certificate', 'Interest Certificate'),
                                                                 ('Repayment Schedule', 'Repayment Schedule'),
                                                                 ('Other', 'Other')])
-    file = models.FileField(upload_to=section_80e_file, null=True, blank=True)
+    file = models.FileField(upload_to=section_80e_file, null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -1108,7 +1116,8 @@ class Section80TTATTBU(models.Model):
     severity = models.CharField(max_length=50, null=True, blank=True, choices=[('40-80%', '40-80%'),('>80%', '>80%')])
     deduction_amount = models.IntegerField(null=True, blank=True)
 
-    deduction_file = models.FileField(upload_to=section_80ettattbu_file, null=True, blank=True)
+    deduction_file = models.FileField(upload_to=section_80ettattbu_file, null=True,
+                                      blank=True, storage=PrivateS3Storage())
     pay_rent_without_recieving_hra = models.BooleanField(default=False)
     pay_rent_amount = models.IntegerField(null=True, blank=True)
     are_you_first_time_homebuyer = models.BooleanField(default=False)
@@ -1138,7 +1147,7 @@ class Section80C(models.Model):
 
 class Section80CDocuments(models.Model):
     section_80c = models.ForeignKey(Section80C, on_delete=models.CASCADE, related_name='section_80c_documents')
-    file = models.FileField(upload_to=section_80c_file, null=True, blank=True)
+    file = models.FileField(upload_to=section_80c_file, null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -1159,7 +1168,7 @@ class Section80EEDocuments(models.Model):
                                                              ('Interest Certificate', 'Interest Certificate'),
                                                              ('Repayment Schedule', 'Repayment Schedule'),
                                                              ('Other', 'Other')])
-    file = models.FileField(upload_to=section_80ee_file, null=True, blank=True)
+    file = models.FileField(upload_to=section_80ee_file, null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -1181,7 +1190,7 @@ class Section80D(models.Model):
 class Section80DFile(models.Model):
 
     section_80d = models.ForeignKey(Section80D, on_delete=models.CASCADE, related_name='section_80d_documents')
-    file = models.FileField(upload_to=section_80d_file, null=True, blank=True)
+    file = models.FileField(upload_to=section_80d_file, null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -1198,7 +1207,7 @@ class Section80DDB(models.Model):
 
 class Section80DDBDocuments(models.Model):
     section_80ddb = models.ForeignKey(Section80DDB, on_delete=models.CASCADE, related_name='section_80ddb_documents')
-    file = models.FileField(upload_to=section_80ddb_file, null=True, blank=True)
+    file = models.FileField(upload_to=section_80ddb_file, null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -1219,7 +1228,7 @@ class Section80EEBDocuments(models.Model):
                                                              ('Interest Certificate', 'Interest Certificate'),
                                                              ('Repayment Schedule', 'Repayment Schedule'),
                                                              ('Other', 'Other')])
-    file = models.FileField(upload_to=section_80eeb_file, null=True, blank=True)
+    file = models.FileField(upload_to=section_80eeb_file, null=True, blank=True, storage=PrivateS3Storage())
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -1260,7 +1269,7 @@ class ReviewFilingCertificate(models.Model):
                                         related_name='service_task_ITR_review_filing_certificate')
 
     review_certificate = models.FileField(upload_to=review_filing_certificate,
-                                          null=True, blank=True)
+                                          null=True, blank=True, storage=PrivateS3Storage())
     review_certificate_status = models.CharField(
         max_length=20,
         choices=REVIEW_STATUS_CHOICES,
@@ -1278,7 +1287,7 @@ class ReviewFilingCertificate(models.Model):
     )
 
     draft_income_file = models.FileField(upload_to=draft_filing_certificate,
-                                                null=True, blank=True)
+                                                null=True, blank=True, storage=PrivateS3Storage())
 
     approval_status = models.CharField(
         max_length=20,

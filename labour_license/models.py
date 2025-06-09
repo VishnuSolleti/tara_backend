@@ -7,6 +7,7 @@ from usermanagement.models import ServiceRequest, Users
 from servicetasks.models import ServiceTask
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from docwallet.models import PrivateS3Storage
 
 
 class BusinessIdentityStructure(models.Model):
@@ -24,7 +25,7 @@ class BusinessIdentityStructure(models.Model):
     legal_name_of_business = models.CharField(max_length=255, null=False, blank=False)
     nature_of_business = models.CharField(max_length=255, null=False, blank=False)
     business_pan = models.FileField(upload_to=business_identity_structure_pan,
-                                    null=True, blank=True)
+                                    null=True, blank=True, storage=PrivateS3Storage())
     date_of_commencement = models.DateField(null=False, blank=False)
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
@@ -58,13 +59,13 @@ class SignatoryDetails(models.Model):
                                         related_name='service_task_signatory_details')
     name = models.CharField(max_length=255, null=False, blank=False)
     aadhar_image = models.FileField(upload_to=signatory_details_aadhar_image,
-                                    null=True, blank=True)
+                                    null=True, blank=True, storage=PrivateS3Storage())
     pan_image = models.FileField(
         upload_to=signatory_details_pan_image,
-        null=True, blank=True)
+        null=True, blank=True, storage=PrivateS3Storage())
     photo_image = models.FileField(
         upload_to=signatory_details_photo_image,
-        null=True, blank=True)
+        null=True, blank=True, storage=PrivateS3Storage())
     mobile_number = models.BigIntegerField(null=False, blank=False)
     email = models.EmailField(null=False, blank=False)
     residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
@@ -105,13 +106,13 @@ class BusinessLocationProofs(models.Model):
     nature_of_possession = models.CharField(max_length=255, null=False, blank=False)
     address_proof = models.FileField(
         upload_to=business_location_address_proof,
-        null=False, blank=False)
+        null=False, blank=False, storage=PrivateS3Storage())
     rental_agreement = models.FileField(
         upload_to=business_location_rental_agreement,
-        null=False, blank=False)
+        null=False, blank=False, storage=PrivateS3Storage())
     bank_statement = models.FileField(
         upload_to=business_location_bank_statement,
-        null=True, blank=True)
+        null=True, blank=True, storage=PrivateS3Storage())
     additional_space = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
                                         null=False, blank=False)
     workplace = models.CharField(max_length=200, null=False, blank=False)
@@ -143,10 +144,10 @@ class AdditionalSpaceBusiness(models.Model):
     nature_of_possession = models.CharField(max_length=255, null=False, blank=False)
     address_proof = models.FileField(
         upload_to=additional_business_space_address_proof,
-        null=False, blank=False)
+        null=False, blank=False, storage=PrivateS3Storage())
     rental_agreement = models.FileField(
         upload_to=additional_business_space_rental_agreement,
-        null=False, blank=False)
+        null=False, blank=False, storage=PrivateS3Storage())
 
     def __str__(self):
         return self.nature_of_possession
@@ -164,16 +165,16 @@ class BusinessRegistrationDocuments(models.Model):
                                         related_name='service_task_business_registration')
     certificate_of_incorporation = models.FileField(
         upload_to=business_registration_documents_certificate_of_incorporation,
-        null=False, blank=False)
+        null=False, blank=False, storage=PrivateS3Storage())
     memorandum_of_articles = models.FileField(
         upload_to=business_registration_documents_memorandum_of_articles,
-        null=False, blank=False)
+        null=False, blank=False, storage=PrivateS3Storage())
     local_language_name_board_photo_business = models.FileField(
         upload_to=business_registration_documents_local_language_name_board_photo_business,
-        null=False, blank=False)
+        null=False, blank=False, storage=PrivateS3Storage())
     authorization_letter = models.FileField(
         upload_to=business_registration_documents_authorization_letter,
-        null=False, blank=False)
+        null=False, blank=False, storage=PrivateS3Storage())
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
                                                       ('revoked', 'Revoked')], null=False, blank=False)
@@ -230,7 +231,7 @@ class ReviewFilingCertificate(models.Model):
                                         related_name='service_task_review_filing_certificate')
 
     review_certificate = models.FileField(upload_to=review_filing_certificate,
-                                          null=True, blank=True)
+                                          null=True, blank=True, storage=PrivateS3Storage())
     review_certificate_status = models.CharField(
         max_length=20,
         choices=REVIEW_STATUS_CHOICES,
