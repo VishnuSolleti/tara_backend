@@ -54,7 +54,7 @@ class BusinessIdentity(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(BusinessIdentity, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.legal_name_of_business
@@ -90,15 +90,39 @@ class ApplicantDetails(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(ApplicantDetails, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.name
 
 
 class SignatoryDetails(models.Model):
-    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                         related_name='promoter_or_directors_details')
+    service_type = models.CharField(max_length=100, default='Trade License', editable=False)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in progress')
+    assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='assigned_signatory_detail')
+    reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='reviewed_signatory_detail')
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='signatory_task',
+                                     null=False, blank=False)
+
+    def save(self, *args, **kwargs):
+        # Default to service_request values if not set
+        if not self.assignee and self.service_task.assignee:
+            self.assignee = self.service_task.assignee
+        if not self.reviewer and self.service_task.reviewer:
+            self.reviewer = self.service_task.reviewer
+        super(SignatoryDetails, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class SignatoryInfo(models.Model):
+    signatory_details = models.ForeignKey(SignatoryDetails, on_delete=models.CASCADE, related_name='signatory_info')
     name = models.CharField(max_length=255, blank=False, null=False)
     aadhar_image = models.FileField(upload_to=promoter_or_directors_aadhaar,
                                     blank=True, null=True, storage=PrivateS3Storage())
@@ -111,22 +135,6 @@ class SignatoryDetails(models.Model):
     residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
                                            null=False, blank=False)
     address = models.TextField(blank=True, null=True)
-
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in progress')
-    assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
-                                 related_name='assigned_signatory_detail')
-    reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
-                                 related_name='reviewed_signatory_detail')
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE, related_name='signatory_task',
-                                     null=False, blank=False)
-
-    def save(self, *args, **kwargs):
-        # Default to service_request values if not set
-        if not self.assignee and self.service_task.assignee:
-            self.assignee = self.service_task.assignee
-        if not self.reviewer and self.service_task.reviewer:
-            self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -165,7 +173,7 @@ class BusinessLocation(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(BusinessLocation, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.location_name
@@ -208,7 +216,7 @@ class TradeLicenseDetails(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(TradeLicenseDetails, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.trade_license_number
@@ -240,7 +248,7 @@ class BusinessDocumentDetails(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(BusinessDocumentDetails, self).save(*args, **kwargs)
 
     def __str__(self):
         return str(self.incorporation_certificate)
@@ -256,12 +264,14 @@ class ReviewFilingCertificate(models.Model):
     FILING_STATUS_CHOICES = [
         ('in progress', 'In Progress'),
         ('filed', 'Filed'),
+        ('sent for approval', 'Sent for Approval'),
         ('resubmitted', 'Resubmitted'),
     ]
 
     APPROVAL_STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('resubmission', 'Resubmission'),
+        ('sent for approval', 'Sent for Approval'),
         ('rejected', 'Rejected'),
         ('approved', 'Approved'),
     ]
@@ -285,6 +295,13 @@ class ReviewFilingCertificate(models.Model):
         null=True,
         blank=True,
         default=None
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        null=True,
+        blank=True,
     )
 
     filing_status = models.CharField(
@@ -313,7 +330,7 @@ class ReviewFilingCertificate(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(ReviewFilingCertificate, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.review_certificate_status or "No Review Status"
@@ -344,6 +361,90 @@ def sync_service_task_status(sender, instance, **kwargs):
     # Sync status
     if task.status != instance.status:
         task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=ApplicantDetails)
+def sync_applicant_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=SignatoryDetails)
+def sync_signatory_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=BusinessLocation)
+def sync_business_location_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=TradeLicenseDetails)
+def sync_trade_license_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=BusinessDocumentDetails)
+def sync_business_document_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=ReviewFilingCertificate)
+def sync_review_filing_certificate_service_task_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.review_certificate_status:
+        task.status = instance.review_certificate_status
 
     # Sync completion %
     task.completion_percentage = calculate_completion_percentage(instance)
