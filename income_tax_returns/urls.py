@@ -99,7 +99,7 @@ urlpatterns = [
          capital_gains_funds_details_views.get_equity_mutual_fund_details, name='get_equity_mutual_fund_details'),
     path('capital-gains/equity-mutual-fund/<int:service_request_id>/delete/',
          capital_gains_funds_details_views.delete_equity_mutual_fund, name='delete_equity_mutual_fund'),
-    path('capital-gains/equity-mutual-fund/file/<int:file_id>/delete/',
+    path('capital-gains-equity-mutual-fund/files/<int:file_id>/delete/',
          capital_gains_funds_details_views.delete_equity_mutual_fund_file, name='delete_equity_mutual_fund_file'),
 
     # Business Professional Income
