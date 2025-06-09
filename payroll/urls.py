@@ -2,6 +2,7 @@ from django.urls import path
 from . import views
 from . import employee_management
 from . import generate_salary_upload_template
+from . import bulk_employee_upload
 
 urlpatterns = [
     # URL for listing and creating PayrollOrg instances
@@ -186,6 +187,8 @@ urlpatterns = [
 
     path('employee-salary-template/<int:payroll_id>/',
          generate_salary_upload_template.generate_salary_upload_template, name='salary-template'),
+
+    path('employees/upload/', bulk_employee_upload.upload_employee_excel, name='upload-employee-excel'),
 
 
 ]

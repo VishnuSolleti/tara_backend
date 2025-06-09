@@ -65,16 +65,16 @@ def generate_salary_upload_template(request, payroll_id):
 
         base_columns = ['employee_id', 'associate_id', 'full_name', 'annual_ctc', 'tax_regime_opted', 'valid_from']
 
-        earning_fields = ['component_name', 'calculation_type', 'calculation', 'monthly', 'annually']
-        earning_columns = [f'earning_{i}_{field}' for i in range(1, len(default_earnings)+1)
+        earning_fields = ['component_name', 'calculation', 'calculation_type', 'monthly', 'annually']
+        earning_columns = [f'earning_{i}_{field}' for i in range(1, len(default_earnings) + 1)
                            for field in earning_fields]
 
-        benefit_fields = ['component_name', 'calculation_type', 'calculation', 'monthly', 'annually']
-        benefit_columns = [f'benefit_{i}_{field}' for i in range(1, len(default_benefits)+1)
+        benefit_fields = ['component_name', 'calculation', 'calculation_type', 'monthly', 'annually']
+        benefit_columns = [f'benefit_{i}_{field}' for i in range(1, len(default_benefits) + 1)
                            for field in benefit_fields]
 
-        deduction_fields = ['component_name', 'calculation_type', 'calculation', 'monthly', 'annually']
-        deduction_columns = [f'deduction_{i}_{field}' for i in range(1, len(default_deductions)+1)
+        deduction_fields = ['component_name', 'calculation', 'calculation_type', 'monthly', 'annually']
+        deduction_columns = [f'deduction_{i}_{field}' for i in range(1, len(default_deductions) + 1)
                              for field in deduction_fields]
 
         summary_columns = [
@@ -209,7 +209,12 @@ def generate_salary_upload_template(request, payroll_id):
                         subtract_exprs.append(f"IF(ISNUMBER({c}), {c}, 0)")
 
                     subtraction = " + ".join(subtract_exprs) if subtract_exprs else "0"
-                    m_cell.value = f"=IF(ISNUMBER({annual_ctc_cell}), ({annual_ctc_cell}/12) - ({subtraction}), \"\")"
+                    m_cell.value = (
+                        f"=IF(ISNUMBER({annual_ctc_cell}), "
+                        f"IF(({annual_ctc_cell}/12) - ({subtraction}) >= 0, "
+                        f"({annual_ctc_cell}/12) - ({subtraction}), "
+                        f"\"Error: Adjust earnings\"), \"\")"
+                    )
                     a_cell.value = f"=IF(ISNUMBER({m_cell.coordinate}), {m_cell.coordinate}*12, \"\")"
 
                 elif ct == "Flat Amount":
