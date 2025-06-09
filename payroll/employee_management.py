@@ -114,5 +114,3 @@ def generate_employee_upload_template(request, payroll_id):
     )
     response['Content-Disposition'] = 'attachment; filename="employee_upload_template.xlsx"'
     return response
-
-
