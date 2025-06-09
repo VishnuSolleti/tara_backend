@@ -36,9 +36,11 @@ class PromoterSignatoryDetailsSerializer(serializers.ModelSerializer):
 
 
 class PromoterSignatoryInfoSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = PromoterSignatoryInfo
         fields = '__all__'
+
 
 
 class GSTReviewFilingCertificateSerializer(serializers.ModelSerializer):
