@@ -1243,12 +1243,14 @@ class ReviewFilingCertificate(models.Model):
     FILING_STATUS_CHOICES = [
         ('in progress', 'In Progress'),
         ('filed', 'Filed'),
+        ('sent for approval', 'Sent for Approval'),
         ('resubmitted', 'Resubmitted'),
     ]
 
     APPROVAL_STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('resubmission', 'Resubmission'),
+        ('sent for approval', 'Sent for Approval'),
         ('rejected', 'Rejected'),
         ('approved', 'Approved'),
     ]
