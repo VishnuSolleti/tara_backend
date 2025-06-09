@@ -82,12 +82,13 @@ urlpatterns = [
          name='get_capital_gains_details'),
     path('capital-gains/add-property/', capital_gains_views.add_capital_gains_property,
          name='add_capital_gains_property'),
-    path('capital-gains/delete-property/<str:file_type>/<int:property_id>/', capital_gains_views.delete_capital_gains_property_file,
+    path('capital-gains/delete-property/<str:file_type>/<int:property_id>/',
+         capital_gains_views.delete_capital_gains_property_file,
          name='delete_capital_gains_property_file'),
     path('capital-gains/delete-property/<int:pk>/', capital_gains_views.delete_capital_gains_property,
          name='delete_capital_gains_property'),
 
-    path('capital-gains/update-property/<int:property_id>/',capital_gains_views.update_capital_gains_property,
+    path('capital-gains/update-property/<int:property_id>/', capital_gains_views.update_capital_gains_property,
          name='update_capital_gains_property'),
 
     # Capital Gains Equity Mutual Fund
@@ -126,7 +127,8 @@ urlpatterns = [
          name='delete_other_capital_gains'),
 
     # Delete a specific document by file ID
-    path('other-capital-gains/document/<int:file_id>/delete/', other_capital_gains_views.delete_other_capital_gains_file,
+    path('other-capital-gains/document/<int:file_id>/delete/',
+         other_capital_gains_views.delete_other_capital_gains_file,
          name='delete_other_capital_gains_file'),
 
     path('house-property-details/upsert/', house_property_income_views.upsert_house_property_details,

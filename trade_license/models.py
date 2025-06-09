@@ -7,6 +7,7 @@ from usermanagement.models import Users, ServiceRequest
 from servicetasks.models import ServiceTask
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from docwallet.models import PrivateS3Storage
 
 
 STATUS_CHOICES = [
@@ -28,13 +29,14 @@ YES_NO_CHOICES = [
         ('no', 'No'),
     ]
 
-class BusinessIdentity(models.Model):
 
+class BusinessIdentity(models.Model):
     service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='business_identity_task')
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE, related_name='business_identity')
     type_of_business = models.CharField(max_length=50, blank=False, null=False)
     legal_name_of_business = models.CharField(max_length=255, blank=False, null=False)
-    business_pan = models.FileField(upload_to=business_identity_structure_pan, blank=True, null=True)
+    business_pan = models.FileField(upload_to=business_identity_structure_pan, blank=True,
+                                    null=True, storage=PrivateS3Storage())
     nature_of_business = models.CharField(max_length=255, blank=False, null=False)
 
     status = models.CharField(max_length=50, choices=STATUS_CHOICES, default='in progress')
@@ -62,9 +64,12 @@ class ApplicantDetails(models.Model):
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE, related_name='applicant_details')
     name = models.CharField(max_length=255, blank=False, null=False)
     designation = models.CharField(max_length=50, choices=DESIGNATION_CHOICES, blank=False, null=False)
-    aadhaar_image = models.FileField(upload_to=signatory_details_aadhar_image, blank=True, null=True)
-    pan_image = models.FileField(upload_to=signatory_details_pan_image, blank=True, null=True)
-    passport_photo = models.FileField(upload_to=signatory_details_passport, blank=True, null=True)
+    aadhaar_image = models.FileField(upload_to=signatory_details_aadhar_image,
+                                     blank=True, null=True, storage=PrivateS3Storage())
+    pan_image = models.FileField(upload_to=signatory_details_pan_image,
+                                 blank=True, null=True, storage=PrivateS3Storage())
+    passport_photo = models.FileField(upload_to=signatory_details_passport,
+                                      blank=True, null=True, storage=PrivateS3Storage())
     residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
                                            null=False, blank=False)
     address = models.TextField(blank=True, null=True)
@@ -76,7 +81,8 @@ class ApplicantDetails(models.Model):
                                  related_name='assigned_applicant')
     reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='reviewed_applicant')
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='applicant_task', null=False, blank=False)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='applicant_task', null=False, blank=False)
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
@@ -94,9 +100,12 @@ class SignatoryDetails(models.Model):
     service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
                                         related_name='promoter_or_directors_details')
     name = models.CharField(max_length=255, blank=False, null=False)
-    aadhar_image = models.FileField(upload_to=promoter_or_directors_aadhaar, blank=True, null=True)
-    pan_image = models.FileField(upload_to=promoter_or_directors_pan, blank=True, null=True)
-    passport_photo = models.FileField(upload_to=promoter_or_directors_passport_photo, blank=True, null=True)
+    aadhar_image = models.FileField(upload_to=promoter_or_directors_aadhaar,
+                                    blank=True, null=True, storage=PrivateS3Storage())
+    pan_image = models.FileField(upload_to=promoter_or_directors_pan,
+                                 blank=True, null=True, storage=PrivateS3Storage())
+    passport_photo = models.FileField(upload_to=promoter_or_directors_passport_photo,
+                                      blank=True, null=True, storage=PrivateS3Storage())
     mobile_number = models.BigIntegerField(blank=False, null=False)
     email = models.EmailField(blank=False, null=False)
     residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
@@ -131,18 +140,24 @@ class BusinessLocation(models.Model):
     nature_of_possession = models.CharField(max_length=100, blank=False, null=False)
     trade_area = models.CharField(max_length=100, blank=False, null=False)
     road_type = models.CharField(max_length=100, blank=False, null=False)
-    address_proof = models.FileField(upload_to=business_location_address_proof, blank=False, null=False)
-    rental_agreement = models.FileField(upload_to=business_location_rental_agreement, blank=False, null=False)
-    bank_statement = models.FileField(upload_to=business_location_bank_statement, blank=True, null=True)
+    address_proof = models.FileField(upload_to=business_location_address_proof,
+                                     blank=False, null=False, storage=PrivateS3Storage())
+    rental_agreement = models.FileField(upload_to=business_location_rental_agreement,
+                                        blank=False, null=False, storage=PrivateS3Storage())
+    bank_statement = models.FileField(upload_to=business_location_bank_statement,
+                                      blank=True, null=True, storage=PrivateS3Storage())
     additional_space = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
                                         null=False, blank=False, default='no')
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in progress')
     service_type = models.CharField(max_length=100, default='Trade License', editable=False)
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='business_location_task', null=False, blank=False)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='business_location_task', null=False, blank=False)
 
-    assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_businesses_location')
-    reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_businesses_location')
+    assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='assigned_businesses_location')
+    reviewer = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
+                                 related_name='reviewed_businesses_location')
 
     def save(self, *args, **kwargs):
         # Default to service_request values if not set
@@ -157,24 +172,30 @@ class BusinessLocation(models.Model):
 
 
 class AdditionalSpaceBusiness(models.Model):
-    business_locations = models.ForeignKey(BusinessLocation, on_delete=models.CASCADE, related_name='additional_address_details')
+    business_locations = models.ForeignKey(BusinessLocation, on_delete=models.CASCADE,
+                                           related_name='additional_address_details')
     address = models.JSONField(default=dict, blank=False, null=False)
     nature_of_possession = models.CharField(max_length=100, blank=False, null=False)
-    address_proof = models.FileField(upload_to=additional_business_space_address_proof, blank=False, null=False)
-    rental_agreement = models.FileField(upload_to=additional_business_space_rental_agreement, blank=False, null=False)
+    address_proof = models.FileField(upload_to=additional_business_space_address_proof, blank=False,
+                                     null=False, storage=PrivateS3Storage())
+    rental_agreement = models.FileField(upload_to=additional_business_space_rental_agreement,
+                                        blank=False, null=False, storage=PrivateS3Storage())
 
     def __str__(self):
         return str(self.address)
 
 
 class TradeLicenseDetails(models.Model):
-    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE, related_name='trade_license_details')
+    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
+                                           related_name='trade_license_details')
     apply_new_license = models.CharField(max_length=10, choices=YES_NO_CHOICES, default='yes')
     trade_license_number = models.CharField(max_length=100, blank=True, null=True)
-    trade_license_file = models.FileField(upload_to=trade_license_document, blank=True, null=True)
+    trade_license_file = models.FileField(upload_to=trade_license_document,
+                                          blank=True, null=True, storage=PrivateS3Storage())
 
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in progress')
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='trade_license_task', null=False, blank=False)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='trade_license_task', null=False, blank=False)
     service_type = models.CharField(max_length=100, default='Trade License', editable=False)
     assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='assigned_tradelicense')
@@ -195,13 +216,18 @@ class TradeLicenseDetails(models.Model):
 
 class BusinessDocumentDetails(models.Model):
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE, related_name='business_documents')
-    incorporation_certificate = models.FileField(upload_to=business_registration_documents_certificate_of_incorporation, blank=False, null=False)
-    photo_of_premises = models.FileField(upload_to=business_registration_documents_photo_of_premises, blank=False, null=False)
-    property_tax_receipt = models.FileField(upload_to=business_registration_documents_property_tax_receipt, blank=False, null=False)
-    rental_agreement = models.FileField(upload_to=business_registration_documents_rental_agreement, blank=False, null=False)
+    incorporation_certificate = models.FileField(upload_to=business_registration_documents_certificate_of_incorporation,
+                                                 blank=False, null=False, storage=PrivateS3Storage())
+    photo_of_premises = models.FileField(upload_to=business_registration_documents_photo_of_premises,
+                                         blank=False, null=False, storage=PrivateS3Storage())
+    property_tax_receipt = models.FileField(upload_to=business_registration_documents_property_tax_receipt,
+                                            blank=False, null=False, storage=PrivateS3Storage())
+    rental_agreement = models.FileField(upload_to=business_registration_documents_rental_agreement,
+                                        blank=False, null=False, storage=PrivateS3Storage())
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='in progress')
     service_type = models.CharField(max_length=100, default='Trade License', editable=False)
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='business_registration_task', null=False, blank=False)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='business_registration_task', null=False, blank=False)
 
     assignee = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True, blank=True,
                                  related_name='assigned_business_registration_docs')
@@ -248,10 +274,11 @@ class ReviewFilingCertificate(models.Model):
         editable=False
     )
 
-    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='review_certificate_task', null=False, blank=False)
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
+                                        related_name='review_certificate_task', null=False, blank=False)
 
     review_certificate = models.FileField(upload_to=review_filing_certificate,
-                                          null=True, blank=True)
+                                          null=True, blank=True, storage=PrivateS3Storage())
     review_certificate_status = models.CharField(
         max_length=20,
         choices=REVIEW_STATUS_CHOICES,
@@ -322,4 +349,3 @@ def sync_service_task_status(sender, instance, **kwargs):
     task.completion_percentage = calculate_completion_percentage(instance)
 
     task.save()
-
