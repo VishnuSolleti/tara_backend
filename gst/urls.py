@@ -20,12 +20,8 @@ urlpatterns = [
     # Promoter Signatory Details
     path('promoter-signatory-details/', views.upsert_promoter_signatory_data, name='promoter_signatory_details_upsert'),
 
-    path('promoter-signatory-details/by-service-request/', views.get_promoter_signatory_details,
+    path('promoter-signatory-details/by-service-request/', views.get_promoter_signatory_data,
          name='promoter_signatory_details_get'),
-
-    # Promoter Signatory Info
-    path('promoter-signatory-info/by-service-request/', views.get_promoter_signatory_info,
-         name='promoter_signatory_info_get'),
 
     path('promoter-signatory-info/<int:pk>/delete/', views.promoter_signatory_info_delete,
          name='promoter_signatory_info_delete'),
