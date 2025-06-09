@@ -29,7 +29,6 @@ class TaxPaidDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = TaxPaidDetails
         fields = '__all__'  # or list the fields explicitly
-        depth = 1  # optional, if you want nested object fields expanded
 
     def get_documents(self, obj):
         grouped = {}
@@ -81,7 +80,14 @@ class SalaryIncomeSerializer(serializers.ModelSerializer):
         return grouped
 
 
+class OtherIncomeDetailsInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OtherIncomeDetailsInfo
+        fields = '__all__'
+
+
 class OtherIncomeDetailsSerializer(serializers.ModelSerializer):
+    other_income_info = OtherIncomeDetailsInfoSerializer(many=True, read_only=True)
     class Meta:
         model = OtherIncomeDetails
         fields = '__all__'
@@ -125,8 +131,16 @@ class NRIEmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
         return grouped
 
 
-class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
+class HousePropertyIncomeDetailsInfoSerializer(serializers.ModelSerializer):
     property_address = serializers.JSONField(required=False, allow_null=True)
+    class Meta:
+        model = HousePropertyIncomeDetailsInfo
+        fields = '__all__'
+
+
+class HousePropertyIncomeDetailsSerializer(serializers.ModelSerializer):
+    property_info = HousePropertyIncomeDetailsInfoSerializer(many=True, read_only=True)
+    
     class Meta:
         model = HousePropertyIncomeDetails
         fields = '__all__'
@@ -242,10 +256,28 @@ class Section80TTATTBUSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class Section80CDocumentsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section80CDocuments
+        fields = '__all__'
+
+
 class Section80CSerializer(serializers.ModelSerializer):
+    documents = serializers.SerializerMethodField()
+
     class Meta:
         model = Section80C
         fields = '__all__'
+
+    def get_documents(self, obj):
+        return [
+            {
+                "id": doc.id,
+                "file_url": doc.file.url if doc.file else None,
+                "uploaded_at": doc.uploaded_at
+            }
+            for doc in obj.section_80c_documents.all()
+        ]
 
 
 class Section80DFileSerializer(serializers.ModelSerializer):
@@ -389,10 +421,15 @@ class OtherCapitalGainsDocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class OtherCapitalGainsInfoSerializer(serializers.ModelSerializer):
+    documents = OtherCapitalGainsDocumentSerializer(many=True, read_only=True)
+    class Meta:
+        model = OtherCapitalGainsInfo
+        fields = '__all__'
+
 class OtherCapitalGainsSerializer(serializers.ModelSerializer):
     # Using the custom serializer for documents to handle multiple file uploads
-    documents = OtherCapitalGainsDocumentSerializer(many=True, read_only=True)
-
+    other_capital_gain_info = OtherCapitalGainsInfoSerializer(many=True, read_only=True)
     class Meta:
         model = OtherCapitalGains
         fields = '__all__'
@@ -404,12 +441,12 @@ class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
+class BusinessProfessionalIncomeInfoSerializer(serializers.ModelSerializer):
     opting_data = serializers.JSONField(required=False, allow_null=True)
     documents = serializers.SerializerMethodField()
 
     class Meta:
-        model = BusinessProfessionalIncome
+        model = BusinessProfessionalIncomeInfo
         fields = '__all__'
 
     def get_documents(self, obj):
@@ -429,6 +466,15 @@ class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
                 ]
             }
         return grouped
+
+
+class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
+    business_professional_income_info = BusinessProfessionalIncomeInfoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = BusinessProfessionalIncome
+        fields = '__all__'
+
 
 
 class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):

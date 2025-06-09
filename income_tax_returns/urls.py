@@ -67,6 +67,8 @@ urlpatterns = [
          name='other_income_details_detail'),
     path('other-income-details/by-request-or-task', other_income_views.other_income_details_by_service_request,
          name='other_income_details_by_service_request'),
+    path('other-income-details/<int:pk>/delete', other_income_views.delete_other_income_info,
+         name="delete_other_income_info"),
 
     path('other-income-documents/', other_income_views.add_other_income_document,
          name='add_other_income_document'),
@@ -80,7 +82,9 @@ urlpatterns = [
          name='get_capital_gains_details'),
     path('capital-gains/add-property/', capital_gains_views.add_capital_gains_property,
          name='add_capital_gains_property'),
-    path('capital-gains/delete-property/<int:property_id>/', capital_gains_views.delete_capital_gains_property,
+    path('capital-gains/delete-property/<str:file_type>/<int:property_id>/', capital_gains_views.delete_capital_gains_property_file,
+         name='delete_capital_gains_property_file'),
+    path('capital-gains/delete-property/<int:pk>/', capital_gains_views.delete_capital_gains_property,
          name='delete_capital_gains_property'),
 
     path('capital-gains/update-property/<int:property_id>/',capital_gains_views.update_capital_gains_property,
@@ -132,6 +136,8 @@ urlpatterns = [
     path('house-property-details/delete-file/<str:file_type>/<int:service_request_id>/',
          house_property_income_views.delete_house_property_file,
          name='delete_house_property_file'),
+    path('house-property-details/<int:pk>/delete', house_property_income_views.delete_house_property,
+         name='delete_house_property'),
 
     # InterestIncome endpoints
     path('interest-income/upsert/', interest_income_views.upsert_interest_income, name='upsert_interest_income'),
@@ -276,6 +282,8 @@ urlpatterns = [
         section_80c_views.section_80c_detail,
         name='section_80c_detail'
     ),
+
+    path('section-80c-files/<int:file_id>/', section_80c_views.delete_section_80c_file, name='delete_section_80c_file'),
 
     path(
             'section-80d/full/',
