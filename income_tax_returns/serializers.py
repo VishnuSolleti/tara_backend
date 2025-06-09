@@ -476,14 +476,6 @@ class BusinessProfessionalIncomeSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-
-class BusinessProfessionalIncomeDocumentSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = BusinessProfessionalIncomeDocument
-        fields = ['id', 'document_type', 'file', 'uploaded_at']
-
-
-
 class Section80EDocumentsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section80EDocuments

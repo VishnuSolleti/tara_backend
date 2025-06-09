@@ -41,36 +41,22 @@ class BusinessIdentityStructure(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(BusinessIdentityStructure, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.legal_name_of_business
 
 
 class SignatoryDetails(models.Model):
-    service_request = models.ForeignKey(ServiceRequest, on_delete=models.CASCADE,
+    service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                         related_name='business_signatory_details')
     service_type = models.CharField(
         max_length=20,
         default="Labour License",
         editable=False
     )
-    service_task = models.ForeignKey(ServiceTask, on_delete=models.CASCADE,
+    service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
                                         related_name='service_task_signatory_details')
-    name = models.CharField(max_length=255, null=False, blank=False)
-    aadhar_image = models.FileField(upload_to=signatory_details_aadhar_image,
-                                    null=True, blank=True, storage=PrivateS3Storage())
-    pan_image = models.FileField(
-        upload_to=signatory_details_pan_image,
-        null=True, blank=True, storage=PrivateS3Storage())
-    photo_image = models.FileField(
-        upload_to=signatory_details_photo_image,
-        null=True, blank=True, storage=PrivateS3Storage())
-    mobile_number = models.BigIntegerField(null=False, blank=False)
-    email = models.EmailField(null=False, blank=False)
-    residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
-                                           null=False, blank=False)
-    address = models.TextField(null=True, blank=True)
 
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
@@ -86,7 +72,29 @@ class SignatoryDetails(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(SignatoryDetails, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class signatoryDetailsInfo(models.Model):
+    signatory_details = models.ForeignKey(SignatoryDetails, on_delete=models.CASCADE,
+                                          related_name='signatory_details_info')
+    name = models.CharField(max_length=255, null=False, blank=False)
+    aadhar_image = models.FileField(upload_to=signatory_details_aadhar_image,
+                                    null=True, blank=True, storage=PrivateS3Storage())
+    pan_image = models.FileField(
+        upload_to=signatory_details_pan_image,
+        null=True, blank=True, storage=PrivateS3Storage())
+    photo_image = models.FileField(
+        upload_to=signatory_details_photo_image,
+        null=True, blank=True, storage=PrivateS3Storage())
+    mobile_number = models.BigIntegerField(null=False, blank=False)
+    email = models.EmailField(null=False, blank=False)
+    residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
+                                           null=False, blank=False)
+    address = models.TextField(null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -131,7 +139,7 @@ class BusinessLocationProofs(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(BusinessLocationProofs, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.nature_of_possession
@@ -189,7 +197,7 @@ class BusinessRegistrationDocuments(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(BusinessRegistrationDocuments, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.certificate_of_incorporation
@@ -205,12 +213,14 @@ class ReviewFilingCertificate(models.Model):
     FILING_STATUS_CHOICES = [
         ('in progress', 'In Progress'),
         ('filed', 'Filed'),
+        ('sent for approval', 'Sent for Approval'),
         ('resubmitted', 'Resubmitted'),
     ]
 
     APPROVAL_STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('resubmission', 'Resubmission'),
+        ('sent for approval', 'Sent for Approval'),
         ('rejected', 'Rejected'),
         ('approved', 'Approved'),
     ]
@@ -248,6 +258,13 @@ class ReviewFilingCertificate(models.Model):
         default=None
     )
 
+    status = models.CharField(
+        max_length=20,
+        choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
+                 ('sent for approval', 'Sent for Approval'), ('revoked', 'Revoked')],
+        null=False, blank=False
+    )
+
     approval_status = models.CharField(
         max_length=20,
         choices=APPROVAL_STATUS_CHOICES,
@@ -266,7 +283,7 @@ class ReviewFilingCertificate(models.Model):
             self.assignee = self.service_task.assignee
         if not self.reviewer and self.service_task.reviewer:
             self.reviewer = self.service_task.reviewer
-        super().save(*args, **kwargs)
+        super(ReviewFilingCertificate, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.review_certificate_status or "No Review Status"
@@ -304,4 +321,58 @@ def sync_service_task_status(sender, instance, **kwargs):
     task.save()
 
 
+@receiver(post_save, sender=SignatoryDetails)
+def sync_signatory_details_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=BusinessLocationProofs)
+def sync_business_location_proofs_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=BusinessRegistrationDocuments)
+def sync_business_registration_documents_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.status:
+        task.status = instance.status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
+
+
+@receiver(post_save, sender=ReviewFilingCertificate)
+def sync_review_filing_certificate_status(sender, instance, **kwargs):
+    task = instance.service_task
+
+    # Sync status
+    if task.status != instance.filing_status:
+        task.status = instance.filing_status
+
+    # Sync completion %
+    task.completion_percentage = calculate_completion_percentage(instance)
+
+    task.save()
 
