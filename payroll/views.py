@@ -4112,11 +4112,6 @@ def salary_revision_list(request):
             revision_year=year,
             revision_month=month
         ).select_related('employee')
-        if not revised_salaries.exists():
-            return Response(
-                {"message": "No revised salary records found for the given payroll ID, year, and month."},
-                status=status.HTTP_404_NOT_FOUND
-            )
         serializer = SimplifiedEmployeeSalarySerializer(revised_salaries, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Exception as e:
