@@ -1004,7 +1004,7 @@ class AgricultureIncome(models.Model):
 
 
 class AgricultureIncomeDocument(models.Model):
-    agriculture_income = models.ForeignKey(AgricultureIncome, on_delete=models.CASCADE,
+    agriculture_income = models.OneToOneField(AgricultureIncome, on_delete=models.CASCADE,
                                        related_name='agriculture_income_docs')
     amount = models.IntegerField()
     file = models.FileField(upload_to=agriculture_income_file,
