@@ -181,7 +181,7 @@ def get_business_professional_income(request, service_request_id):
 
 
 @api_view(['DELETE'])
-def delete_business_professional_income(request, id):
+def delete_business_professional_income(request, pk):
     try:
         instance = BusinessProfessionalIncomeInfo.objects.get(pk=pk)
         instance.delete()
