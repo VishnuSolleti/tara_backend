@@ -583,16 +583,15 @@ def create_salary_revision_history(sender, instance, **kwargs):
             
             # Check if there's a change in CTC
             if old_instance.annual_ctc != instance.annual_ctc:
-                today = datetime.now().date()
                 # Get or create revision history for current month/year
                 revision_history, created = EmployeeSalaryRevisionHistory.objects.get_or_create(
                     employee = instance.employee,
-                    revision_month = today.month,
-                    revision_year = today.year,
+                    revision_month = instance.update_month,
+                    revision_year = instance.update_year,
                     defaults={
                         'previous_ctc': old_instance.annual_ctc,
                         'current_ctc': instance.annual_ctc,
-                        'revision_date': today,
+                        'revision_date': instance.updated_on,
                     }
                 )
                 
@@ -600,7 +599,7 @@ def create_salary_revision_history(sender, instance, **kwargs):
                 if not created:
                     revision_history.previous_ctc = old_instance.annual_ctc
                     revision_history.current_ctc = instance.annual_ctc
-                    revision_history.revision_date = today
+                    revision_history.revision_date = instance.updated_on
                     revision_history.save()
         except EmployeeSalaryDetails.DoesNotExist:
             pass

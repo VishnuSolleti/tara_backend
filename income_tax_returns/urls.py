@@ -298,7 +298,7 @@ urlpatterns = [
 
     # List & Delete Section80D files
     path('section-80d-files/', section_80d_views.list_section_80d_files, name='list_section_80d_files'),
-    path('section-80d-files/<int:file_id>/', section_80d_views.delete_section_80d_file, name='delete_section_80d_file'),
+    path('section-80d/files/<int:file_id>/delete', section_80d_views.delete_section_80d_file, name='delete_section_80d_file'),
 
     path('service-requests-itr/<int:service_request_id>/full-data/', views.get_service_request_full_data,
          name='get_service_request_full_data'),
@@ -315,21 +315,24 @@ urlpatterns = [
     path('section-80ee/details/<int:deductions_id>/', section_80ee_views.get_section80ee_details,
          name='get-section80ee-details'),
     path('section-80ee/<int:deductions_id>/delete/', section_80ee_views.delete_section80ee, name='delete-section80ee'),
+    path('section-80ee/files/<int:document_id>/delete/', section_80ee_views.delete_section80ee_document,
+         name='delete_section80ee_document'),
 
     path('section-80e/', section_80e_views.upsert_section80e_with_files, name='upsert-section80e'),
     path('section-80e/details/<int:deductions_id>/', section_80e_views.get_section80e_details, name='get-section80e'),
     path('section-80e/<int:deductions_id>/delete/', section_80e_views.delete_section80e, name='delete-section80e'),
-
+    path('section-80e/files/<int:document_id>/delete/', section_80e_views.delete_section80e_document,
+         name='delete-section80e-documents'),
 
     path('section-80ddb/upsert/', section_80ddb_views.upsert_section80ddb_with_files),
     path('section-80ddb/details/<int:deductions_id>/', section_80ddb_views.get_section80ddb_details),
     path('section-80ddb/<int:deductions_id>/delete/', section_80ddb_views.delete_section80ddb),
+    path('section-80ddb/files/<int:file_id>/delete/', section_80ddb_views.delete_section80ddb_file),
 
     path('section-80eeb/upsert/', section_80_eeb_views.upsert_section80eeb_with_files),
     path('section-80eeb/details/<int:deductions_id>/', section_80_eeb_views.get_section80eeb_details),
     path('section-80eeb/<int:deductions_id>/delete/', section_80_eeb_views.delete_section80eeb),
-
-
+    path('section-80eeb/files/<int:file_id>/delete/', section_80_eeb_views.delete_section80eeb_file),
 
 ]
 
