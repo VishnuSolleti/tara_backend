@@ -501,10 +501,6 @@ class EmployeeSalaryDetails(models.Model):
     valid_from = models.DateField(auto_now_add=True)  # Salary start date
     valid_to = models.DateField(null=True, blank=True)  # Salary end date (null = current salary)
     created_on = models.DateField(auto_now_add=True)
-    update_month = models.IntegerField(blank=True, null=True)
-    update_year = models.IntegerField(blank=True, null=True)
-    previous_ctc = models.IntegerField(blank=True, null=True)
-    updated_on = models.DateField(null=True, blank=True)
     created_month = models.IntegerField(editable=False)
     created_year = models.IntegerField(editable=False)
 
@@ -583,15 +579,27 @@ def create_salary_revision_history(sender, instance, **kwargs):
             
             # Check if there's a change in CTC
             if old_instance.annual_ctc != instance.annual_ctc:
+                today = datetime.now().date()
+                
+                # Get payroll_month and payroll_year from instance
+                payroll_month = getattr(instance, 'payroll_month', None)
+                payroll_year = getattr(instance, 'payroll_year', None)
+                
+                # If not set, use current month/year
+                if payroll_month is None:
+                    payroll_month = today.month
+                if payroll_year is None:
+                    payroll_year = today.year
+                
                 # Get or create revision history for current month/year
                 revision_history, created = EmployeeSalaryRevisionHistory.objects.get_or_create(
                     employee = instance.employee,
-                    revision_month = instance.update_month,
-                    revision_year = instance.update_year,
+                    revision_month = payroll_month,
+                    revision_year = payroll_year,
                     defaults={
                         'previous_ctc': old_instance.annual_ctc,
                         'current_ctc': instance.annual_ctc,
-                        'revision_date': instance.updated_on,
+                        'revision_date': today,
                     }
                 )
                 
@@ -599,7 +607,7 @@ def create_salary_revision_history(sender, instance, **kwargs):
                 if not created:
                     revision_history.previous_ctc = old_instance.annual_ctc
                     revision_history.current_ctc = instance.annual_ctc
-                    revision_history.revision_date = instance.updated_on
+                    revision_history.revision_date = today
                     revision_history.save()
         except EmployeeSalaryDetails.DoesNotExist:
             pass

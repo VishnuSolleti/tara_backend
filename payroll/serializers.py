@@ -465,28 +465,26 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
 
 
 class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
+    payroll_month = serializers.IntegerField(write_only=True, required=False)
+    payroll_year = serializers.IntegerField(write_only=True, required=False)
+
     class Meta:
         model = EmployeeSalaryDetails
         fields = '__all__'
 
     def update(self, instance, validated_data):
-        # Get old annual_ctc value
-        old_annual_ctc = instance.annual_ctc
-
-        # Perform the default update
-        instance = super().update(instance, validated_data)
-
-        # Get new annual_ctc value after update
-        new_annual_ctc = instance.annual_ctc
-
-        # If annual_ctc changed, update revised_ctc and updated_on
-        if new_annual_ctc != old_annual_ctc:
-            today = datetime.now().date()  # This gives a date object: YYYY-MM-DD
-
-            instance.previous_ctc = old_annual_ctc
-            instance.save(update_fields=['previous_ctc'])
-
-        return instance
+        # Extract payroll_month and payroll_year from validated_data
+        payroll_month = validated_data.pop('payroll_month', None)
+        payroll_year = validated_data.pop('payroll_year', None)
+        
+        # Attach these values to the instance for the signal to use
+        if payroll_month is not None:
+            instance.payroll_month = payroll_month
+        if payroll_year is not None:
+            instance.payroll_year = payroll_year
+            
+        # Perform the update
+        return super().update(instance, validated_data)
 
 
 class EmployeeSalaryRevisionHistorySerializer(serializers.ModelSerializer):
