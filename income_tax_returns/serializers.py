@@ -237,7 +237,7 @@ class AgricultureIncomeDocumentSerializer(serializers.ModelSerializer):
 
 
 class AgricultureIncomeSerializer(serializers.ModelSerializer):
-    agriculture_income_docs = AgricultureIncomeDocumentSerializer(many=True, read_only=True)
+    agriculture_income_docs = AgricultureIncomeDocumentSerializer(read_only=True)
 
     class Meta:
         model = AgricultureIncome
