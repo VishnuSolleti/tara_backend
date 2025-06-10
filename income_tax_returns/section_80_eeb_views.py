@@ -33,11 +33,6 @@ def upsert_section80eeb_with_files(request):
             for field_name, doc_type in doc_map.items():
                 files = request.FILES.getlist(field_name)
                 if files:
-                    Section80EEBDocuments.objects.filter(
-                        section_80eeb=section_instance,
-                        document_type=doc_type
-                    ).delete()
-
                     for file in files:
                         Section80EEBDocuments.objects.create(
                             section_80eeb=section_instance,
