@@ -85,3 +85,15 @@ def delete_section80ddb(request, deductions_id):
         return Response({"message": "Section 80DDB entry and documents deleted successfully"}, status=204)
     except Section80DDB.DoesNotExist:
         return Response({"error": "Record not found"}, status=404)
+
+
+@api_view(['DELETE'])
+def delete_section80ddb_file(request, file_id):
+    try:
+        file = Section80DDBDocuments.objects.get(id=file_id)
+        if file.file:
+            file.file.delete(save=False)  # Delete from storage
+        file.delete()
+        return Response({"message": "File deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+    except Section80DDBDocuments.DoesNotExist:
+        return Response({"error": "File not found"}, status=status.HTTP_404_NOT_FOUND)

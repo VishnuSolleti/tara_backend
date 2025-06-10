@@ -84,3 +84,16 @@ def delete_section80eeb(request, deductions_id):
 
     except Section80EEB.DoesNotExist:
         return Response({"error": "Record not found"}, status=404)
+
+
+@api_view(['DELETE'])
+def delete_section80eeb_file(request, file_id):
+    try:
+        file = Section80EEBDocuments.objects.get(id=file_id)
+        if file.file:
+            file.file.delete(save=False)  # delete from storage
+        file.delete()
+        return Response({"message": "File deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+    except Section80EEBDocuments.DoesNotExist:
+        return Response({"error": "File not found"}, status=status.HTTP_404_NOT_FOUND)

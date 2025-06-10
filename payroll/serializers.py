@@ -484,10 +484,7 @@ class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
             today = datetime.now().date()  # This gives a date object: YYYY-MM-DD
 
             instance.previous_ctc = old_annual_ctc
-            instance.updated_on = today
-            instance.update_month = today.month
-            instance.update_year = today.year
-            instance.save(update_fields=['previous_ctc', 'updated_on', 'update_month', 'update_year'])
+            instance.save(update_fields=['previous_ctc'])
 
         return instance
 
@@ -504,6 +501,7 @@ class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
     designation = serializers.SerializerMethodField()
     employee_id = serializers.IntegerField(source='employee.id')
     associate_id = serializers.CharField(source='employee.associate_id')
+    revision_date = serializers.SerializerMethodField()
 
     class Meta:
         model = EmployeeSalaryRevisionHistory
@@ -529,6 +527,11 @@ class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
 
     def get_designation(self, obj):
         return obj.employee.designation.designation_name if obj.employee.designation else None
+
+    def get_revision_date(self, obj):
+        if obj.revision_date:
+            return obj.revision_date.strftime('%d-%m-%Y')
+        return None
 
 
 
