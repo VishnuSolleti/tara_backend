@@ -108,7 +108,7 @@ urlpatterns = [
     path('business-professional-income/<int:service_request_id>/',
          business_professional_income_views.get_business_professional_income,
          name='get_business_professional_income'),
-    path('business-professional-income/<int:service_request_id>/delete/',
+    path('business-professional-income/<int:pk>/delete/',
          business_professional_income_views.delete_business_professional_income,
          name='delete_business_professional_income'),
     path('business-professional-income/files/<int:file_id>/delete/',

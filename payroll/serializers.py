@@ -492,17 +492,21 @@ class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
         return instance
 
 
+class EmployeeSalaryRevisionHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeSalaryRevisionHistory
+        fields = '__all__'
+
+
 class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     department = serializers.SerializerMethodField()
     designation = serializers.SerializerMethodField()
-    previous_ctc = serializers.DecimalField(max_digits=12, decimal_places=2)
-    current_ctc = serializers.DecimalField(source='annual_ctc', max_digits=12, decimal_places=2)
     employee_id = serializers.IntegerField(source='employee.id')
-    associate_id = serializers.CharField(source='employee.associate_id')  # Added based on your model
+    associate_id = serializers.CharField(source='employee.associate_id')
 
     class Meta:
-        model = EmployeeSalaryDetails
+        model = EmployeeSalaryRevisionHistory
         fields = [
             'id',
             'employee_id',
@@ -512,7 +516,7 @@ class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
             'designation',
             'previous_ctc',
             'current_ctc',
-            'updated_on',
+            'revision_date',
         ]
 
     def get_employee_name(self, obj):

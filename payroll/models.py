@@ -7,6 +7,8 @@ from datetime import date
 from collections import OrderedDict
 from django.db.models.signals import pre_save, post_save
 from dateutil.relativedelta import relativedelta
+from datetime import date, datetime
+
 
 
 def validate_pincode(value):
@@ -556,6 +558,52 @@ class EmployeeSalaryDetails(models.Model):
 
     def __str__(self):
         return f"{self.employee.associate_id} - {self.valid_from}"
+
+
+class EmployeeSalaryRevisionHistory(models.Model):
+    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE, related_name='salary_revision_history')
+    previous_ctc = models.IntegerField()
+    current_ctc =models.IntegerField()
+    revision_date = models.DateField(null=True, blank=True)
+    revision_month = models.IntegerField(blank=True, null=True)
+    revision_year = models.IntegerField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Revision for {self.employee.associate_id} on {self.revision_date}"
+
+
+@receiver(pre_save, sender=EmployeeSalaryDetails)
+def create_salary_revision_history(sender, instance, **kwargs):
+    """
+    Signal to create or update EmployeeSalaryRevisionHistory when EmployeeSalaryDetails is updated.
+    """
+    if instance.pk:  # Only for updates, not new records
+        try:
+            old_instance = EmployeeSalaryDetails.objects.get(pk=instance.pk)
+            
+            # Check if there's a change in CTC
+            if old_instance.annual_ctc != instance.annual_ctc:
+                today = datetime.now().date()
+                # Get or create revision history for current month/year
+                revision_history, created = EmployeeSalaryRevisionHistory.objects.get_or_create(
+                    employee = instance.employee,
+                    revision_month = today.month,
+                    revision_year = today.year,
+                    defaults={
+                        'previous_ctc': old_instance.annual_ctc,
+                        'current_ctc': instance.annual_ctc,
+                        'revision_date': today,
+                    }
+                )
+                
+                # If record exists, update it
+                if not created:
+                    revision_history.previous_ctc = old_instance.annual_ctc
+                    revision_history.current_ctc = instance.annual_ctc
+                    revision_history.revision_date = today
+                    revision_history.save()
+        except EmployeeSalaryDetails.DoesNotExist:
+            pass
 
 
 class EmployeePersonalDetails(BaseModel):

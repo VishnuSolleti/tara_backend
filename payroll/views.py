@@ -4107,10 +4107,10 @@ def salary_revision_list(request):
                 {"error": "Missing required query parameters: payroll_id, year, and month."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        revised_salaries = EmployeeSalaryDetails.objects.filter(
+        revised_salaries = EmployeeSalaryRevisionHistory.objects.filter(
             employee__payroll_id=payroll_id,
-            update_year=year,
-            update_month=month
+            revision_year=year,
+            revision_month=month
         ).select_related('employee')
         if not revised_salaries.exists():
             return Response(
