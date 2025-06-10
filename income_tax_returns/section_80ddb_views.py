@@ -27,7 +27,6 @@ def upsert_section80ddb_with_files(request):
             # Replace existing documents
             files = request.FILES.getlist('files')
             if files:
-                Section80DDBDocuments.objects.filter(section_80ddb=section_instance).delete()
                 for file in files:
                     Section80DDBDocuments.objects.create(
                         section_80ddb=section_instance,

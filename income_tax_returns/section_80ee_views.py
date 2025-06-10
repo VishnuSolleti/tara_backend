@@ -34,12 +34,6 @@ def upsert_section80ee_with_files(request):
                 for field_name, doc_type in doc_map.items():
                     files = request.FILES.getlist(field_name)
                     if files:
-                        # Overwrite existing files of the same type
-                        Section80EEDocuments.objects.filter(
-                            section_80ee=section_instance,
-                            document_type=doc_type
-                        ).delete()
-
                         for file in files:
                             Section80EEDocuments.objects.create(
                                 section_80ee=section_instance,
