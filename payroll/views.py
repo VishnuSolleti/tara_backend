@@ -3837,10 +3837,16 @@ def bonus_by_payroll_month_year(request):
             results.append({
                 'id': current_bonus.id,
                 'employee_id': employee.id,
+                'associate_id': employee.associate_id,
+                'department': employee.department.dept_name if employee.department else '',
+                'designation': employee.designation.designation_name if employee.designation else '',
+                'type': current_bonus.bonus_type,
                 'employee_name': employee.first_name,
                 'current_bonus': current_bonus.amount,
                 'committed_bonus': committed_bonus,
                 'ytd_bonus_paid': ytd_bonus,
+                'month': current_bonus.month,
+                'financial_year': current_bonus.financial_year,
                 'remarks': current_bonus.remarks or ''
             })
 
