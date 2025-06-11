@@ -1,5 +1,5 @@
 # Standard library imports
-from datetime import datetime
+import datetime
 from distutils.util import strtobool
 from urllib.parse import urlparse
 
