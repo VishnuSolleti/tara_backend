@@ -22,7 +22,7 @@ def calculate_completion_percentage(instance, exclude_fields=None):
 
 
 @receiver(post_save, sender=PersonalInformation)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_personal_information_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -36,7 +36,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=TaxPaidDetails)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_taxpaid_service_task_status(sender, instance, **kwargs):
     task = instance.service_task
     print("I am here in pre_save signal for TaxPaidDetails")
 
@@ -51,7 +51,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=SalaryIncome)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_salary_income_service_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -65,7 +65,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=OtherIncomeDetails)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_other_income_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -79,7 +79,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=NRIEmployeeSalaryDetails)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_nri_employee_salary_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -93,7 +93,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=HousePropertyIncomeDetails)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_house_property_income_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -107,7 +107,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=CapitalGainsApplicableDetails)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_capital_gains_applicable_details_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -121,7 +121,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=CapitalGainsEquityMutualFund)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_capital_gains_equity_mutual_fund_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -135,7 +135,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=OtherCapitalGains)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_other_capital_gains_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -149,7 +149,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=DividendIncome)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_dividend_income_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -163,7 +163,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=GiftIncomeDetails)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_gift_income_details_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -177,7 +177,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=BusinessProfessionalIncome)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_business_professional_income_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -191,7 +191,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=InterestIncome)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_interest_income_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -205,7 +205,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=FamilyPensionIncome)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_family_pension_income_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -219,7 +219,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=ForeignIncome)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_foreign_income_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -233,7 +233,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=WinningIncome)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_winning_income_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -247,7 +247,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=AgricultureIncome)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_agriculture_income_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -261,7 +261,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=Deductions)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_deductions_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
@@ -275,7 +275,7 @@ def sync_service_task_status(sender, instance, **kwargs):
 
 
 @receiver(post_save, sender=ReviewFilingCertificate)
-def sync_service_task_status(sender, instance, **kwargs):
+def sync_itr_review_filling_certificate_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
