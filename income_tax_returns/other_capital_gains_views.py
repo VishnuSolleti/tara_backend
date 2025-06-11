@@ -12,7 +12,10 @@ def upsert_other_capital_gains_with_files(request):
     try:
         service_request = request.data.get('service_request')
         service_task = request.data.get('service_task')
-        data = request.data.copy()
+        if request.FILES:
+            data = request.data
+        else:
+            data = request.data.copy()
         main_details_data = {
             'service_request': request.data.get('service_request'),
             'service_task': request.data.get('service_task'),
