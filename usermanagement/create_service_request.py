@@ -250,11 +250,17 @@ def manage_service_request_assignment(request, service_request_id):
 @api_view(['GET'])
 def user_service_requests(request):
     user = request.user
+    context_id = request.query_params.get('context_id')  # Use query param for GET request
+
+    if not context_id:
+        return Response({"detail": "Missing context_id."}, status=status.HTTP_400_BAD_REQUEST)
 
     service_requests = ServiceRequest.objects.filter(
-        Q(user=user) |
-        Q(assignee=user) |
-        Q(reviewer=user)
+        Q(context_id=context_id) & (
+            Q(user=user) |
+            Q(assignee=user) |
+            Q(reviewer=user)
+        )
     ).distinct()
 
     serializer = ServiceRequestSerializer(service_requests, many=True)
