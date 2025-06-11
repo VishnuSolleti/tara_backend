@@ -1510,7 +1510,7 @@ def calculate_payroll(request):
         data = request.data
         annual_ctc = float(data["annual_ctc"])
         earnings = data["earnings"]
-        employee_id = data.get("employee_id")
+        employee_id = data.get("employee")
 
         # Validate basic salary component
         basic_salary = next((item for item in earnings if item["component_name"] == "Basic"), None)
