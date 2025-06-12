@@ -2304,7 +2304,6 @@ def generate_teams_meeting(start_datetime, end_datetime, subject="Consultation M
     client_id = None
     client_secret = None
     token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
-
     token_data = {
         "grant_type": "client_credentials",
         "client_id": {client_id},
