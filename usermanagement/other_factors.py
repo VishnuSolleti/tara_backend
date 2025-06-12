@@ -2299,12 +2299,16 @@ def list_contacts_by_date(request):
 
 
 def generate_teams_meeting(start_datetime, end_datetime, subject="Consultation Meeting"):
-    token_url = f"https://login.microsoftonline.com/b2bebe2a-1c23-47c8-9e90-40b4e03d5aac/oauth2/v2.0/token"
+    object_id =None
+    tenant_id =None
+    client_id = None
+    client_secret = None
+    token_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
 
     token_data = {
         "grant_type": "client_credentials",
-        "client_id": "6eb14618-f49a-429b-9276-f3065cefff9b",
-        "client_secret": "_S88Q~FQF0DEbdAn6Nphu.nd6uNlmbk7rjFB2biU",
+        "client_id": {client_id},
+        "client_secret": {client_secret},
         "scope": "https://graph.microsoft.com/.default",
     }
 
@@ -2323,7 +2327,7 @@ def generate_teams_meeting(start_datetime, end_datetime, subject="Consultation M
     }
 
     meeting_resp = requests.post(
-        f"https://graph.microsoft.com/v1.0/users/5812ccc5-c057-4b1f-b0d4-61f5930942e5/onlineMeetings",
+        f"https://graph.microsoft.com/v1.0/users/{object_id}/onlineMeetings",
         headers=headers,
         json=body
     )
