@@ -16,7 +16,7 @@ def other_income_details_list(request):
 
     elif request.method == 'POST':
 
-        data = request.data.copy()
+        data = request.data
         service_request_id = request.data.get('service_request')
         try:
             main_details_data = {
@@ -55,8 +55,11 @@ def other_income_details_list(request):
                     serializers = OtherIncomeDetailsInfoSerializer(data=data)
 
                 if serializers.is_valid():
-                    serializers.save()
-                    return Response(main_serializer.data, status=status.HTTP_201_CREATED)
+                    try:
+                        serializers.save()
+                        return Response(main_serializer.data, status=status.HTTP_201_CREATED)
+                    except Exception as e:
+                        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
                 return Response(serializers.errors, status=status.HTTP_400_BAD_REQUEST)
             else:
                 return Response({"message": "Status Updated Successfully"}, status=status.HTTP_200_OK)
