@@ -2390,7 +2390,6 @@ def create_consultation(request):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def list_consultation(request):
@@ -2402,6 +2401,40 @@ def list_consultation(request):
     except Exception as e:
         return Response(
             {"error": f"An error occurred while retrieving contacts: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def booked_time_slots(request):
+    date_param = request.query_params.get('date', None)
+
+    if not date_param:
+        return Response(
+            {"error": "Date parameter (YYYY-MM-DD) is required."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        # Filter by date and get only time slots
+        booked_slots = Consultation.objects.filter(
+            date=date_param,
+            status__in=['pending', 'reviewed', 'resolved']  # Only count active bookings
+        ).values_list('time', flat=True)  # Get only time values
+
+        # Format times as strings (e.g., "14:30")
+        booked_times = [slot.strftime("%H:%M") for slot in booked_slots]
+
+        return Response({
+            "date": date_param,
+            "booked_times": booked_times,
+            "count": len(booked_times)
+        }, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response(
+            {"error": "Invalid date or server error", "details": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
