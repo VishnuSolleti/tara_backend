@@ -123,11 +123,11 @@ urlpatterns = [
          name='get_other_capital_gains_details'),
 
     # Delete entire Other Capital Gains record by service_request ID
-    path('other-capital-gains/delete/<int:service_request_id>/', other_capital_gains_views.delete_other_capital_gains,
+    path('other-capital-gains/delete/<int:pk>/', other_capital_gains_views.delete_other_capital_gains,
          name='delete_other_capital_gains'),
 
     # Delete a specific document by file ID
-    path('other-capital-gains/document/<int:file_id>/delete/',
+    path('other-capital-gains/files/<int:file_id>/delete/',
          other_capital_gains_views.delete_other_capital_gains_file,
          name='delete_other_capital_gains_file'),
 
