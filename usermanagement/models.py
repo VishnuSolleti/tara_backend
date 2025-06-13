@@ -1397,7 +1397,7 @@ class GSTDetails(BaseModel):
     authorized_signatory_pan = models.CharField(max_length=60, null=True, blank=True, default=None)
     gst_document = models.FileField(upload_to=gst_document_upload_path, null=True, blank=True)
     is_composition_scheme = models.CharField(max_length=3, choices=YES_NO_CHOICES, default='no')
-    composition_scheme_percent = models.CharField(max_length=10, null=True, blank=True)
+    composition_scheme_percent = models.CharField(max_length=200, null=True, blank=True)
     is_export_sez = models.CharField(max_length=3, choices=YES_NO_CHOICES, default='no')
     lut_reg_no = models.CharField(max_length=100, blank=True)
     dob = models.DateField(null=True, blank=True)
