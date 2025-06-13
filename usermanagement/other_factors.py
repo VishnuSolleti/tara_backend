@@ -2281,6 +2281,7 @@ def contact_detail(request, pk):
         except Exception as e:
             return Response({"error": f"Failed to delete contact: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(["GET"])
 def list_contacts_by_date(request):
     """API to list contacts for a specific date"""
