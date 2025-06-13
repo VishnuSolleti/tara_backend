@@ -73,6 +73,32 @@ class GoodsAndServicesSerializer(serializers.Serializer):
             'description'
         ]
 
+    def validate(self, data):
+        """
+        Check that the name is unique for each invoicing profile.
+        """
+        invoicing_profile = data.get('invoicing_profile')
+        name = data.get('name')
+        instance = getattr(self, 'instance', None)
+
+        if name and invoicing_profile:
+            # Check if another GoodsAndServices with same name exists for this profile
+            existing = GoodsAndServices.objects.filter(
+                invoicing_profile=invoicing_profile,
+                name=name
+            )
+            
+            # If updating, exclude current instance from the check
+            if instance:
+                existing = existing.exclude(pk=instance.pk)
+            
+            if existing.exists():
+                raise serializers.ValidationError({
+                    'name': 'A goods and service with name "{}" already exists for this invoicing profile.'.format(name)
+                })
+        
+        return data
+
     def create(self, validated_data):
         """
         Create and return a new `InvoicingProfile` instance, given the validated data.

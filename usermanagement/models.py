@@ -17,6 +17,14 @@ from .helpers import *
 from django.core.validators import RegexValidator
 from decimal import Decimal, InvalidOperation
 from decimal import Decimal, ROUND_HALF_UP
+from storages.backends.s3boto3 import S3Boto3Storage
+from Tara.settings.default import AWS_PRIVATE_BUCKET_NAME
+
+
+class PrivateS3Storage(S3Boto3Storage):
+    bucket_name = AWS_PRIVATE_BUCKET_NAME
+    custom_domain = f"{AWS_PRIVATE_BUCKET_NAME}.s3.amazonaws.com"  # Default S3 domain or your custom domain
+    file_overwrite = True  # Allow file overwrite (optional)
 
 YES_NO_CHOICES = [
         ('yes', 'Yes'),
@@ -1395,14 +1403,15 @@ class GSTDetails(BaseModel):
     branch_name = models.CharField(max_length=60, null=True, blank=True, default=None)
     state = models.CharField(max_length=60, null=True, blank=True, default=None)
     authorized_signatory_pan = models.CharField(max_length=60, null=True, blank=True, default=None)
-    gst_document = models.FileField(upload_to=gst_document_upload_path, null=True, blank=True)
+    gst_document = models.FileField(upload_to=gst_document_upload_path, null=True, blank=True,
+                                    storage=PrivateS3Storage())
     is_composition_scheme = models.CharField(max_length=3, choices=YES_NO_CHOICES, default='no')
     composition_scheme_percent = models.CharField(max_length=200, null=True, blank=True)
     is_export_sez = models.CharField(max_length=3, choices=YES_NO_CHOICES, default='no')
     lut_reg_no = models.CharField(max_length=100, blank=True)
     dob = models.DateField(null=True, blank=True)
     financial_year = models.CharField(max_length=20, blank=True)
-    lut_letter = models.FileField(upload_to=lut_letter_upload_path, null=True, blank=True)
+    lut_letter = models.FileField(upload_to=lut_letter_upload_path, null=True, blank=True, storage=PrivateS3Storage())
 
     class Meta:
         unique_together = ("business", "gstin")
@@ -1441,7 +1450,8 @@ class LicenseDetails(models.Model):
     location = models.CharField(max_length=100, null=True, blank=True)
     date_of_issue = models.DateField(null=True, blank=True)
     date_of_expiry = models.DateField(null=True, blank=True)
-    license_document = models.FileField(upload_to=license_document_upload_path, null=True, blank=True)
+    license_document = models.FileField(upload_to=license_document_upload_path, null=True, blank=True,
+                                        storage=PrivateS3Storage())
 
     def __str__(self):
         return f"License Details for {self.business.nameOfBusiness}"
