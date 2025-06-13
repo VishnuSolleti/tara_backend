@@ -469,6 +469,7 @@ class BusinessSerializer(serializers.ModelSerializer):
 
 class GSTDetailsSerializer(serializers.ModelSerializer):
     gst_document = serializers.FileField(allow_null=True, required=False)
+    lut_letter = serializers.FileField(allow_null=True, required=False)
 
     class Meta:
         model = GSTDetails

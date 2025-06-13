@@ -1402,6 +1402,7 @@ class GSTDetails(BaseModel):
     lut_reg_no = models.CharField(max_length=100, blank=True)
     dob = models.DateField(null=True, blank=True)
     financial_year = models.CharField(max_length=20, blank=True)
+    lut_letter = models.FileField(upload_to=lut_letter_upload_path, null=True, blank=True)
 
     class Meta:
         unique_together = ("business", "gstin")
