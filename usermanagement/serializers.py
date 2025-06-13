@@ -511,7 +511,7 @@ class GSTDetailsSerializer(serializers.ModelSerializer):
         fy_end_date = self.get_financial_year_end_date(obj.dob)
         if fy_end_date:
             return "active" if fy_end_date > date.today() else "expired"
-        return "expired"
+        return None
 
 
 

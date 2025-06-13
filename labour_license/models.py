@@ -123,7 +123,7 @@ class BusinessLocationProofs(models.Model):
         null=True, blank=True, storage=PrivateS3Storage())
     additional_space = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
                                         null=False, blank=False)
-    workplace = models.CharField(max_length=200, null=False, blank=False)
+    workplace = models.CharField(max_length=200, null=True, blank=True)
 
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                                       ('sent for approval', 'Sent for Approval'),
