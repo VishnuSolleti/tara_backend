@@ -151,6 +151,9 @@ class GoodsAndServices(models.Model):
     selling_price = models.IntegerField(null=True)
     description = models.CharField(max_length=200, null=True, blank=True)
 
+    class Meta:
+        unique_together = ("invoicing_profile", "name")
+
     def __str__(self):
         return f"{self.name} - GST Rate: {self.gst_rate}%"
 
