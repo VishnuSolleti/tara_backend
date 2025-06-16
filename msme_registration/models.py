@@ -196,19 +196,19 @@ class MsmeReviewFilingCertificate(models.Model):
                                             related_name='msme_review_certificates')
     service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE, related_name='msme_review_tasks')
 
-    REVIEW_STATUS_CHOICES = [
-        ('in progress', 'In Progress'),
-        ('resubmission', 'Resubmission'),
-        ('done', 'Done'),
-    ]
+    REVIEW_STATUS_CHOICES = [('in progress', 'In Progress'), ('completed', 'Completed'),
+                             ('sent for approval', 'Sent for Approval'),
+                             ('revoked', 'Revoked')]
     FILING_STATUS_CHOICES = [
         ('in progress', 'In Progress'),
         ('filed', 'Filed'),
+        ('sent for approval', 'Sent for Approval'),
         ('resubmitted', 'Resubmitted'),
     ]
     APPROVAL_STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('resubmission', 'Resubmission'),
+        ('sent for approval', 'Sent for Approval'),
         ('rejected', 'Rejected'),
         ('approved', 'Approved'),
     ]
@@ -216,6 +216,9 @@ class MsmeReviewFilingCertificate(models.Model):
                                           blank=True, storage=PrivateS3Storage())
     review_certificate_status = models.CharField(max_length=20,choices=REVIEW_STATUS_CHOICES,
                                                  null=False, blank=False,default=None)
+
+    draft_income_file = models.FileField(upload_to=draft_filing_certificate,
+                                         null=True, blank=True, storage=PrivateS3Storage())
     filing_status = models.CharField(
         max_length=20,
         choices=FILING_STATUS_CHOICES,
