@@ -1,27 +1,32 @@
 from rest_framework import serializers
-from .models import *
+from .models import (
+    ProposedCompanyDetails,
+    RegisteredOfficeAddressDetails,
+    AuthorizedPaidUpShareCapital,
+    Directors,
+    DirectorsDetails,
+    Shareholders,
+    ShareholdersDetails,
+    ReviewFilingCertificate
+)
+from decimal import Decimal
 
 
-class CompanyIncorporationSerializer(serializers.ModelSerializer):
+class ProposedCompanyDetailsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = CompanyIncorporation
+        model = ProposedCompanyDetails
         fields = '__all__'
 
-    def create(self, validated_data):
-        return CompanyIncorporation.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
+class RegisteredOfficeAddressDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = RegisteredOfficeAddressDetails
+        fields = '__all__'
 
 
-class CompanyIncorporationSerializerRetrieval(serializers.ModelSerializer):
-    address = serializers.JSONField()
+class AuthorizedPaidUpShareCapitalSerializer(serializers.ModelSerializer):
 
     class Meta:
-        model = CompanyIncorporation
+        model = AuthorizedPaidUpShareCapital
         fields = '__all__'
 
 
@@ -30,84 +35,24 @@ class DirectorsDetailsSerializer(serializers.ModelSerializer):
         model = DirectorsDetails
         fields = '__all__'
 
-        def create(self, validated_data):
-            return ShareHoldersInformation.objects.create(**validated_data)
-
-        def update(self, instance, validated_data):
-            for attr, value in validated_data.items():
-                setattr(instance, attr, value)
-            instance.save()
-            return instance
-
-
-
-class DirectorsDetailsSerializerRetrieval(serializers.ModelSerializer):
-    address = serializers.JSONField()
-    shareholder_details = serializers.JSONField()
-
+class DirectorsSerializer(serializers.ModelSerializer):
+    directors_list = DirectorsDetailsSerializer(many=True, required=False)
     class Meta:
-        model = DirectorsDetails
+        model = Directors
         fields = '__all__'
 
 
-class AuthorizedAndPaidUpCapitalSerializer(serializers.ModelSerializer):
+class ShareholdersSerializer(serializers.ModelSerializer):
     class Meta:
-        model = AuthorizedAndPaidupCapital
+        model = Shareholders
         fields = '__all__'
 
-    def create(self, validated_data):
-        return AuthorizedAndPaidupCapital.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
-
-
-class ShareHoldersInformationSerializer(serializers.ModelSerializer):
+class ShareholdersDetailsSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ShareHoldersInformation
+        model = ShareholdersDetails
         fields = '__all__'
 
-    def create(self, validated_data):
-        return ShareHoldersInformation.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
-
-
-class ShareHoldersInformationSerializerRetrieval(serializers.ModelSerializer):
-    address = serializers.JSONField()
-
+class ReviewFilingCertificateSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ShareHoldersInformation
-        fields = '__all__'
-
-
-class DetailsOfExistingDirectorshipsSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DetailsOfExistingDirectorships
-        fields = '__all__'
-
-    def create(self, validated_data):
-        return DetailsOfExistingDirectorships.objects.create(**validated_data)
-
-    def update(self, instance, validated_data):
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        return instance
-
-
-class CompanyIncorporationDataSerializer(serializers.ModelSerializer):
-    directors_details = DirectorsDetailsSerializer(many=True, read_only=True)
-    authorized_capital = AuthorizedAndPaidUpCapitalSerializer(many=True, read_only=True)
-    share_holders = ShareHoldersInformationSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = CompanyIncorporation
+        model = ReviewFilingCertificate
         fields = '__all__'
