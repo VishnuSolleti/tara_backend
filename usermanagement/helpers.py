@@ -71,6 +71,14 @@ SERVICE_TASK_MAP = {
         "Promoter Signatory Details",
         "GST Review Filing Certificate"
     ],
+    "private-limited":[
+        "Proposed Company Details",
+        "Registered Office Address",
+        "Authorized PaidUp Share Capital",
+        "Directors",
+        "Shareholders",
+        "Review Filing Certificate"
+    ]
 }
 
 
