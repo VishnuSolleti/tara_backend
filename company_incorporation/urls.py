@@ -19,10 +19,9 @@ urlpatterns = [
     path('authorized-paid-up-capital-detail/<int:id>/', views.authorized_paid_up_capital_detail, name='authorized_paid_up_capital_detail'),  # GET, PUT, DELETE
 
     # Directors
-    path('upsert-directors-data/', views.upsert_directors_data, name='upsert_directors_data'),
-    path('update-directors-data/<int:pk>/', views.update_directors_data, name='update_directors_data'),
-    path('get-directors-data/', views.get_directors_data, name='get_directors_data'),
-    path('delete-director/<int:pk>/', views.delete_director, name='delete_director'),
+    path('directors/', views.directors_list, name='directors_list'),
+    path('directors/<int:pk>/', views.directors_detail, name='directors_detail'),
+    path('directors/by-request/', views.get_directors_data, name='get_directors_data'),
 
     # Shareholders
     path('upsert-shareholders-data/', views.upsert_shareholders_data, name='upsert_shareholders_data'),  # POST

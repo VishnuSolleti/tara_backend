@@ -140,9 +140,9 @@ class AuthorizedPaidUpShareCapital(models.Model):
     service_type = models.CharField(max_length=20, default="Company Incorporation", editable=False)
     service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
                                         related_name='service_task_authorized_capital')
-    authorized_share_capital = models.DecimalField(max_digits=15, decimal_places=2)
-    paid_up_share_capital = models.DecimalField(max_digits=15, decimal_places=2)
-    face_value_per_share = models.DecimalField(max_digits=10, decimal_places=2)
+    authorized_share_capital = models.IntegerField(null=True)
+    paid_up_share_capital = models.IntegerField(null=True)
+    face_value_per_share = models.FloatField(null=True)
     no_of_shares = models.PositiveIntegerField()
     bank_name = models.CharField(max_length=255)
     status = models.CharField(
@@ -308,8 +308,8 @@ class DirectorsDetails(models.Model):
     is_this_director_also_shareholder = models.CharField(max_length=3,
                                                          choices=[('Yes', 'Yes'), ('No', 'No')], default='No')
     no_of_shares = models.PositiveIntegerField(default=0, blank=True, null=True)
-    shareholding_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.00,null=True, blank=True)
-    paid_up_capital = models.DecimalField(max_digits=15, decimal_places=2, default=0.00,null=True, blank=True)
+    shareholding_percentage = models.FloatField(null=True)
+    paid_up_capital = models.IntegerField(null=True)
     specimen_signature_of_director = models.FileField(upload_to=upload_specimen_signature_of_director,
                                                       null=True, blank=True, storage=PrivateS3Storage())
 

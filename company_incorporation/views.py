@@ -230,9 +230,7 @@ def authorized_paid_up_capital_detail(request, id):
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        existing_data = AuthorizedPaidUpShareCapitalSerializer(instance).data
-        full_data = {**existing_data, **request.data}  # Merge existing data with new data
-        serializer = AuthorizedPaidUpShareCapitalSerializer(instance, data=full_data, partial=True)
+        serializer = AuthorizedPaidUpShareCapitalSerializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
@@ -241,214 +239,131 @@ def authorized_paid_up_capital_detail(request, id):
     elif request.method == 'DELETE':
         instance.delete()
         return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-'''
-@api_view(['POST'])
+
+@api_view(['GET', 'POST'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
-def upsert_directors_data(request):
-    try:
-        service_request_id = request.data.get('service_request')
-        if not service_request_id:
-            return Response({"error": "Missing service_request"}, status=status.HTTP_400_BAD_REQUEST)
+def directors_list(request):
+    if request.method == 'GET':
+        records = Directors.objects.all()
+        serializer = DirectorsSerializer(records, many=True)
+        return Response(serializer.data)
 
-        # Get or create the parent Directors object
-        parent_director, _ = Directors.objects.create(service_request_id=service_request_id)
-
-        # Prepare a copy of request data
+    elif request.method == 'POST':
         data = request.data.copy()
-        data['directors_ref'] = parent_director.id  # Foreign key assignment
+        service_request = data.get('service_request')
 
-        # Safely copy file fields before they're consumed
-        file_fields = [
-            'pan_card_file',
-            'aadhaar_card_file',
-            'passport_photo_file',
-            'residential_address_proof_file',
-            'specimen_signature_of_director',
-            'form_dir2'
-        ]
-        for field in file_fields:
-            if field in request.FILES:
-                # Reset the file object to avoid "closed file" errors
-                file_obj = request.FILES[field]
-                file_obj.seek(0)  # Make sure file pointer is at start
-                data[field] = file_obj
-
-        # Check if a DirectorsDetails already exists
         try:
-            instance = DirectorsDetails.objects.get(directors_ref=parent_director)
-            details_serializer = DirectorsDetailsSerializer(instance, data=data, partial=True)
-        except DirectorsDetails.DoesNotExist:
-            details_serializer = DirectorsDetailsSerializer(data=data)
-
-        if not details_serializer.is_valid():
-            return Response(details_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        details_instance = details_serializer.save()
-
-        # If there's personal info to create/update
-        if data.get('director_first_name'):
-            try:
-                serializer_info = DirectorsSerializer(data=data)
-                if not serializer_info.is_valid():
-                    return Response(serializer_info.errors, status=status.HTTP_400_BAD_REQUEST)
-                serializer_info.save()
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            return Response(details_serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response({"message": "Status Updated Successfully"}, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-'''
-
-
-@api_view(['POST'])
-@parser_classes([MultiPartParser, FormParser, JSONParser])
-def upsert_directors_data(request):
-    service_request_id = request.data.get('service_request')
-    data = request.data
-
-    if not service_request_id:
-        return Response({"error": "Missing service_request"}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        # Parent payload for Directors
-        director_payload = {
-            "service_request": service_request_id,
-            "service_task": data.get("service_task"),
-            "status": data.get("status"),
-            "assignee": data.get("assignee"),
-            "reviewer": data.get("reviewer")
-        }
-
-        # Get or create/update Directors
-        try:
-            director_instance = Directors.objects.get(service_request_id=service_request_id)
-            director_serializer = DirectorsSerializer(director_instance, data=director_payload, partial=True)
+            instance = Directors.objects.get(service_request=service_request)
+            serializer = DirectorsSerializer(instance, data=data, partial=True)
         except Directors.DoesNotExist:
-            director_serializer = DirectorsSerializer(data=director_payload)
+            serializer = DirectorsSerializer(data=data)
 
-        if not director_serializer.is_valid():
-            return Response(director_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid():
+            main_data = serializer.save()
 
-        director_instance = director_serializer.save()
+            # Optional: Create associated DirectorsDetails if provided
+            if data.get('director_first_name'):
+                data['directors_ref'] = main_data.id
+                serializer_info = DirectorsDetailsSerializer(data=data)
+                if serializer_info.is_valid():
+                    serializer_info.save()
+                else:
+                    return Response(serializer_info.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        # Link child model
-        data._mutable = True  # For QueryDicts
-        data['directors_ref'] = director_instance.id
+            return Response(DirectorsSerializer(main_data).data, status=status.HTTP_201_CREATED)
 
-        if data.get('director_first_name'):
-            try:
-                detail_serializer = DirectorsDetailsSerializer(data=data)
-                if not detail_serializer.is_valid():
-                    return Response(detail_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-                detail_instance = detail_serializer.save()
-
-                return Response({
-                    "directors": DirectorsSerializer(director_instance).data,
-                    "directors_details": DirectorsDetailsSerializer(detail_instance).data
-                }, status=status.HTTP_201_CREATED)
-
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        else:
-            return Response({
-                "message": "Status Updated Successfully",
-                "directors": DirectorsSerializer(director_instance).data
-            }, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def get_directors_data(request):
-    service_request_id = request.query_params.get('service_request')
-    if not service_request_id:
-        return Response({"error": "Missing service_request"}, status=status.HTTP_400_BAD_REQUEST)
+    service_request_id = request.query_params.get('service_request_id')
+    service_task_id = request.query_params.get('service_task')
 
-    try:
-        # Get single DirectorsDetails instance using .get()
-        director_detail = DirectorsDetails.objects.get(
-            directors_ref__service_request_id=service_request_id
+    if not service_request_id and not service_task_id:
+        return Response(
+            {"error": "Provide either 'service_request_id' or 'service_task' as query parameter."},
+            status=status.HTTP_400_BAD_REQUEST
         )
 
-        serializer = DirectorsDetailsSerializer(
-            director_detail,
-            context={'request': request}
-        )
-
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    except DirectorsDetails.DoesNotExist:
-        return Response({"error": "DirectorsDetails not found"}, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['PUT'])
-@parser_classes([MultiPartParser, FormParser, JSONParser])
-def update_directors_data(request, pk):
     try:
-        director = DirectorsDetails.objects.get(pk=pk)
-        serializer = DirectorsDetailsSerializer(director, data=request.data, partial=True)
-
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    except DirectorsDetails.DoesNotExist:
-        return Response({"error": "Director not found"}, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-@api_view(['DELETE'])
-@parser_classes([MultiPartParser, FormParser, JSONParser])
-def delete_director(request, pk):
-    try:
-        director = Directors.objects.get(pk=pk)
+        if service_request_id:
+            instance = Directors.objects.get(service_request_id=service_request_id)
+        else:
+            instance = Directors.objects.get(service_task_id=service_task_id)
     except Directors.DoesNotExist:
-        return Response({"error": "Director not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "No matching Directors data found."}, status=status.HTTP_404_NOT_FOUND)
 
+    serializer = DirectorsSerializer(instance)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['GET', 'PUT', 'DELETE'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def directors_detail(request, pk):
     try:
-        file_to_delete = request.query_params.get('file')
-        if file_to_delete:
-            if file_to_delete == 'pan' and director.pan:
-                director.pan.storage.delete(director.pan.name)
-                director.pan = None
-            elif file_to_delete == 'aadhaar' and director.aadhaar:
-                director.aadhaar.storage.delete(director.aadhaar.name)
-                director.aadhaar = None
-            elif file_to_delete == 'photo' and director.photo:
-                director.photo.storage.delete(director.photo.name)
-                director.photo = None
-            else:
-                return Response({"error": "Invalid or missing file name"}, status=status.HTTP_400_BAD_REQUEST)
+        record = DirectorsDetails.objects.get(pk=pk)
+    except DirectorsDetails.DoesNotExist:
+        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            director.save()
-            return Response({"message": f"{file_to_delete} deleted successfully"}, status=status.HTTP_200_OK)
+    if request.method == 'GET':
+        serializer = DirectorsDetailsSerializer(record)
+        return Response(serializer.data)
 
-        if director.pan:
-            director.pan.storage.delete(director.pan.name)
-        if director.aadhaar:
-            director.aadhaar.storage.delete(director.aadhaar.name)
-        if director.photo:
-            director.photo.storage.delete(director.photo.name)
+    elif request.method == 'PUT':
+        serializer = DirectorsDetailsSerializer(record, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        director.delete()
-        return Response({"message": "Director and all associated files deleted successfully"},
-                        status=status.HTTP_204_NO_CONTENT)
+    elif request.method == 'DELETE':
+        try:
+            record = DirectorsDetails.objects.get(pk=pk)
+            file_to_delete = request.query_params.get('file')
+            if file_to_delete:
+                if file_to_delete == 'pan_card_file' and record.pan_card_file:
+                    record.pan_card_file.storage.delete(record.pan_card_file.name)
+                    record.pan_card_file = None
+                elif file_to_delete == 'aadhaar_card_file' and record.aadhaar_card_file:
+                    record.aadhaar_card_file.storage.delete(record.aadhaar_card_file.name)
+                    record.aadhaar_card_file = None
+                elif file_to_delete == 'passport_photo_file' and record.passport_photo_file:
+                    record.passport_photo_file.storage.delete(record.passport_photo_file.name)
+                    record.passport_photo_file = None
+                elif file_to_delete == 'residential_address_proof_file' and record.residential_address_proof_file:
+                    record.residential_address_proof_file.storage.delete(record.residential_address_proof_file.name)
+                    record.residential_address_proof_file = None
+                elif file_to_delete == 'form_dir2' and record.form_dir2:
+                    record.form_dir2.storage.delete(record.form_dir2.name)
+                    record.form_dir2 = None
+                elif file_to_delete == 'specimen_signature_of_director' and record.specimen_signature_of_director:
+                    record.specimen_signature_of_director.storage.delete(record.specimen_signature_of_director.name)
+                    record.specimen_signature_of_director = None
+                else:
+                    return Response({"error": "Invalid or missing file name"}, status=status.HTTP_400_BAD_REQUEST)
+                record.save()
+                return Response({"message": f"{file_to_delete} deleted successfully"}, status=status.HTTP_200_OK)
+            # If no specific file is requested, delete the entire record and its files
+            if record.pan_card_file:
+                record.pan_card_file.storage.delete(record.pan_card_file.name)
+            if record.aadhaar_card_file:
+                record.aadhaar_card_file.storage.delete(record.aadhaar_card_file.name)
+            if record.passport_photo_file:
+                record.passport_photo_file.storage.delete(record.passport_photo_file.name)
+            if record.residential_address_proof_file:
+                record.residential_address_proof_file.storage.delete(record.residential_address_proof_file.name)
+            if record.form_dir2:
+                record.form_dir2.storage.delete(record.form_dir2.name)
+            if record.specimen_signature_of_director:
+                record.specimen_signature_of_director.storage.delete(record.specimen_signature_of_director.name)
 
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            record.delete()
+            return Response({"message": "All director details deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
-
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 @api_view(['POST'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])

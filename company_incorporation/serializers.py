@@ -9,8 +9,6 @@ from .models import (
     ShareholdersDetails,
     ReviewFilingCertificate
 )
-from decimal import Decimal
-
 
 class ProposedCompanyDetailsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,12 +29,18 @@ class AuthorizedPaidUpShareCapitalSerializer(serializers.ModelSerializer):
 
 
 class DirectorsDetailsSerializer(serializers.ModelSerializer):
+    shareholding_percentage = serializers.FloatField(allow_null=True)
+    paid_up_capital = serializers.IntegerField(allow_null=True)
+
     class Meta:
         model = DirectorsDetails
         fields = '__all__'
 
+
+
 class DirectorsSerializer(serializers.ModelSerializer):
-    directors_list = DirectorsDetailsSerializer(many=True, required=False)
+    directors = DirectorsDetailsSerializer(many=True, read_only=True)
+
     class Meta:
         model = Directors
         fields = '__all__'
@@ -47,10 +51,12 @@ class ShareholdersSerializer(serializers.ModelSerializer):
         model = Shareholders
         fields = '__all__'
 
+
 class ShareholdersDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShareholdersDetails
         fields = '__all__'
+
 
 class ReviewFilingCertificateSerializer(serializers.ModelSerializer):
     class Meta:
