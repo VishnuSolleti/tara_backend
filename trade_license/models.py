@@ -257,8 +257,9 @@ class BusinessDocumentDetails(models.Model):
 class ReviewFilingCertificate(models.Model):
     REVIEW_STATUS_CHOICES = [
         ('in progress', 'In Progress'),
-        ('resubmission', 'Resubmission'),
-        ('done', 'Done'),
+        ('completed', 'Completed'),
+        ('sent for approval', 'Sent for Approval'),
+        ('revoked', 'Revoked')
     ]
 
     FILING_STATUS_CHOICES = [
@@ -289,6 +290,9 @@ class ReviewFilingCertificate(models.Model):
 
     review_certificate = models.FileField(upload_to=review_filing_certificate,
                                           null=True, blank=True, storage=PrivateS3Storage())
+
+    draft_filing_certificate = models.FileField(upload_to=draft_filing_certificate,
+                                                null=True, blank=True, storage=PrivateS3Storage())
     review_certificate_status = models.CharField(
         max_length=20,
         choices=REVIEW_STATUS_CHOICES,

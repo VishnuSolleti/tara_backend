@@ -235,15 +235,23 @@ class GSTReviewFilingCertificate(models.Model):
                                             related_name='GST_review_filing_certificate')
     service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
                                         related_name='ServiceTask_GST_review_filing_certificate')
+    REVIEW_STATUS_CHOICES = [
+        ('in progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('sent for approval', 'Sent for Approval'),
+        ('revoked', 'Revoked')
+    ]
 
     FILING_STATUS_CHOICES = [
         ('in progress', 'In Progress'),
         ('filed', 'Filed'),
+        ('sent for approval', 'Sent for Approval'),
         ('resubmitted', 'Resubmitted'),
-        ]
+    ]
     APPROVAL_STATUS_CHOICES = [
         ('pending', 'Pending'),
         ('resubmission', 'Resubmission'),
+        ('sent for approval', 'Sent for Approval'),
         ('rejected', 'Rejected'),
         ('approved', 'Approved'),
     ]
@@ -252,6 +260,17 @@ class GSTReviewFilingCertificate(models.Model):
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
                                         ('sent for approval', 'Sent for Approval'),('revoked', 'Revoked')],
                                          default='in progress', null=False,blank=False)
+
+    draft_filing_certificate = models.FileField(
+        upload_to=draft_filing_certificate, null=True, blank=True, storage=PrivateS3Storage()
+    )
+    review_certificate_status = models.CharField(
+        max_length=20,
+        choices=REVIEW_STATUS_CHOICES,
+        null=True,
+        blank=True,
+        default=None
+    )
 
     filing_status = models.CharField(
         max_length=20,
