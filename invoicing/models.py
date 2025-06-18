@@ -134,6 +134,9 @@ class CustomerProfile(models.Model):
     mobile_number = models.CharField(max_length=15, null=True, blank=True)
     opening_balance = models.IntegerField(null=True)
     entity_type = models.CharField(max_length=100, null=True, blank=True, default=None)
+    has_multiple_branches = models.BooleanField(default=False, null=True, blank=True)
+    branches = JSONField(default=list, blank=True, null=True,
+                                help_text="List of branches with their details if has_multiple_branches is True")
 
     def __str__(self):
         return f"Customer: {self.name}"

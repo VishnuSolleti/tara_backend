@@ -22,6 +22,12 @@ class CustomerProfileSerializers(serializers.Serializer):
     mobile_number = serializers.CharField(max_length=15, allow_null=True, allow_blank=True)
     opening_balance = serializers.IntegerField(allow_null=True)
     entity_type = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
+    has_multiple_branches = serializers.BooleanField(default=False)
+    branches = serializers.JSONField(
+        allow_null=True,
+        default=list,
+        help_text="List of branches in JSON format"
+    )
 
     def create(self, validated_data):
         """
