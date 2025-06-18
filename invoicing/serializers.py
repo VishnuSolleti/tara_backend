@@ -311,6 +311,12 @@ class InvoicingProfileSerializer(serializers.ModelSerializer):
 
 
 class CustomerProfileGetSerializers(serializers.ModelSerializer):
+    branches = serializers.JSONField(
+        allow_null=True,
+        default=list,
+        help_text="List of branches in JSON format"
+    )
+
     class Meta:
         model = CustomerProfile
         exclude = ['invoicing_profile']
