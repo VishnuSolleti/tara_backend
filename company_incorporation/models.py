@@ -355,50 +355,81 @@ class Shareholders(models.Model):
 
 class ShareholdersDetails(models.Model):
     shareholders_ref = models.ForeignKey(
-        Shareholders, on_delete=models.CASCADE, related_name='shareholders'
+        'Shareholders', on_delete=models.CASCADE, related_name='shareholders'
     )
+
+    # NEW FIELD to track the source director
+    directors_details_ref = models.ForeignKey(
+        'DirectorsDetails', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='generated_shareholder_details'
+    )
+
     shareholder_first_name = models.CharField(max_length=50)
     middle_name = models.CharField(max_length=50, blank=True, null=True)
     last_name = models.CharField(max_length=50)
-    shareholder_type_choices = [('Individual Indian Resident', 'individual indian resident'),
-                                 ('Individual Non-Resident', 'individual non-resident'),
-                                ('Individual Foreign National', 'individual foreign national'),
-                                ('Body Corporate Indian Company', 'body corporate indian company'),
-                                ('Body Corporate Foreign Company', 'body corporate foreign company'),
-                                ('Limited Liability Partnership', 'limited liability partnership'),]
 
-    shareholder_type = models.CharField(max_length=50, choices= shareholder_type_choices,
-                                        default='Individual Indian Resident')
+    shareholder_type_choices = [
+        ('Individual Indian Resident', 'individual indian resident'),
+        ('Individual Non-Resident', 'individual non-resident'),
+        ('Individual Foreign National', 'individual foreign national'),
+        ('Body Corporate Indian Company', 'body corporate indian company'),
+        ('Body Corporate Foreign Company', 'body corporate foreign company'),
+        ('Limited Liability Partnership', 'limited liability partnership'),
+    ]
+    shareholder_type = models.CharField(
+        max_length=50, choices=shareholder_type_choices,
+        default='Individual Indian Resident'
+    )
+
     mobile_number = models.BigIntegerField(null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
-    pan_card_file = models.FileField(upload_to=upload_pan_card_file, null=True, blank=True,
-                                     storage=PrivateS3Storage())
-    aadhaar_card_file = models.FileField(upload_to=upload_aadhaar_card_file, null=True, blank=True,
-                                    storage=PrivateS3Storage())
-    bank_statement_file = models.FileField(upload_to=upload_bank_statement_file, null=True, blank=True,
-                                             storage=PrivateS3Storage())
-    shareholding_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+
+    pan_card_file = models.FileField(
+        upload_to=upload_pan_card_file,
+        null=True, blank=True,
+        storage=PrivateS3Storage()
+    )
+    aadhaar_card_file = models.FileField(
+        upload_to=upload_aadhaar_card_file,
+        null=True, blank=True,
+        storage=PrivateS3Storage()
+    )
+    bank_statement_file = models.FileField(
+        upload_to=upload_bank_statement_file,
+        null=True, blank=True,
+        storage=PrivateS3Storage()
+    )
+
+    shareholding_percentage = models.FloatField(null=True)
+
     residential_same_as_aadhaar_address = models.CharField(
-        max_length=3, choices=[('Yes', 'Yes'), ('No', 'No')], default='No'
+        max_length=3,
+        choices=[('Yes', 'Yes'), ('No', 'No')],
+        default='No'
     )
     residential_address = models.TextField(blank=True, null=True)
+
     residential_address_proof_choices = [
-        ('Bank Statement', 'Bank Statement'), ('Utility Bill', 'Utility Bill'),
+        ('Bank Statement', 'Bank Statement'),
+        ('Utility Bill', 'Utility Bill'),
         ('Telephone/Mobile Bill', 'Telephone/Mobile Bill'),
         ('Electricity Bill', 'Electricity Bill'),
         ('Property Tax Receipt', 'Property Tax Receipt'),
         ('Lease/Rent Agreement', 'Lease/Rent Agreement')
     ]
     residential_address_proof = models.CharField(
-        max_length=50, choices=residential_address_proof_choices, null=True, blank=True
+        max_length=50,
+        choices=residential_address_proof_choices,
+        null=True, blank=True
     )
     residential_address_proof_file = models.FileField(
-        upload_to=upload_residential_address_proof_file, null=True, blank=True
+        upload_to=upload_residential_address_proof_file,
+        null=True, blank=True,
+        storage=PrivateS3Storage()
     )
 
     def __str__(self):
         return f"{self.shareholder_first_name} {self.last_name}"
-
 
 class ReviewFilingCertificate(models.Model):
     service_type = models.CharField(max_length=20, default="Company Incorporation", editable=False)
@@ -519,7 +550,7 @@ def sync_authorized_paid_up_capital_service_task_status(sender, instance, **kwar
     task.save()
 
 
-@receiver(post_save, sender=Directors)
+@receiver(post_save, sender=Directors, dispatch_uid="sync_directors_status")
 def sync_directors_service_task_status(sender, instance, **kwargs):
     task = instance.service_task
 
@@ -532,150 +563,54 @@ def sync_directors_service_task_status(sender, instance, **kwargs):
 
     task.save()
 
-'''
-@receiver(post_save, sender=Directors)
-def auto_create_shareholders_from_directors(sender, instance, **kwargs):
-    # Auto-create ShareholderDetails for directors marked as also being shareholders
-    director = DirectorsDetails.objects.get(
-        directors_ref=instance,
-        is_this_director_also_shareholder='Yes'
-    )
 
-    if director:
-        try:
-            shareholder_details = Shareholders.objects.get(service_request=instance.directors_ref.service_request)
-            already_exists = ShareholdersDetails.objects.get(
-                shareholders_ref=shareholder_details,
-                shareholder_first_name=director.director_first_name,
-                last_name=director.last_name,
-                email=director.email,
-                mobile_number=director.mobile_number
-            )
-            if not already_exists:
-                ShareholdersDetails.objects.create(
-                    shareholders_ref=shareholder_details,
-                    shareholder_first_name=director.director_first_name,
-                    middle_name=director.middle_name,
-                    last_name=director.last_name,
-                    mobile_number=director.mobile_number,
-                    email=director.email,
-                    pan_card_file=director.pan_card_file,
-                    aadhaar_card_file=director.aadhaar_card_file,
-                    bank_statement_file=director.bank_statement_file,
-                    shareholding_percentage=director.shareholding_percentage,
-                    residential_same_as_aadhaar_address=director.residential_same_as_aadhaar_address,
-                    residential_address=director.residential_address,
-                    residential_address_proof=director.residential_address_proof,
-                    residential_address_proof_file=director.residential_address_proof_file,
-                    shareholder_type= "Individual Indian Resident"
-                )
-            else:
-                # If already exists, you might want to update the existing record instead
-                ShareholdersDetails.objects.update(
-                    shareholders_ref=shareholder_details,
-                    shareholder_first_name=director.director_first_name,
-                    middle_name=director.middle_name,
-                    last_name=director.last_name,
-                    mobile_number=director.mobile_number,
-                    email=director.email,
-                    pan_card_file=director.pan_card_file,
-                    aadhaar_card_file=director.aadhaar_card_file,
-                    bank_statement_file=director.bank_statement_file,
-                    shareholding_percentage=director.shareholding_percentage,
-                    residential_same_as_aadhaar_address=director.residential_same_as_aadhaar_address,
-                    residential_address=director.residential_address,
-                    residential_address_proof=director.residential_address_proof,
-                    residential_address_proof_file=director.residential_address_proof_file
-                )
-
-        except Shareholders.DoesNotExist:
-            shareholder_details = Shareholders.objects.create(
-                service_request=instance.directors_ref.service_request,
-                service_task=instance.service_task,
-                status='in progress')
-            ShareholdersDetails.objects.create(
-                shareholders_ref=shareholder_details,
-                shareholder_first_name=director.director_first_name,
-                middle_name=director.middle_name,
-                last_name=director.director_last_name,
-                mobile_number=director.mobile_number,
-                email=director.email,
-                pan_card_file=director.pan_card_file,
-                aadhaar_card_file=director.aadhaar_card_file,
-                bank_statement_file=director.bank_statement_file,
-                shareholding_percentage=director.shareholding_percentage,
-                residential_same_as_aadhaar_address=director.residential_same_as_aadhaar_address,
-                residential_address=director.residential_address,
-                residential_address_proof=director.residential_address_proof,
-                residential_address_proof_file=director.residential_address_proof_file,
-                shareholder_type="Individual Indian Resident"
-            )
-'''
-@receiver(post_save, sender=Directors)
+@receiver(post_save, sender=Directors, dispatch_uid="auto_create_shareholders")
 def auto_create_shareholders_from_directors(sender, instance, **kwargs):
     try:
-        director = DirectorsDetails.objects.get(
+        directors = DirectorsDetails.objects.filter(
             directors_ref=instance,
             is_this_director_also_shareholder='Yes'
         )
 
-        if director:
-            try:
-                shareholder_details = Shareholders.objects.get(service_request=instance.service_request)
-                already_exists = ShareholdersDetails.objects.filter(
-                    shareholders_ref=shareholder_details,
-                    shareholder_first_name=director.director_first_name,
-                    last_name=director.last_name,
-                    email=director.email,
-                    mobile_number=director.mobile_number
-                ).exists()
+        if not directors.exists():
+            return
 
-                if not already_exists:
-                    ShareholdersDetails.objects.create(
-                        shareholders_ref=shareholder_details,
-                        shareholder_first_name=director.director_first_name,
-                        middle_name=director.middle_name,
-                        last_name=director.last_name,
-                        mobile_number=director.mobile_number,
-                        email=director.email,
-                        pan_card_file=director.pan_card_file,
-                        aadhaar_card_file=director.aadhaar_card_file,
-                        bank_statement_file=director.bank_statement_file,
-                        shareholding_percentage=director.shareholding_percentage,
-                        residential_same_as_aadhaar_address=director.residential_same_as_aadhaar_address,
-                        residential_address=director.residential_address,
-                        residential_address_proof=director.residential_address_proof,
-                        residential_address_proof_file=director.residential_address_proof_file,
-                        shareholder_type="Individual Indian Resident"
-                    )
-                else:
-                    existing = ShareholdersDetails.objects.get(
-                        shareholders_ref=shareholder_details,
-                        email=director.email
-                    )
-                    existing.shareholder_first_name = director.director_first_name
-                    existing.middle_name = director.middle_name
-                    existing.last_name = director.last_name
-                    existing.mobile_number = director.mobile_number
-                    existing.email = director.email
-                    existing.pan_card_file = director.pan_card_file
-                    existing.aadhaar_card_file = director.aadhaar_card_file
-                    existing.bank_statement_file = director.bank_statement_file
-                    existing.shareholding_percentage = director.shareholding_percentage
-                    existing.residential_same_as_aadhaar_address = director.residential_same_as_aadhaar_address
-                    existing.residential_address = director.residential_address
-                    existing.residential_address_proof = director.residential_address_proof
-                    existing.residential_address_proof_file = director.residential_address_proof_file
-                    existing.save()
+        shareholder_parent, _ = Shareholders.objects.get_or_create(
+            service_request=instance.service_request,
+            defaults={
+                'service_task': instance.service_task,
+                'status': 'in progress',
+                'assignee': instance.assignee,
+                'reviewer': instance.reviewer
+            }
+        )
 
-            except Shareholders.DoesNotExist:
-                shareholder_details = Shareholders.objects.create(
-                    service_request=instance.service_request,
-                    service_task=instance.service_task,
-                    status='in progress'
-                )
+        for director in directors:
+            existing = ShareholdersDetails.objects.filter(
+                shareholders_ref=shareholder_parent,
+                directors_details_ref=director  # ✅ Corrected field
+            ).first()
+
+            if existing:
+                existing.shareholder_first_name = director.director_first_name
+                existing.middle_name = director.middle_name
+                existing.last_name = director.last_name
+                existing.mobile_number = director.mobile_number
+                existing.email = director.email
+                existing.pan_card_file = director.pan_card_file
+                existing.aadhaar_card_file = director.aadhaar_card_file
+                existing.bank_statement_file = director.bank_statement_file
+                existing.shareholding_percentage = director.shareholding_percentage
+                existing.residential_same_as_aadhaar_address = director.residential_same_as_aadhaar_address
+                existing.residential_address = director.residential_address
+                existing.residential_address_proof = director.residential_address_proof
+                existing.residential_address_proof_file = director.residential_address_proof_file
+                existing.shareholder_type = "Individual Indian Resident"
+                existing.save()
+            else:
                 ShareholdersDetails.objects.create(
-                    shareholders_ref=shareholder_details,
+                    shareholders_ref=shareholder_parent,
+                    directors_details_ref=director,  # ✅ Corrected field
                     shareholder_first_name=director.director_first_name,
                     middle_name=director.middle_name,
                     last_name=director.last_name,
@@ -692,10 +627,11 @@ def auto_create_shareholders_from_directors(sender, instance, **kwargs):
                     shareholder_type="Individual Indian Resident"
                 )
 
-    except DirectorsDetails.DoesNotExist:
-        pass
     except Exception as e:
-        print(f"Error in shareholder creation: {str(e)}")
+        print(f"Error in auto_create_shareholders_from_directors: {e}")
+
+
+
 
 @receiver(post_save, sender=Shareholders)
 def sync_shareholders_service_task_status(sender, instance, **kwargs):

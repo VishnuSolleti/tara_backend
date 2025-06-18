@@ -365,124 +365,146 @@ def directors_detail(request, pk):
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@api_view(['POST'])
+
+@api_view(['GET', 'POST'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
-def upsert_shareholders_data(request):
-    service_request_id = request.data.get('service_request')
-    data = request.data
+def shareholders_list(request):
+    if request.method == 'GET':
+        records = Shareholders.objects.all()
+        serializer = ShareholdersSerializer(records, many=True)
+        return Response(serializer.data)
 
-    if not service_request_id:
-        return Response({"error": "Missing service_request"}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        shareholders_payload = {
-            "service_request": service_request_id,
-            "service_task": request.data.get("service_task"),
-            "status": request.data.get("status"),
-            "assignee": request.data.get("assignee"),
-            "reviewer": request.data.get("reviewer")
-        }
+    elif request.method == 'POST':
+        # Do NOT copy() or use deepcopy which causes pickle error on files
+        form_data = request.data
+        files = request.FILES
+        service_request = form_data.get('service_request')
 
         try:
-            instance = ShareholdersDetails.objects.get(service_request_id=service_request_id)
-            details_serializer = ShareholdersDetailsSerializer(instance, data=shareholders_payload, partial=True)
-        except ShareholdersDetails.DoesNotExist:
-            details_serializer = ShareholdersDetailsSerializer(data=shareholders_payload)
+            instance = Shareholders.objects.get(service_request=service_request)
+            serializer = ShareholdersSerializer(instance, data=form_data, partial=True)
+        except Shareholders.DoesNotExist:
+            serializer = ShareholdersSerializer(data=form_data)
 
-        if not details_serializer.is_valid():
-            return Response(details_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        if serializer.is_valid():
+            main_data = serializer.save()
 
-        instance = details_serializer.save()
+            if form_data.get('shareholder_first_name'):
+                detail_data = {
+                    'shareholder_first_name': form_data.get('shareholder_first_name'),
+                    'middle_name': form_data.get('middle_name'),
+                    'last_name': form_data.get('last_name'),
+                    'shareholder_type': form_data.get('shareholder_type'),
+                    'mobile_number': form_data.get('mobile_number'),
+                    'email': form_data.get('email'),
+                    'shareholding_percentage': form_data.get('shareholding_percentage'),
+                    'residential_same_as_aadhaar_address': form_data.get('residential_same_as_aadhaar_address'),
+                    'residential_address': form_data.get('residential_address'),
+                    'residential_address_proof': form_data.get('residential_address_proof'),
+                    'shareholders_ref': main_data.id,
+                }
 
-        auto_create_shareholders_from_directors(instance)
+                file_fields = [
+                    'pan_card_file',
+                    'aadhaar_card_file',
+                    'bank_statement_file',
+                    'residential_address_proof_file'
+                ]
+                for field in file_fields:
+                    if field in files:
+                        detail_data[field] = files[field]
 
-        data['shareholder_detail'] = instance.id
-        if data.get('name'):
-            try:
-                serializer_info = ShareholdersSerializer(data=data)
-                if not serializer_info.is_valid():
-                    return Response(serializer_info.errors, status=status.HTTP_400_BAD_REQUEST)
-                serializer_info.save()
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            return Response(details_serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response({"message": "Status Updated Successfully"}, status=status.HTTP_200_OK)
+                detail_serializer = ShareholdersDetailsSerializer(data=detail_data)
+                if detail_serializer.is_valid():
+                    detail_serializer.save()
+                else:
+                    return Response(detail_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(ShareholdersSerializer(main_data).data, status=status.HTTP_201_CREATED)
 
-
-
-@api_view(['PUT'])
-@parser_classes([MultiPartParser, FormParser, JSONParser])
-def update_shareholders_data(request, pk):
-    try:
-        info = Shareholders.objects.get(pk=pk)
-    except Shareholders.DoesNotExist:
-        return Response({"error": "Shareholder not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    serializer = ShareholdersSerializer(info, data=request.data, partial=True)
-    if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    serializer.save()
-    return Response(serializer.data, status=status.HTTP_200_OK)
+
 
 
 @api_view(['GET'])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
 def get_shareholders_data(request):
     service_request_id = request.query_params.get('service_request_id')
-    if not service_request_id:
-        return Response({"error": "Missing service_request"}, status=status.HTTP_400_BAD_REQUEST)
+    service_task_id = request.query_params.get('service_task')
+
+    if not service_request_id and not service_task_id:
+        return Response(
+            {"error": "Provide either 'service_request_id' or 'service_task' as query parameter."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
     try:
-        details = ShareholdersDetails.objects.get(service_request_id=service_request_id)
-    except ShareholdersDetails.DoesNotExist:
-        return Response({"error": "ShareholderDetails not found"}, status=status.HTTP_404_NOT_FOUND)
+        if service_request_id:
+            instance = Shareholders.objects.get(service_request_id=service_request_id)
+        else:
+            instance = Shareholders.objects.get(service_task_id=service_task_id)
+    except Shareholders.DoesNotExist:
+        return Response({"error": "No matching Shareholders data found."}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = ShareholdersDetailsSerializer(details)
+    serializer = ShareholdersSerializer(instance)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-@api_view(['DELETE'])
+@api_view(['GET', 'PUT', 'DELETE'])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
-def delete_shareholder(request, pk):
+def shareholders_detail(request, pk):
     try:
-        shareholder = Shareholders.objects.get(pk=pk)
-    except Shareholders.DoesNotExist:
-        return Response({"error": "Shareholder not found"}, status=status.HTTP_404_NOT_FOUND)
+        record = ShareholdersDetails.objects.get(pk=pk)
+    except ShareholdersDetails.DoesNotExist:
+        return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    try:
-        file_to_delete = request.query_params.get('file')
-        if file_to_delete:
-            if file_to_delete == 'pan' and shareholder.pan:
-                shareholder.pan.storage.delete(shareholder.pan.name)
-                shareholder.pan = None
-            elif file_to_delete == 'aadhaar' and shareholder.aadhaar:
-                shareholder.aadhaar.storage.delete(shareholder.aadhaar.name)
-                shareholder.aadhaar = None
-            elif file_to_delete == 'photo' and shareholder.photo:
-                shareholder.photo.storage.delete(shareholder.photo.name)
-                shareholder.photo = None
-            else:
-                return Response({"error": "Invalid or missing file name"}, status=status.HTTP_400_BAD_REQUEST)
+    if request.method == 'GET':
+        serializer = ShareholdersDetailsSerializer(record)
+        return Response(serializer.data)
 
-            shareholder.save()
-            return Response({"message": f"{file_to_delete} deleted successfully"}, status=status.HTTP_200_OK)
+    elif request.method == 'PUT':
+        serializer = ShareholdersDetailsSerializer(record, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        if shareholder.pan:
-            shareholder.pan.storage.delete(shareholder.pan.name)
-        if shareholder.aadhaar:
-            shareholder.aadhaar.storage.delete(shareholder.aadhaar.name)
-        if shareholder.photo:
-            shareholder.photo.storage.delete(shareholder.photo.name)
+    elif request.method == 'DELETE':
+        try:
+            file_to_delete = request.query_params.get('file')
+            if file_to_delete:
+                if file_to_delete == 'pan_card_file' and record.pan_card_file:
+                    record.pan_card_file.storage.delete(record.pan_card_file.name)
+                    record.pan_card_file = None
+                elif file_to_delete == 'aadhaar_card_file' and record.aadhaar_card_file:
+                    record.aadhaar_card_file.storage.delete(record.aadhaar_card_file.name)
+                    record.aadhaar_card_file = None
+                elif file_to_delete == 'bank_statement_file' and record.bank_statement_file:
+                    record.bank_statement_file.storage.delete(record.bank_statement_file.name)
+                    record.bank_statement_file = None
+                elif file_to_delete == 'residential_address_proof_file' and record.residential_address_proof_file:
+                    record.residential_address_proof_file.storage.delete(record.residential_address_proof_file.name)
+                    record.residential_address_proof_file = None
+                else:
+                    return Response({"error": "Invalid or missing file name"}, status=status.HTTP_400_BAD_REQUEST)
+                record.save()
+                return Response({"message": f"{file_to_delete} deleted successfully"}, status=status.HTTP_200_OK)
 
-        shareholder.delete()
-        return Response({"message": "Shareholder and all associated files deleted successfully"},
-                        status=status.HTTP_204_NO_CONTENT)
+            if record.pan_card_file:
+                record.pan_card_file.storage.delete(record.pan_card_file.name)
+            if record.aadhaar_card_file:
+                record.aadhaar_card_file.storage.delete(record.aadhaar_card_file.name)
+            if record.bank_statement_file:
+                record.bank_statement_file.storage.delete(record.bank_statement_file.name)
+            if record.residential_address_proof_file:
+                record.residential_address_proof_file.storage.delete(record.residential_address_proof_file.name)
 
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            record.delete()
+            return Response({"message": "All shareholder details deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 
 @api_view(['POST', 'GET'])
@@ -526,36 +548,28 @@ def review_filing_certificate_by_service_request(request):
 @parser_classes([MultiPartParser, FormParser, JSONParser])
 def review_filing_certificate_detail(request, id):
     try:
-        instance = ReviewFilingCertificate.objects.get(id=id)
+        record = ReviewFilingCertificate.objects.get(id=id)
     except ReviewFilingCertificate.DoesNotExist:
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
-        serializer = ReviewFilingCertificateSerializer(instance)
+        serializer = ReviewFilingCertificateSerializer(record)
         return Response(serializer.data)
 
     elif request.method == 'PUT':
-        serializer = ReviewFilingCertificateSerializer(instance, data=request.data, partial=True)
+        serializer = ReviewFilingCertificateSerializer(record, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
-        file_to_delete = request.query_params.get('file')
-        if file_to_delete:
-            if hasattr(instance, file_to_delete):
-                file_field = getattr(instance, file_to_delete)
-                if file_field:
-                    file_field.storage.delete(file_field.name)
-                    setattr(instance, file_to_delete, None)
-                    instance.save()
-                    return Response({"message": f"{file_to_delete} deleted successfully"}, status=status.HTTP_200_OK)
-                return Response({"error": f"{file_to_delete} file not found"}, status=status.HTTP_400_BAD_REQUEST)
-            return Response({"error": "Invalid file field"}, status=status.HTTP_400_BAD_REQUEST)
+        if record.review_certificate:
+            record.review_certificate.storage.delete(record.review_certificate.name)
+        record.delete()
+        return Response({"message": "Company Review Filing Certificate deleted successfully"},
+                        status=status.HTTP_204_NO_CONTENT)
 
-        instance.delete()
-        return Response({"message": "Deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
 
 Task_Model_Serializer_Map = {
     'Proposed Company Details':(ProposedCompanyDetails, ProposedCompanyDetailsSerializer),
