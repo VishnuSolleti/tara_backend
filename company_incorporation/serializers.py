@@ -45,16 +45,19 @@ class DirectorsSerializer(serializers.ModelSerializer):
         model = Directors
         fields = '__all__'
 
+class ShareholdersDetailsSerializer(serializers.ModelSerializer):
+    shareholding_percentage = serializers.FloatField(allow_null=True)
+    #directors_details_ref = DirectorsDetailsSerializer(read_only=True) # Optional if you want director detail inside
 
-class ShareholdersSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Shareholders
+        model = ShareholdersDetails
         fields = '__all__'
 
 
-class ShareholdersDetailsSerializer(serializers.ModelSerializer):
+class ShareholdersSerializer(serializers.ModelSerializer):
+    shareholders = ShareholdersDetailsSerializer(many=True, read_only=True)
     class Meta:
-        model = ShareholdersDetails
+        model = Shareholders
         fields = '__all__'
 
 

@@ -23,11 +23,15 @@ urlpatterns = [
     path('directors/<int:pk>/', views.directors_detail, name='directors_detail'),
     path('directors/by-request/', views.get_directors_data, name='get_directors_data'),
 
-    # Shareholders
-    path('upsert-shareholders-data/', views.upsert_shareholders_data, name='upsert_shareholders_data'),  # POST
-    path('update-shareholders-data/<int:pk>/', views.update_shareholders_data, name='update_shareholders_data'),  # PUT
-    path('get-shareholders-data/', views.get_shareholders_data, name='get_shareholders_data'),  # GET
-    path('delete-shareholder/<int:pk>/', views.delete_shareholder, name='delete_shareholder'),  # DELETE
+
+    # Shareholders main object list/create (like Directors)
+    path('shareholders/', views.shareholders_list, name='shareholders_list'),
+
+    # Shareholders GET by service_request_id or service_task
+    path('shareholders/by-request/', views.get_shareholders_data, name='get_shareholders_data'),
+
+    # ShareholdersDetails GET, PUT, DELETE (like DirectorsDetails)
+    path('shareholders/<int:pk>/', views.shareholders_detail, name='shareholders_detail'),
 
     # Review Filing Certificate
     path('create-review-filing-certificate/', views.create_review_filing_certificate, name='create_review_filing_certificate'),  # POST, GET
