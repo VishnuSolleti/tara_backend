@@ -1,4 +1,6 @@
 from rest_framework import serializers
+
+from usermanagement.views import request_otp
 from .models import *
 from django.core.files.storage import FileSystemStorage
 from usermanagement.serializers import *
@@ -200,7 +202,7 @@ class InvoiceSerializer(serializers.Serializer):
         default=[],
     )
     gstin = serializers.CharField(max_length=60, allow_null=True)
-    branch_code = serializers.CharField(max_length=60, allow_null=True, allow_blank=True)
+    branch_code = serializers.CharField(max_length=60, allow_null=True, allow_blank=True, required=True)
     total_amount = serializers.FloatField(allow_null=True)
     subtotal_amount = serializers.FloatField(allow_null=True)
     shipping_amount = serializers.FloatField(allow_null=True)
@@ -219,6 +221,7 @@ class InvoiceSerializer(serializers.Serializer):
     customer_gstin = serializers.CharField(max_length=60, allow_null=True,allow_blank=False)
     customer_pan = serializers.CharField(max_length=60, allow_null=True,allow_blank=False)
     invoice_status = serializers.CharField(max_length=60, allow_null=False, allow_blank=False)
+    customer_branch = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
 
     def create(self, validated_data):
         """
