@@ -273,13 +273,14 @@ class DirectorsDetails(models.Model):
     father_middle_name = models.CharField(max_length=50, blank=True)
     father_last_name = models.CharField(max_length=50)
     nationality = models.CharField(max_length=30, choices=nationality_choices, null=True, blank=True)
+    occupation = models.CharField(max_length=100, blank=True,null=True)
     area_of_occupation = models.CharField(max_length=30, null=True, blank=True)
     qualification = models.CharField(max_length=30, choices=qualification_choices, null=True, blank=True)
 
     residential_same_as_aadhaar_address = models.CharField(
         max_length=3, choices=[('Yes', 'Yes'), ('No', 'No')], default='No'
     )
-    residential_address = models.TextField(blank=True, null=True)
+    residential_address = JSONField(default=dict, blank=True, null=True)
     residential_address_proof = models.CharField(
         max_length=50, choices=residential_address_proof_choices, null=True, blank=True
     )

@@ -29,8 +29,9 @@ class AuthorizedPaidUpShareCapitalSerializer(serializers.ModelSerializer):
 
 
 class DirectorsDetailsSerializer(serializers.ModelSerializer):
-    shareholding_percentage = serializers.FloatField(allow_null=True)
-    paid_up_capital = serializers.IntegerField(allow_null=True)
+    no_of_shares = serializers.IntegerField(min_value=0, allow_null= True, required = False)
+    shareholding_percentage = serializers.FloatField(allow_null= True, required = False)
+    paid_up_capital = serializers.IntegerField(allow_null= True, required = False)
 
     class Meta:
         model = DirectorsDetails
