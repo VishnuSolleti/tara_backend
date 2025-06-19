@@ -2,11 +2,11 @@ from django.core.validators import RegexValidator
 from django.db import models
 from .helpers import *
 from djongo.models import ArrayField, EmbeddedField, JSONField
-from usermanagement.models import Users, Business
+from usermanagement.models import Users, Business, GSTDetails
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_delete
 from django.dispatch import receiver
 from datetime import date
 from django.db.models import Q
@@ -245,6 +245,7 @@ class Invoice(models.Model):
     invoice_status = models.CharField(max_length=60, null=False, blank=False)
     customer_gstin = models.CharField(max_length=100, null=True, blank=True)
     customer_pan = models.CharField(max_length=100, null=True, blank=True)
+    customer_branch = models.CharField(max_length=100, null=True, blank=True)
 
     def __str__(self):
         return f"Invoice: {self.invoice_number}"
@@ -316,3 +317,27 @@ def update_invoice_payment_status_on_delete(sender, instance, **kwargs):
     Triggered when a CustomerInvoiceReceipt is deleted.
     """
     instance.invoice.update_payment_status()
+
+
+@receiver(pre_delete, sender=GSTDetails)
+def delete_gst_details(sender, instance, **kwargs):
+    """
+    Triggered before a GSTDetails instance is deleted.
+    Deletes associated InvoiceFormat records where the invoicing_profile and gstin match.
+    """
+    try:
+        # Get related invoicing profile using GSTDetails.gstin
+        invoicing_profile = InvoicingProfile.objects.get(business=instance.business)
+
+        # Filter InvoiceFormat records matching this invoicing_profile and gstin
+        invoice_formats = InvoiceFormat.objects.filter(
+            invoicing_profile=invoicing_profile,
+            gstin=instance.gstin
+        )
+
+        # Delete the matching InvoiceFormat records
+        if invoice_formats.exists():
+            invoice_formats.delete()
+
+    except InvoicingProfile.DoesNotExist:
+        pass
