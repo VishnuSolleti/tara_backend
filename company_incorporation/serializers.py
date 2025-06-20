@@ -1,14 +1,5 @@
 from rest_framework import serializers
-from .models import (
-    ProposedCompanyDetails,
-    RegisteredOfficeAddressDetails,
-    AuthorizedPaidUpShareCapital,
-    Directors,
-    DirectorsDetails,
-    Shareholders,
-    ShareholdersDetails,
-    ReviewFilingCertificate
-)
+from .models import *
 
 class ProposedCompanyDetailsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -48,7 +39,7 @@ class DirectorsSerializer(serializers.ModelSerializer):
 
 class ShareholdersDetailsSerializer(serializers.ModelSerializer):
     shareholding_percentage = serializers.FloatField(allow_null=True)
-    #directors_details_ref = DirectorsDetailsSerializer(read_only=True) # Optional if you want director detail inside
+    directors_details = DirectorsDetailsSerializer(source='directors_details_ref', read_only=True)
 
     class Meta:
         model = ShareholdersDetails
