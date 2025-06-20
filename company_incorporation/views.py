@@ -261,7 +261,6 @@ def directors_list(request):
         if serializer.is_valid():
             main_data = serializer.save()
 
-            # Optional: Create associated DirectorsDetails if provided
             if data.get('director_first_name'):
                 data['directors_ref'] = main_data.id
                 serializer_info = DirectorsDetailsSerializer(data=data)
@@ -375,55 +374,27 @@ def shareholders_list(request):
         return Response(serializer.data)
 
     elif request.method == 'POST':
-        # Do NOT copy() or use deepcopy which causes pickle error on files
-        form_data = request.data
-        files = request.FILES
-        service_request = form_data.get('service_request')
-
+        data = request.data.copy()
+        service_request = data.get('service_request')
         try:
             instance = Shareholders.objects.get(service_request=service_request)
-            serializer = ShareholdersSerializer(instance, data=form_data, partial=True)
+            serializer = ShareholdersSerializer(instance, data=data, partial=True)
         except Shareholders.DoesNotExist:
-            serializer = ShareholdersSerializer(data=form_data)
-
+            serializer = ShareholdersSerializer(data=data)
         if serializer.is_valid():
             main_data = serializer.save()
-
-            if form_data.get('shareholder_first_name'):
-                detail_data = {
-                    'shareholder_first_name': form_data.get('shareholder_first_name'),
-                    'middle_name': form_data.get('middle_name'),
-                    'last_name': form_data.get('last_name'),
-                    'shareholder_type': form_data.get('shareholder_type'),
-                    'mobile_number': form_data.get('mobile_number'),
-                    'email': form_data.get('email'),
-                    'shareholding_percentage': form_data.get('shareholding_percentage'),
-                    'residential_same_as_aadhaar_address': form_data.get('residential_same_as_aadhaar_address'),
-                    'residential_address': form_data.get('residential_address'),
-                    'residential_address_proof': form_data.get('residential_address_proof'),
-                    'shareholders_ref': main_data.id,
-                }
-
-                file_fields = [
-                    'pan_card_file',
-                    'aadhaar_card_file',
-                    'bank_statement_file',
-                    'residential_address_proof_file'
-                ]
-                for field in file_fields:
-                    if field in files:
-                        detail_data[field] = files[field]
-
-                detail_serializer = ShareholdersDetailsSerializer(data=detail_data)
-                if detail_serializer.is_valid():
-                    detail_serializer.save()
+            # Auto-create ShareholdersDetails if detail data is provided
+            if data.get('shareholder_first_name'):
+                data['shareholders_ref'] = main_data.id
+                combined_data = data.copy()
+                combined_data.update(request.FILES)
+                serializer_info = ShareholdersDetailsSerializer(data=combined_data)
+                if serializer_info.is_valid():
+                    serializer_info.save()
                 else:
-                    return Response(detail_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
+                    return Response(serializer_info.errors, status=status.HTTP_400_BAD_REQUEST)
             return Response(ShareholdersSerializer(main_data).data, status=status.HTTP_201_CREATED)
-
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 @api_view(['GET'])
@@ -443,11 +414,15 @@ def get_shareholders_data(request):
             instance = Shareholders.objects.get(service_request_id=service_request_id)
         else:
             instance = Shareholders.objects.get(service_task_id=service_task_id)
+
+        serializer = ShareholdersSerializer(instance)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     except Shareholders.DoesNotExist:
         return Response({"error": "No matching Shareholders data found."}, status=status.HTTP_404_NOT_FOUND)
 
-    serializer = ShareholdersSerializer(instance)
-    return Response(serializer.data, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -460,13 +435,13 @@ def shareholders_detail(request, pk):
 
     if request.method == 'GET':
         serializer = ShareholdersDetailsSerializer(record)
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     elif request.method == 'PUT':
         serializer = ShareholdersDetailsSerializer(record, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     elif request.method == 'DELETE':
@@ -500,7 +475,8 @@ def shareholders_detail(request, pk):
                 record.residential_address_proof_file.storage.delete(record.residential_address_proof_file.name)
 
             record.delete()
-            return Response({"message": "All shareholder details deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+            return Response({"message": "All shareholder details deleted successfully"},
+                            status=status.HTTP_204_NO_CONTENT)
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
