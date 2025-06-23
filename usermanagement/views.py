@@ -48,12 +48,6 @@ def request_otp(request):
     if Users.objects.filter(email=email).exists():
         # Before
         return Response({'error': 'A user with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        # After
-        return Response(
-            {'error': 'A user with this email already exists.'},
-            status=status.HTTP_400_BAD_REQUEST
-        )
 
     # Generate and store OTP
     otp_code = generate_otp()
