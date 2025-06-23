@@ -1,8 +1,7 @@
 from rest_framework import serializers
-from .models import (PayrollOrg, WorkLocations, Departments, SalaryTemplate, PaySchedule,
-                     Designation, EPF, ESI, PT, Earnings, Benefits, Deduction, Reimbursement,
-                     HolidayManagement, LeaveManagement)
 from .models import *
+from datetime import date, datetime
+from calendar import monthrange
 
 
 class PayrollOrgSerializer(serializers.ModelSerializer):
@@ -131,7 +130,7 @@ class ESISerializer(serializers.ModelSerializer):
     class Meta:
         model = ESI
         fields = ['id', 'payroll', 'esi_number', 'employee_contribution', 'employer_contribution',
-                  'include_employer_contribution_in_ctc']
+                  'include_employer_contribution_in_ctc', 'is_disabled']
 
     def create(self, validated_data):
         """
@@ -326,6 +325,13 @@ class ReimbursementSerializer(serializers.ModelSerializer):
 
 
 class SalaryTemplateSerializer(serializers.ModelSerializer):
+    earnings = serializers.JSONField(default=list)
+    gross_salary = serializers.JSONField(default=list)
+    benefits = serializers.JSONField(default=list)
+    total_ctc = serializers.JSONField(default=list)
+    deductions = serializers.JSONField(default=list)
+    net_salary = serializers.JSONField(default=list)
+
     class Meta:
         model = SalaryTemplate
         fields = '__all__'
@@ -344,6 +350,7 @@ class SalaryTemplateSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         instance.save()
+        return instance
 
 
 class PayScheduleSerializer(serializers.ModelSerializer):
@@ -358,8 +365,6 @@ class PayScheduleSerializer(serializers.ModelSerializer):
             data.get('wednesday', False), data.get('thursday', False), data.get('friday', False),
             data.get('saturday', False), data.get('second_saturday', False), data.get('fourth_saturday', False)
         ])
-        if selected_days < 2:
-            raise serializers.ValidationError("At least two days must be selected.")
         return data
 
     def create(self, validated_data):
@@ -378,6 +383,9 @@ class PayScheduleSerializer(serializers.ModelSerializer):
 
 
 class LeaveManagementSerializer(serializers.ModelSerializer):
+    reset_leave_balance_type = serializers.CharField(allow_blank=True, allow_null=True)
+    max_carry_forward_days = serializers.CharField(allow_blank=True, allow_null=True)
+    encashment_days = serializers.CharField(allow_blank=True, allow_null=True)
     class Meta:
         model = LeaveManagement
         fields = '__all__'
@@ -422,15 +430,107 @@ class HolidayManagementSerializer(serializers.ModelSerializer):
 
 
 class EmployeeManagementSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = EmployeeManagement
         fields = '__all__'
 
+    def create(self, validated_data):
+        statutory_components = validated_data.get('statutory_components', {})
+        # Check for duplicate PAN
+        if EmployeeManagement.objects.filter(work_email=validated_data.get('work_email'),
+                                             payroll_id=validated_data.get('payroll')).exists():
+            raise ValidationError("A record with this Work Email already exists")
+
+        # Check for duplicate Aadhar
+        if EmployeeManagement.objects.filter(mobile_number=validated_data.get('mobile_number'),
+                                             payroll_id=validated_data.get('payroll')).exists():
+            raise ValidationError("A record with this Mobile Number already exists.")
+        if EmployeeManagement.objects.filter(associate_id=validated_data.get('associate_id'),
+                                             payroll_id=validated_data.get('payroll')).exists():
+            raise ValidationError("A record with this Employee ID already exists.")
+
+        uan = statutory_components.get('employee_provident_fund', {}).get('uan')
+        if uan:
+            # This fetches all records and manually checks the nested UAN field
+            for emp in EmployeeManagement.objects.filter(payroll_id=validated_data.get('payroll')):
+                existing_uan = (
+                    emp.statutory_components.get('employee_provident_fund', {}).get('uan')
+                    if emp.statutory_components else None
+                )
+                if existing_uan == uan:
+                    raise ValidationError("A record with this UAN already exists.")
+
+        return super().create(validated_data)
+
 
 class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):
+    payroll_month = serializers.IntegerField(write_only=True, required=False)
+    payroll_year = serializers.IntegerField(write_only=True, required=False)
+
     class Meta:
         model = EmployeeSalaryDetails
         fields = '__all__'
+
+    def update(self, instance, validated_data):
+        # Extract payroll_month and payroll_year from validated_data
+        payroll_month = validated_data.pop('payroll_month', None)
+        payroll_year = validated_data.pop('payroll_year', None)
+        
+        # Attach these values to the instance for the signal to use
+        if payroll_month is not None:
+            instance.payroll_month = payroll_month
+        if payroll_year is not None:
+            instance.payroll_year = payroll_year
+            
+        # Perform the update
+        return super().update(instance, validated_data)
+
+
+class EmployeeSalaryRevisionHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeSalaryRevisionHistory
+        fields = '__all__'
+
+
+class SimplifiedEmployeeSalarySerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+    employee_id = serializers.IntegerField(source='employee.id')
+    associate_id = serializers.CharField(source='employee.associate_id')
+    revision_date = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmployeeSalaryRevisionHistory
+        fields = [
+            'id',
+            'employee_id',
+            'associate_id',  # Include associate_id in response
+            'employee_name',
+            'department',
+            'designation',
+            'previous_ctc',
+            'current_ctc',
+            'revision_date',
+        ]
+
+    def get_employee_name(self, obj):
+        # Handle potential None values for middle name
+        middle_name = f" {obj.employee.middle_name}" if obj.employee.middle_name else ""
+        return f"{obj.employee.first_name}{middle_name} {obj.employee.last_name}"
+
+    def get_department(self, obj):
+        return obj.employee.department.dept_name if obj.employee.department else None
+
+    def get_designation(self, obj):
+        return obj.employee.designation.designation_name if obj.employee.designation else None
+
+    def get_revision_date(self, obj):
+        if obj.revision_date:
+            return obj.revision_date.strftime('%d-%m-%Y')
+        return None
+
 
 
 class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):
@@ -438,8 +538,316 @@ class EmployeePersonalDetailsSerializer(serializers.ModelSerializer):
         model = EmployeePersonalDetails
         fields = '__all__'
 
+    def create(self, validated_data):
+        # Check for duplicate PAN
+        if EmployeePersonalDetails.objects.filter(pan=validated_data.get('pan')).exists():
+            raise ValidationError("A record with this PAN already exists")
+
+        # Check for duplicate Aadhar
+        if EmployeePersonalDetails.objects.filter(aadhar=validated_data.get('aadhar')).exists():
+            raise ValidationError("A record with this Aadhar already exists.")
+
+        return super().create(validated_data)
+
 
 class EmployeeBankDetailsSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmployeeBankDetails
         fields = '__all__'
+
+
+class EmployeeDataSerializer(serializers.ModelSerializer):
+    employee_salary = EmployeeSalaryDetailsSerializer(read_only=True)
+    employee_personal_details = EmployeePersonalDetailsSerializer(read_only=True)
+    employee_bank_details = EmployeeBankDetailsSerializer(read_only=True)
+
+    designation_name = serializers.CharField(source='designation.designation_name', read_only=True)
+    department_name = serializers.CharField(source='department.dept_name', read_only=True)
+
+    class Meta:
+        model = EmployeeManagement
+        fields = '__all__'
+
+
+class CurrentMonthEmployeeDataSerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    total_days_in_month = serializers.SerializerMethodField()
+    paid_days = serializers.SerializerMethodField()
+    gross_salary = serializers.SerializerMethodField()
+    annual_ctc = serializers.SerializerMethodField()
+    designation_name = serializers.CharField(source='designation.designation_name', read_only=True)
+    department_name = serializers.CharField(source='department.dept_name', read_only=True)
+
+    class Meta:
+        model = EmployeeManagement
+        fields = [
+            "id",
+            "employee_name",
+            "department_name",
+            "designation_name",
+            "associate_id",
+            "doj",
+            "total_days_in_month",
+            "paid_days",
+            "gross_salary",
+            "annual_ctc",
+        ]
+
+    def get_employee_name(self, obj):
+        return f"{obj.first_name} {obj.middle_name} {obj.last_name}".strip()
+
+    def get_total_days_in_month(self, obj):
+        """Returns the total days in the month of DOJ (Joining Date)."""
+        doj_date = obj.doj
+        _, days_in_month = monthrange(doj_date.year, doj_date.month)
+        return days_in_month
+
+    def get_paid_days(self, obj):
+        """Calculates paid days = Total Days - Holidays - Off Days from PaySchedule"""
+        doj_date = obj.doj
+        year, month = doj_date.year, doj_date.month
+        _, days_in_month = monthrange(year, month)
+
+        # 🔹 Step 1: Get PaySchedule for the Payroll
+        pay_schedule = PaySchedule.objects.filter(payroll=obj.payroll).first()
+
+        # Get first and last day of the month
+        first_day = datetime(year, month, 1).date()
+        last_day = datetime(year, month, days_in_month).date()
+
+        # Fetch all holidays in that month
+        holidays = HolidayManagement.objects.filter(
+            payroll=obj.payroll,
+            start_date__gte=first_day,
+            start_date__lte=last_day
+        ).values_list('start_date', flat=True)
+
+        # 🔹 Step 3: Determine Off Days (Saturdays, Sundays, etc.)
+        off_days = set()
+        for day in range(1, days_in_month + 1):
+            date = doj_date.replace(day=day)
+            weekday = date.weekday()  # 0 = Monday, 6 = Sunday
+
+            if pay_schedule:
+                if (weekday == 0 and pay_schedule.monday) or \
+                   (weekday == 1 and pay_schedule.tuesday) or \
+                   (weekday == 2 and pay_schedule.wednesday) or \
+                   (weekday == 3 and pay_schedule.thursday) or \
+                   (weekday == 4 and pay_schedule.friday) or \
+                   (weekday == 5 and pay_schedule.saturday) or \
+                   (weekday == 6 and pay_schedule.sunday):
+                    off_days.add(date)
+
+                # Handle Second & Fourth Saturday
+                if pay_schedule.second_saturday and (day >= 8 and day <= 14 and weekday == 5):
+                    off_days.add(date)
+                if pay_schedule.fourth_saturday and (day >= 22 and day <= 28 and weekday == 5):
+                    off_days.add(date)
+
+        # 🔹 Step 4: Calculate Paid Days
+        paid_days = days_in_month - len(holidays) - len(off_days)
+
+        return max(0, paid_days)  # Ensure it doesn't go negative
+
+    def get_gross_salary(self, obj):
+        """Retrieves the latest gross salary (monthly) of the employee."""
+        latest_salary = obj.employee_salary  # Already the latest active one
+        return latest_salary.gross_salary.get('monthly', 0) if latest_salary and latest_salary.gross_salary else 0
+
+    def get_annual_ctc(self, obj):
+        """Retrieves the latest annual CTC of the employee."""
+        latest_salary = obj.employee_salary
+        return latest_salary.annual_ctc if latest_salary else 0
+
+
+class PayrollEPFESISerializer(serializers.ModelSerializer):
+    epf_details = EPFSerializer(read_only=True)
+    esi_details = ESISerializer(read_only=True)
+    pt_details = PTSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = PayrollOrg
+        fields = ['id', 'epf_details', 'esi_details', 'pt_details']
+
+
+class EmployeeExitSerializer(serializers.ModelSerializer):
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmployeeExit
+        fields = '__all__'
+
+    def get_department(self, obj):
+        """Fetch employee's department"""
+        return obj.employee.department.dept_name
+
+    def get_designation(self, obj):
+        """Fetch employee's designation"""
+        return obj.employee.designation.designation_name
+
+
+class AdvanceLoanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AdvanceLoan
+        fields = '__all__'
+
+    def validate(self, data):
+        """Ensure no_of_months is valid"""
+        if data.get('no_of_months') <= 0:
+            raise serializers.ValidationError({"error": "Number of months must be greater than zero."})
+        return data
+
+
+class BonusIncentiveSerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+    associate_id = serializers.CharField(source='employee.associate_id', read_only=True)
+
+    class Meta:
+        model = BonusIncentive
+        fields = '__all__'
+
+    def get_employee_name(self, obj):
+        """Returns the formatted employee name"""
+        return f"{obj.employee.first_name} {obj.employee.middle_name} {obj.employee.last_name}".strip()
+
+    def get_department(self, obj):
+        """Fetch employee's department"""
+        return obj.employee.department.dept_name
+
+    def get_designation(self, obj):
+        """Fetch employee's designation"""
+        return obj.employee.designation.designation_name
+
+
+class AdvanceLoanDetailSerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AdvanceLoan
+        fields = '__all__'
+
+    def get_employee_name(self, obj):
+        """Returns the formatted employee name"""
+        return f"{obj.employee.first_name} {obj.employee.middle_name} {obj.employee.last_name}".strip()
+
+    def get_department(self, obj):
+        """Fetch employee's department"""
+        return obj.employee.department.dept_name
+
+    def get_designation(self, obj):
+        """Fetch employee's designation"""
+        return obj.employee.designation.designation_name
+
+
+class AdvanceLoanSummarySerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+    pending_balance = serializers.SerializerMethodField()
+    current_month_deduction = serializers.SerializerMethodField()
+    associate_id = serializers.CharField(source='employee.associate_id', read_only=True)
+
+    class Meta:
+        model = AdvanceLoan
+        fields = [
+            "id",
+            "employee_name",
+            "department",
+            "designation",
+            "associate_id",
+            "loan_type",
+            "amount",
+            "emi_amount",
+            "end_month",
+            "pending_balance",
+            "current_month_deduction"
+        ]
+
+    def get_employee_name(self, obj):
+        """Returns the formatted employee name"""
+        return f"{obj.employee.first_name} {obj.employee.middle_name} {obj.employee.last_name}".strip()
+
+    def get_department(self, obj):
+        """Fetch employee's department"""
+        return obj.employee.department.dept_name
+
+    def get_designation(self, obj):
+        """Fetch employee's designation"""
+        return obj.employee.designation.designation_name
+
+    def get_pending_balance(self, obj):
+        """Calculates remaining loan balance"""
+        current_date = self.context.get("current_date")
+        if not current_date:
+            current_date = datetime.now().date()
+
+        months_paid = (current_date.year - obj.start_month.year) * 12 + (current_date.month - obj.start_month.month)
+        pending_balance = obj.amount - (months_paid * obj.emi_amount)
+
+        return max(0, pending_balance)  # Ensure no negative balance
+
+    def get_current_month_deduction(self, obj):
+        """Returns EMI deduction for the current month"""
+        pending_balance = self.get_pending_balance(obj)
+        return obj.emi_amount if pending_balance > 0 else 0
+
+
+class EmployeeAttendanceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmployeeAttendance
+        fields = '__all__'
+
+
+class EmployeeSalaryHistorySerializer(serializers.ModelSerializer):
+    employee_name = serializers.SerializerMethodField()
+    department = serializers.SerializerMethodField()
+    designation = serializers.SerializerMethodField()
+    regime = serializers.SerializerMethodField()
+    pan = serializers.SerializerMethodField()
+    associate_id = serializers.CharField(source='employee.associate_id', read_only=True)
+
+    class Meta:
+        model = EmployeeSalaryHistory
+        fields = '__all__'
+
+    def get_employee_name(self, obj):
+        """Returns the formatted employee name"""
+        return f"{obj.employee.first_name} {obj.employee.middle_name} {obj.employee.last_name}".strip()
+
+    def get_department(self, obj):
+        """Fetch employee's department"""
+        return obj.employee.department.dept_name
+
+    def get_designation(self, obj):
+        """Fetch employee's designation"""
+        return obj.employee.designation.designation_name
+
+    def get_regime(self, obj):
+        """Fetch tax regime opted from salary details"""
+        try:
+            return obj.employee.employee_salary.tax_regime_opted
+        except AttributeError:
+            return None
+
+    def get_pan(self, obj):
+        """Fetch PAN from employee's personal details"""
+        try:
+            return obj.employee.employee_personal_details.pan
+        except AttributeError:
+            return None
+
+
+class EmployeeSimpleSerializer(serializers.ModelSerializer):
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmployeeManagement
+        fields = ['id', 'associate_id', 'full_name']
+
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.middle_name or ''} {obj.last_name}".strip()

@@ -1,8 +1,8 @@
 from rest_framework import serializers
 from .models import *
 from django.core.files.storage import FileSystemStorage
-from user_management.serializers import *
-
+from usermanagement.serializers import *
+import json
 
 class CustomerProfileSerializers(serializers.Serializer):
     invoicing_profile = serializers.PrimaryKeyRelatedField(
@@ -21,6 +21,13 @@ class CustomerProfileSerializers(serializers.Serializer):
     email = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
     mobile_number = serializers.CharField(max_length=15, allow_null=True, allow_blank=True)
     opening_balance = serializers.IntegerField(allow_null=True)
+    entity_type = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
+    has_multiple_branches = serializers.BooleanField(default=False)
+    branches = serializers.JSONField(
+        allow_null=True,
+        default=list,
+        help_text="List of branches in JSON format"
+    )
 
     def create(self, validated_data):
         """
@@ -72,6 +79,32 @@ class GoodsAndServicesSerializer(serializers.Serializer):
             'description'
         ]
 
+    def validate(self, data):
+        """
+        Check that the name is unique for each invoicing profile.
+        """
+        invoicing_profile = data.get('invoicing_profile')
+        name = data.get('name')
+        instance = getattr(self, 'instance', None)
+
+        if name and invoicing_profile:
+            # Check if another GoodsAndServices with same name exists for this profile
+            existing = GoodsAndServices.objects.filter(
+                invoicing_profile=invoicing_profile,
+                name=name
+            )
+            
+            # If updating, exclude current instance from the check
+            if instance:
+                existing = existing.exclude(pk=instance.pk)
+            
+            if existing.exists():
+                raise serializers.ValidationError({
+                    'name': 'A goods and service with name "{}" already exists for this invoicing profile.'.format(name)
+                })
+        
+        return data
+
     def create(self, validated_data):
         """
         Create and return a new `InvoicingProfile` instance, given the validated data.
@@ -100,8 +133,8 @@ class GoodsAndServicesSerializer(serializers.Serializer):
         """
         Ensure that HSN/SAC is exactly 4 digits.
         """
-        if len(value) != 4:
-            raise serializers.ValidationError("HSN/SAC must be exactly 4 digits.")
+        if  len(value) < 4 or len(value) > 6:
+            raise serializers.ValidationError("HSN/SAC must be 4 to 6 digits.")
         return value
 
     def validate_gst_rate(self, value):
@@ -167,6 +200,7 @@ class InvoiceSerializer(serializers.Serializer):
         default=[],
     )
     gstin = serializers.CharField(max_length=60, allow_null=True)
+    branch_code = serializers.CharField(max_length=60, allow_null=True, allow_blank=True, required=False)
     total_amount = serializers.FloatField(allow_null=True)
     subtotal_amount = serializers.FloatField(allow_null=True)
     shipping_amount = serializers.FloatField(allow_null=True)
@@ -182,7 +216,10 @@ class InvoiceSerializer(serializers.Serializer):
     shipping_tax = serializers.FloatField(allow_null=True)
     shipping_amount_with_tax = serializers.FloatField(allow_null=True)
     selected_gst_rate = serializers.FloatField(allow_null=True)
+    customer_gstin = serializers.CharField(max_length=60, allow_null=True,allow_blank=False)
+    customer_pan = serializers.CharField(max_length=60, allow_null=True,allow_blank=False)
     invoice_status = serializers.CharField(max_length=60, allow_null=False, allow_blank=False)
+    customer_branch = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
 
     def create(self, validated_data):
         """
@@ -211,38 +248,103 @@ class SignatureStorage(FileSystemStorage):
 
 
 class InvoicingProfileSerializer(serializers.ModelSerializer):
-    signature = models.ImageField(storage=SignatureStorage(), upload_to='signature/', blank=True, null=True)
+    # Allow these to be passed in for patching Business if needed
+    business = serializers.PrimaryKeyRelatedField(
+        queryset=Business.objects.all(),
+        write_only=True
+    )
+    nameOfBusiness = serializers.CharField(write_only=True, required=False)
+    registrationNumber = serializers.CharField(write_only=True, required=False)
+    entityType = serializers.CharField(write_only=True, required=False)
+    email = serializers.EmailField(write_only=True, required=False)
+    mobile_number = serializers.CharField(write_only=True, required=False)
+    pan = serializers.CharField(write_only=True, required=False)
 
-    def create(self, validated_data):
-        """
-        Create and return a new `InvoicingProfile` instance, given the validated data.
-        """
-        instance = self.Meta.model(**validated_data)
-        instance.save()
-        return instance
-
-    def update(self, instance, validated_data):
-        """
-        Update and return an existing `InvoicingProfile` instance, given the validated data.
-        """
-        [setattr(instance, k, v) for k, v in validated_data.items()]
-        instance.save()
-        return instance
+    address_line1 = serializers.CharField(write_only=True, required=False)
+    address_line2 = serializers.CharField(write_only=True, required=False)
+    state = serializers.CharField(write_only=True, required=False)
+    pincode = serializers.IntegerField(write_only=True, required=False)
 
     class Meta:
         model = InvoicingProfile
         fields = '__all__'
 
+    def business_patch(self, business, validated_data):
+        # Update simple fields if value is provided and different
+        for field in ['nameOfBusiness', 'registrationNumber', 'entityType', 'email', 'mobile_number', 'pan']:
+            value = validated_data.pop(field, None)
+            if value is not None and value != getattr(business, field):
+                setattr(business, field, value)
+
+        # Update address fields inside headOffice JSON
+        head_office = business.headOffice or {}
+        updated = False  # Track if any value changed
+
+        for field in ['address_line1', 'address_line2', 'state', 'pincode']:
+            value = validated_data.pop(field, None)
+            if value is not None and head_office.get(field) != value:
+                head_office[field] = value
+                updated = True
+
+        if updated:
+            business.headOffice = head_office
+
+        business.save()
+
+    def create(self, validated_data):
+        business = validated_data.pop('business', None)
+
+        if not business:
+            raise serializers.ValidationError({"business": "This field is required."})
+
+        # Optional ownership check
+        request = self.context.get('request')
+        if business.client != request.user:
+            raise serializers.ValidationError("You do not own this business.")
+
+        self.business_patch(business, validated_data)
+        return InvoicingProfile.objects.create(business=business, **validated_data)
+
+    def update(self, instance, validated_data):
+        self.business_patch(instance.business, validated_data)
+        return super().update(instance, validated_data)
+
+
 
 class CustomerProfileGetSerializers(serializers.ModelSerializer):
+    branches = serializers.JSONField(
+        allow_null=True,
+        default=list,
+        help_text="List of branches in JSON format"
+    )
+
     class Meta:
         model = CustomerProfile
         exclude = ['invoicing_profile']
 
 
+class InvoiceFormatSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InvoiceFormat
+        fields = '__all__'
+
+    def validate(self, data):
+        invoicing_profile = data.get('invoicing_profile')
+        gstin = data.get('gstin')
+
+        # Check if the combination of invoicing_profile and gstin already exists
+        if gstin and InvoiceFormat.objects.filter(
+                invoicing_profile=invoicing_profile,
+                gstin=gstin
+        ).exclude(id=self.instance.id if self.instance else None).exists():
+            raise serializers.ValidationError("GSTIN already exists for this Invoicing Profile.")
+
+        return data
+
+
 class InvoicingProfileSerializers(serializers.ModelSerializer):
     customer_profiles = CustomerProfileGetSerializers(many=True, source='customerprofile_set')
-    invoice_format = serializers.JSONField()
+    invoice_formats = InvoiceFormatSerializer(many=True, source='invoice_formats')
 
     class Meta:
         model = InvoicingProfile
@@ -286,25 +388,6 @@ class InvoicingProfileGoodsAndServicesSerializer(serializers.ModelSerializer):
             'business',
             'goods_and_services',  # Nested goods and services
         ]
-
-
-class InvoiceFormatSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = InvoiceFormat
-        fields = ['id', 'invoicing_profile', 'gstin', 'invoice_format']
-
-    def validate(self, data):
-        invoicing_profile = data.get('invoicing_profile')
-        gstin = data.get('gstin')
-
-        # Check if the combination of invoicing_profile and gstin already exists
-        if gstin and InvoiceFormat.objects.filter(
-                invoicing_profile=invoicing_profile,
-                gstin=gstin
-        ).exclude(id=self.instance.id if self.instance else None).exists():
-            raise serializers.ValidationError("GSTIN already exists for this Invoicing Profile.")
-
-        return data
 
 
 class InvoicingExistsBusinessSerializers(serializers.ModelSerializer):
@@ -474,6 +557,7 @@ class InvoiceFormatData(serializers.ModelSerializer):
 
 
 class InvoicingProfileBusinessSerializers(serializers.ModelSerializer):
+    business = BusinessSerializer(read_only=True)
     customer_profiles = CustomerProfileGetSerializers(many=True)
     invoice_format = InvoiceFormatData(many=True, read_only=True, source='invoice_formats')
     gst_details = GSTDetailsSerializer(source='business.gst_details', many=True, read_only=True)

@@ -25,12 +25,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-
-# SECRET_KEY = os.getenv('SECRET_KEY')
-# print(SECRET_KEY)
-
-SECRET_KEY = 'l$03&@y2zwp$uf3xj14=5whvkl6t)j2#9-=7l73x6t0@x3#=s%'
-
+SECRET_KEY = 'django-insecure-+9)9852a8&af5dmne4@fgjxcn8q7)65losj40_3&hy^d1+x2ku'
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -60,13 +55,22 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'user_management',
-    'drf_yasg',
+    'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
     'invoicing',
     'django_celery_beat',
     'payroll',
     'storages',
+    'usermanagement',
+    'company_incorporation',
+    'gst',
+    'labour_license',
+    'msme_registration',
+    'trade_license',
+    'docwallet',
+    'servicetasks',
+    'income_tax_returns',
 ]
 
 MIDDLEWARE = [
@@ -119,7 +123,7 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 # }
 
 # In Tara/settings/default.py
-AUTH_USER_MODEL = 'user_management.User'
+AUTH_USER_MODEL = 'usermanagement.Users'
 
 
 # Password validation
@@ -181,8 +185,8 @@ MIGRATION_MODULES = {
 }
 
 
-FRONTEND_URL = 'http://test.tarafirst.com/'
-
+FRONTEND_URL = 'http://dev.tarafirst.com/'
+# FRONTEND_URL = 'http://localhost:3000/'
 
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
@@ -191,6 +195,9 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',  # Only JSON response, no HTML
+    ]
 }
 
 
@@ -291,9 +298,9 @@ ZEROBOUNCE_SECRET_KEY = os.getenv('ZEROBOUNCE_SECRET_KEY')
 ################
 
 
-RAZORPAY_CLIENT_ID = os.getenv('RAZORPAY_CLIENT_ID')
+RAZORPAY_CLIENT_ID = "rzp_test_ej4DxiyPc55ABJ"
 
-RAZORPAY_CLIENT_SECRET = os.getenv('RAZORPAY_CLIENT_SECRET')
+RAZORPAY_CLIENT_SECRET = "mG0hFRvrvsLfxCNnite9FhtU"
 
 SANDBOX_API_KEY = os.getenv('SANDBOX_API_KEY')
 SANDBOX_API_SECRET = os.getenv('SANDBOX_API_SECRET')
@@ -303,41 +310,36 @@ SANDBOX_API_VERSION = os.getenv('SANDBOX_API_VERSION')
 
 # Load the secret encryption key
 SECRET_ENCRYPTION_KEY = os.getenv("SECRET_ENCRYPTION_KEY", "default-fallback-key")
-
+#
 AWS_REGION = os.getenv('AWS_REGION')  # e.g., "us-east-1"
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+print(EMAIL_HOST_USER)
+print("*******************")
 
 S3_BUCKET_NAME = "tarafirstdevelopment"
 
-# database connections
-userName = os.getenv('database_username')
-password = os.getenv('password')
+database_host = os.getenv('DATABASE_HOST')
+username = os.getenv('DATABASE_USERNAME')
+password = os.getenv('DATABASE_PASSWORD')
+database_name = os.getenv('DATABASE_NAME')
 
 
 DATABASES = {
-         'default': {
-             'ENGINE': 'djongo',
-             'NAME': 'testing',
-             'ENFORCE_SCHEMA': False,
-             'CLIENT': {
-                 'host': f'mongodb+srv://{userName}:{password}@cluster0.4vvpp.mongodb.net/Testing'
-                         '?tls=true&tlsAllowInvalidCertificates=true',
-                 'port': 27017,
-                 'username': f'{userName}',
-                 'password': f'{password}',
-                 'authSource': 'admin',
-                 'authMechanism': 'SCRAM-SHA-1',
-                 'tls': True,
-                 'tlsAllowInvalidCertificates': True
-             },
-             'CONN_MAX_AGE': None
-             }
-         }
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': database_name,
+        'USER': username,
+        'PASSWORD': password,
+        'HOST': database_host,
+        'PORT': '5432',
 
-# testing
-Reference_link = "http://test.tarafirst.com/"
+    }
+}
+
+
+Reference_link = "http://dev.tarafirst.com/"
 
 TEMPLATES = [
     {
@@ -375,6 +377,8 @@ SANDBOX_API_VERSION = '1.0'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 
 AWS_STORAGE_BUCKET_NAME = "tarafirstdevelopment"
+
+AWS_PRIVATE_BUCKET_NAME = "taradevelopmentprivate"
 
 AWS_DEFAULT_ACL = 'private'
 AWS_S3_OBJECT_PARAMETERS = {
