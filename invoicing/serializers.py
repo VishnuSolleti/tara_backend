@@ -431,13 +431,18 @@ class InvoicingProfileInvoices(serializers.ModelSerializer):
         """
         request = self.context.get('request')
         financial_year = request.query_params.get('financial_year') if request else None
+        month = request.query_params.get('month') if request else None
 
         # Get all invoices related to the InvoicingProfile instance (obj)
         invoices = obj.invoices.all()
 
         # Apply the financial_year filter if provided
         if financial_year:
-            invoices = invoices.filter(financial_year=financial_year)
+            if month:
+                # If month is provided, filter by both financial_year and month
+                invoices = invoices.filter(financial_year=financial_year, month=month)
+            else:
+                invoices = invoices.filter(financial_year=financial_year)
 
         # Serialize the filtered invoices using the InvoicesSerializer
         return InvoicesSerializer(invoices, many=True).data
