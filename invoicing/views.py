@@ -1,10 +1,8 @@
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, parser_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import serializers
-from drf_yasg.utils import swagger_auto_schema
-from drf_yasg import openapi
 from django.db import models
 from .models import InvoicingProfile, CustomerProfile, GoodsAndServices, Invoice, CustomerInvoiceReceipt, InvoiceFormat
 from .serializers import (InvoicingProfileSerializer, CustomerProfileSerializers,InvoiceFormatSerializer,
@@ -31,46 +29,16 @@ from rest_framework.permissions import AllowAny
 from django.db.models import Case, When, F, Sum, Prefetch, FloatField
 from django.utils.timezone import now
 from django.shortcuts import get_object_or_404
-
+from usermanagement.utils import *
+from usermanagement.decorators import *
+from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
+from datetime import date
+import requests
 
 # Create loggers for general and error logs
 logger = logging.getLogger(__name__)
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve the invoicing profile for the logged-in user.",
-    tags=["Invoicing Profiles"],
-    responses={
-        200: openapi.Response(
-            description="Invoicing profile details.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "business": 1,
-                    "pan_number": "ABCDE1234F",
-                    "bank_name": "XYZ Bank",
-                    "account_number": 1234567890123456,
-                    "ifsc_code": "XYZ0001234",
-                    "swift_code": "XYZ1234XX",
-                    "invoice_format": {},
-                    "signature": "signatures/abc.png"
-                }
-            }
-        ),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Invoicing profile not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_invoicing_profile(request):
@@ -149,72 +117,19 @@ def invoicing_profile_exists(request):
         )
 
 
-@swagger_auto_schema(
-    method='post',
-    operation_description="Create a new invoicing profile for the logged-in user.",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            "pan_number": openapi.Schema(type=openapi.TYPE_STRING, example="ABCDE1234F"),
-            "bank_name": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ Bank"),
-            "account_number": openapi.Schema(type=openapi.TYPE_INTEGER, example=1234567890123456),
-            "ifsc_code": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ0001234"),
-            "swift_code": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ1234XX"),
-            "invoice_format": openapi.Schema(type=openapi.TYPE_OBJECT, example={}),
-            "signature": openapi.Schema(
-                type=openapi.TYPE_STRING,
-                format=openapi.FORMAT_BINARY,
-                description="Upload your signature here as an image file."
-            )
-        }
-    ),
-    tags=["Invoicing Profiles"],
-    responses={
-        201: openapi.Response(
-            description="Invoicing profile created successfully.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "business": 1,
-                    "pan_number": "ABCDE1234F",
-                    "bank_name": "XYZ Bank",
-                    "account_number": 1234567890123456,
-                    "ifsc_code": "XYZ0001234",
-                    "swift_code": "XYZ1234XX",
-                    "invoice_format": {},
-                    "signature": "signatures/abc.png"
-                }
-            }
-        ),
-        400: openapi.Response("Bad request."),
-        403: openapi.Response("Unauthorized access."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        ),
-    ]
-)
 @api_view(['POST'])
+@parser_classes([JSONParser, MultiPartParser, FormParser])
 @permission_classes([IsAuthenticated])
 def create_invoicing_profile(request):
     """
     Create a new invoicing profile for the logged-in user.
+    Patches business fields if missing.
     """
-    user = request.user
-    data = request.data.copy()
-    # data['business'] = user.id  # Assign the current user as the business owner
-
-    serializer = InvoicingProfileSerializer(data=data)
+    serializer = InvoicingProfileSerializer(data=request.data, context={'request': request})
 
     if serializer.is_valid():
         try:
-            serializer.save()
+            serializer.save()  # Business is assigned and patched in serializer
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.error(f"Unexpected error in create_invoicing_profile: {e}")
@@ -225,107 +140,29 @@ def create_invoicing_profile(request):
 
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-@swagger_auto_schema(
-    method='put',
-    operation_description="Update the existing invoicing profile for the logged-in user.",
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            "pan_number": openapi.Schema(type=openapi.TYPE_STRING, example="ABCDE1234F"),
-            "bank_name": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ Bank"),
-            "account_number": openapi.Schema(type=openapi.TYPE_INTEGER, example=1234567890123456),
-            "ifsc_code": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ0001234"),
-            "swift_code": openapi.Schema(type=openapi.TYPE_STRING, example="XYZ1234XX"),
-            "invoice_format": openapi.Schema(type=openapi.TYPE_OBJECT, example={}),
-            "signature": openapi.Schema(type=openapi.TYPE_FILE, format=openapi.FORMAT_BINARY)  # Added file upload field
-        },
-        required=[]  # Change this to an empty list since all fields are optional
-    ),
-    tags=["Invoicing Profiles"],
-    responses={
-        200: openapi.Response(
-            description="Invoicing profile updated successfully.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "business": 1,
-                    "pan_number": "ABCDE1234F",
-                    "bank_name": "XYZ Bank",
-                    "account_number": 1234567890123456,
-                    "ifsc_code": "XYZ0001234",
-                    "swift_code": "XYZ1234XX",
-                    "invoice_format": {},
-                    "signature": "signatures/abc.png"
-                }
-            }
-        ),
-        400: openapi.Response("Bad request."),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Invoicing profile not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        ),
-    ]
-)
+
 @api_view(['PUT'])
+@parser_classes([MultiPartParser, FormParser])
 @permission_classes([IsAuthenticated])
 def update_invoicing_profile(request, pk):
     """
     Update the existing invoicing profile for the logged-in user.
+    Patches business fields if missing.
     """
     try:
-        invoicing_profile = InvoicingProfile.objects.get(id=pk)
+        invoicing_profile = InvoicingProfile.objects.get(id=pk, business__client=request.user)
     except InvoicingProfile.DoesNotExist:
         return Response({"message": "Invoicing profile not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Ensure data is a dictionary
-    data = request.data.dict() if isinstance(request.data, QueryDict) else dict(request.data)
-
-    # Handle file uploads
-    if 'signature' in request.FILES:
-        data['signature'] = request.FILES['signature']
-
-    # Check if data is not empty
-    if not data:
-        return Response({"message": "No data provided."}, status=status.HTTP_400_BAD_REQUEST)
-
-    # Partial update
-    serializer = InvoicingProfileSerializer(invoicing_profile, data=data, partial=True)
+    serializer = InvoicingProfileSerializer(
+        invoicing_profile, data=request.data, partial=True, context={'request': request}
+    )
 
     if serializer.is_valid():
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-
-@swagger_auto_schema(
-    method='delete',
-    operation_description="Delete the invoicing profile for the logged-in user.",
-    tags=["Invoicing Profiles"],
-    responses={
-        204: openapi.Response("Invoicing profile deleted successfully."),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Invoicing profile not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        ),
-    ]
-)
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_invoicing_profile(request):
@@ -348,65 +185,6 @@ def delete_invoicing_profile(request):
         )
 
 
-@swagger_auto_schema(
-    method='post',
-    operation_description="Create a new customer profile for the logged-in user.",
-    tags=["Customer Profiles"],
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'invoicing_profile': openapi.Schema(type=openapi.TYPE_INTEGER, description="Invoicing profile ID"),
-            'name': openapi.Schema(type=openapi.TYPE_STRING, description="Customer name"),
-            'pan_number': openapi.Schema(type=openapi.TYPE_STRING, description="PAN number"),
-            'country': openapi.Schema(type=openapi.TYPE_STRING, description="Country"),
-            'address_line1': openapi.Schema(type=openapi.TYPE_STRING, description="Address line 1"),
-            'address_line2': openapi.Schema(type=openapi.TYPE_STRING, description="Address line 2"),
-            'state': openapi.Schema(type=openapi.TYPE_STRING, description="State"),
-            'postal_code': openapi.Schema(type=openapi.TYPE_STRING, description="Postal code"),
-            'gst_registered': openapi.Schema(type=openapi.TYPE_STRING, description="GST registered status"),
-            'gstin': openapi.Schema(type=openapi.TYPE_STRING, description="GSTIN"),
-            'email': openapi.Schema(type=openapi.TYPE_STRING, description="Email address"),
-            'mobile_number': openapi.Schema(type=openapi.TYPE_STRING, description="Mobile number"),
-            "opening_balance": openapi.Schema(type=openapi.TYPE_STRING, description="Opening Balance"),
-            "gst_type": openapi.Schema(type=openapi.TYPE_STRING, description="Gst Type")
-        }
-    ),
-    responses={
-        201: openapi.Response(
-            description="Customer profile created successfully.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "invoicing_profile": 1,
-                    "name": "John Doe",
-                    "pan_number": "ABCDE1234F",
-                    "country": "USA",
-                    "address_line1": "123 Main St",
-                    "address_line2": "XYZ Buddy",
-                    "state": "California",
-                    "postal_code": "12345",
-                    "gst_registered": "Yes",
-                    "gstin": "GSTIN12345",
-                    "email": "johndoe@example.com",
-                    "mobile_number": "1234567890",
-                    "opening_balance": 97000,
-                    "gst_type": "Anything"
-                }
-            }
-        ),
-        403: openapi.Response("Unauthorized access."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_customer_profile(request):
@@ -422,45 +200,6 @@ def create_customer_profile(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve the customer profile of the logged-in user.",
-    tags=["Customer Profiles"],
-    responses={
-        200: openapi.Response(
-            description="Customer profile details.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "invoicing_profile": 1,
-                    "name": "John Doe",
-                    "pan_number": "ABCDE1234F",
-                    "country": "USA",
-                    "address_line1": "123 Main St",
-                    "state": "California",
-                    "postal_code": "12345",
-                    "gst_registered": "Yes",
-                    "gstin": "GSTIN12345",
-                    "email": "johndoe@example.com",
-                    "mobile_number": "1234567890"
-                }
-            }
-        ),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Customer profile not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_customer_profile(request):
@@ -502,66 +241,6 @@ def get_customer_profile(request):
         )
 
 
-@swagger_auto_schema(
-    method='put',
-    operation_description="Update the customer profile for the logged-in user.",
-    tags=["Customer Profiles"],
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'invoicing_profile': openapi.Schema(type=openapi.TYPE_INTEGER, description="Invoicing profile ID"),
-            'name': openapi.Schema(type=openapi.TYPE_STRING, description="Customer name"),
-            'pan_number': openapi.Schema(type=openapi.TYPE_STRING, description="PAN number"),
-            'country': openapi.Schema(type=openapi.TYPE_STRING, description="Country"),
-            'address_line1': openapi.Schema(type=openapi.TYPE_STRING, description="Address line 1"),
-            'address_line2': openapi.Schema(type=openapi.TYPE_STRING, description="Address line 2"),
-            'state': openapi.Schema(type=openapi.TYPE_STRING, description="State"),
-            'postal_code': openapi.Schema(type=openapi.TYPE_STRING, description="Postal code"),
-            'gst_registered': openapi.Schema(type=openapi.TYPE_STRING, description="GST registered status"),
-            'gstin': openapi.Schema(type=openapi.TYPE_STRING, description="GSTIN"),
-            'email': openapi.Schema(type=openapi.TYPE_STRING, description="Email address"),
-            'mobile_number': openapi.Schema(type=openapi.TYPE_STRING, description="Mobile number"),
-            "opening_balance": openapi.Schema(type=openapi.TYPE_STRING, description="Opening Balance"),
-            "gst_type": openapi.Schema(type=openapi.TYPE_STRING, description="Gst Type")
-        }
-    ),
-    responses={
-        200: openapi.Response(
-            description="Customer profile updated successfully.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "invoicing_profile": 1,
-                    "name": "John Doe Updated",
-                    "pan_number": "ABCDE1234F",
-                    "country": "USA",
-                    "address_line1": "123 Main St",
-                    "address_line2": "123 Main St",
-                    "state": "California",
-                    "postal_code": "12345",
-                    "gst_registered": "Yes",
-                    "gstin": "GSTIN12345",
-                    "email": "johndoe@example.com",
-                    "mobile_number": "1234567890",
-                    "opening_balance": 97000,
-                    "gst_type": "Anything"
-                }
-            }
-        ),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Customer profile not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_customer_profile(request, id):
@@ -590,30 +269,6 @@ def update_customer_profile(request, id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-
-
-@swagger_auto_schema(
-    method='delete',
-    operation_description="Delete the customer profile of the logged-in user.",
-    tags=["Customer Profiles"],
-    responses={
-        204: openapi.Response(
-            description="Customer profile deleted successfully."
-        ),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Customer profile not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_customer_profile(request, id):
@@ -635,44 +290,7 @@ def delete_customer_profile(request, id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-@swagger_auto_schema(
-    method='post',
-    operation_description="Create a new goods and services entry for the logged-in user.",
-    tags=["Goods and Services"],
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'invoicing_profile': openapi.Schema(type=openapi.TYPE_INTEGER, description="Invoicing profile ID"),
-            'type': openapi.Schema(type=openapi.TYPE_STRING, description="Type of goods or services"),
-            'name': openapi.Schema(type=openapi.TYPE_STRING, description="Name of the goods or services"),
-            'units': openapi.Schema(type=openapi.TYPE_STRING, description="Units of the goods or services"),
-            'hsn_sac': openapi.Schema(type=openapi.TYPE_STRING, description="HSN/SAC code"),
-            'gst_rate': openapi.Schema(type=openapi.TYPE_STRING, description="GST rate"),
-            'unit_price': openapi.Schema(type=openapi.TYPE_NUMBER, description="Price per unit"),
-            'description': openapi.Schema(type=openapi.TYPE_STRING, description="Description of the goods or services"),
-        }
-    ),
-    responses={
-        201: openapi.Response(
-            description="Goods and services entry created successfully.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "invoicing_profile": 1,
-                    "type": "Service",
-                    "name": "Consulting",
-                    "units": "Hours",
-                    "hsn_sac": "1234",
-                    "gst_rate": "18",
-                    "unit_price": 100.0,
-                    "description": "Consulting services for software development"
-                }
-            }
-        ),
-        403: openapi.Response("Unauthorized access."),
-        500: openapi.Response("An unexpected error occurred.")
-    }
-)
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_goods_and_services(request):
@@ -688,53 +306,6 @@ def create_goods_and_services(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve goods and services entries for the logged-in user.",
-    tags=["Goods and Services"],
-    responses={
-        200: openapi.Response(
-            description="Goods and services entry details.",
-            examples={
-                "application/json": [
-                    {
-                        "id": 1,
-                        "invoicing_profile": 1,
-                        "type": "Service",
-                        "name": "Consulting",
-                        "units": "Hours",
-                        "hsn_sac": "1234",
-                        "gst_rate": "18",
-                        "unit_price": 100.0,
-                        "description": "Consulting services for software development"
-                    },
-                    {
-                        "id": 2,
-                        "invoicing_profile": 1,
-                        "type": "Product",
-                        "name": "Laptop",
-                        "units": "Piece",
-                        "hsn_sac": "5678",
-                        "gst_rate": "28",
-                        "unit_price": 1000.0,
-                        "description": "High-performance laptop"
-                    }
-                ]
-            }
-        ),
-        403: openapi.Response("Unauthorized access."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_goods_and_services(request):
@@ -753,54 +324,6 @@ def get_goods_and_services(request):
         )
 
 
-@swagger_auto_schema(
-    method='put',
-    operation_description="Update a goods and services entry for the logged-in user.",
-    tags=["Goods and Services"],
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'invoicing_profile': openapi.Schema(type=openapi.TYPE_INTEGER, description="Invoicing profile ID"),
-            'type': openapi.Schema(type=openapi.TYPE_STRING, description="Type of goods or services"),
-            'name': openapi.Schema(type=openapi.TYPE_STRING, description="Name of the goods or services"),
-            'units': openapi.Schema(type=openapi.TYPE_STRING, description="Units of the goods or services"),
-            'hsn_sac': openapi.Schema(type=openapi.TYPE_STRING, description="HSN/SAC code"),
-            'gst_rate': openapi.Schema(type=openapi.TYPE_STRING, description="GST rate"),
-            'unit_price': openapi.Schema(type=openapi.TYPE_NUMBER, description="Price per unit"),
-            'description': openapi.Schema(type=openapi.TYPE_STRING, description="Description of the goods or services"),
-        }
-    ),
-    responses={
-        200: openapi.Response(
-            description="Goods and services entry updated successfully.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "invoicing_profile": 1,
-                    "type": "Service",
-                    "name": "Consulting Updated",
-                    "units": "Hours",
-                    "hsn_sac": "1234",
-                    "gst_rate": "18",
-                    "unit_price": 110.0,
-                    "description": "Updated consulting services for software development"
-                }
-            }
-        ),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Goods and services entry not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_goods_and_services(request, pk):
@@ -827,28 +350,6 @@ def update_goods_and_services(request, pk):
         )
 
 
-@swagger_auto_schema(
-    method='delete',
-    operation_description="Delete a goods and services entry for the logged-in user.",
-    tags=["Goods and Services"],
-    responses={
-        204: openapi.Response(
-            description="Goods and services entry deleted successfully."
-        ),
-        403: openapi.Response("Unauthorized access."),
-        404: openapi.Response("Goods and services entry not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_goods_and_services(request, pk):
@@ -869,58 +370,6 @@ def delete_goods_and_services(request, pk):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-
-@swagger_auto_schema(
-    method='post',
-    operation_description="Create a new goods or service entry.",
-    tags=["Goods and Services"],
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'invoicing_profile': openapi.Schema(type=openapi.TYPE_INTEGER, description="Invoicing profile ID"),
-            'type': openapi.Schema(type=openapi.TYPE_STRING, description="Type of goods or service"),
-            'name': openapi.Schema(type=openapi.TYPE_STRING, description="Name of the goods or service"),
-            'sku_value': openapi.Schema(type=openapi.TYPE_NUMBER, description="SKU value"),
-            'units': openapi.Schema(type=openapi.TYPE_STRING, description="Units of measurement"),
-            'hsn_sac': openapi.Schema(type=openapi.TYPE_STRING, description="HSN/SAC code"),
-            'gst_rate': openapi.Schema(type=openapi.TYPE_STRING, description="GST rate"),
-            'tax_preference': openapi.Schema(type=openapi.TYPE_INTEGER, description="Tax preference"),
-            'selling_price': openapi.Schema(type=openapi.TYPE_INTEGER, description="Selling price"),
-            'description': openapi.Schema(type=openapi.TYPE_STRING, description="Description"),
-        }
-    ),
-    responses={
-        201: openapi.Response(
-            description="Goods or service created successfully.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "invoicing_profile": 1,
-                    "type": "Product",
-                    "name": "Laptop",
-                    "sku_value": 12345.67,
-                    "units": "piece",
-                    "hsn_sac": "8471",
-                    "gst_rate": "18",
-                    "tax_preference": 1,
-                    "selling_price": 50000,
-                    "description": "High-end gaming laptop"
-                }
-            }
-        ),
-        400: openapi.Response("Bad Request."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_goods_service(request):
@@ -936,42 +385,6 @@ def create_goods_service(request):
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve a goods or service entry by ID.",
-    tags=["Goods and Services"],
-    responses={
-        200: openapi.Response(
-            description="Successfully retrieved goods or service.",
-            examples={
-                "application/json": {
-                    "id": 1,
-                    "invoicing_profile": 1,
-                    "type": "Product",
-                    "name": "Laptop",
-                    "sku_value": 12345.67,
-                    "units": "piece",
-                    "hsn_sac": "8471",
-                    "gst_rate": "18",
-                    "tax_preference": 1,
-                    "selling_price": 50000,
-                    "description": "High-end gaming laptop"
-                }
-            }
-        ),
-        404: openapi.Response("Goods or service not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def retrieve_goods_service(request, pk):
@@ -997,27 +410,6 @@ def retrieve_goods_service(request, pk):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-@swagger_auto_schema(
-    method='put',
-    operation_description="Update an existing goods or service entry by ID.",
-    tags=["Goods and Services"],
-    request_body=GoodsAndServicesSerializer,
-    responses={
-        200: openapi.Response("Successfully updated the goods or service."),
-        400: openapi.Response("Bad Request."),
-        404: openapi.Response("Goods or service not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_goods_service(request, id):
@@ -1035,25 +427,6 @@ def update_goods_service(request, id):
         return Response({"message": "Goods or service not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
-@swagger_auto_schema(
-    method='delete',
-    operation_description="Delete a goods or service entry by ID.",
-    tags=["Goods and Services"],
-    responses={
-        204: openapi.Response("Successfully deleted the goods or service."),
-        404: openapi.Response("Goods or service not found."),
-        500: openapi.Response("An unexpected error occurred.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def remove_goods_service(request, id):
@@ -1068,26 +441,6 @@ def remove_goods_service(request, id):
         return Response({"message": "Goods or service not found."}, status=status.HTTP_404_NOT_FOUND)
 
 
-@swagger_auto_schema(
-    method='post',
-    operation_description="Create a new invoice.",
-    tags=["Invoices"],
-    request_body=InvoiceSerializer,
-    responses={
-        201: openapi.Response("Invoice created successfully."),
-        400: openapi.Response("Bad request."),
-        500: openapi.Response("An unexpected error occurred."),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_invoice(request):
@@ -1126,105 +479,6 @@ def create_invoice(request):
         )
 
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve all invoices associated with an invoicing profile.",
-    tags=["Invoices"],
-    responses={
-        200: openapi.Response(
-            description="List of invoices retrieved successfully.",
-            examples={
-                "application/json": [
-                    {
-                        "id": 1,
-                        "invoicing_profile": 1,
-                        "customer": "John Doe",
-                        "terms": "Net 30",
-                        "financial_year": "2023-24",
-                        "invoice_number": "INV-0001",
-                        "invoice_date": "2024-12-18T00:00:00Z",
-                        "place_of_supply": "California",
-                        "billing_address": {
-                            "line1": "123 Main St",
-                            "city": "Los Angeles",
-                            "state": "CA",
-                            "zipcode": "90001"
-                        },
-                        "shipping_address": {
-                            "line1": "456 Oak Ave",
-                            "city": "San Francisco",
-                            "state": "CA",
-                            "zipcode": "94101"
-                        },
-                        "item_details": [
-                            {"name": "Product A", "price": 100, "quantity": 2},
-                            {"name": "Service B", "price": 200, "quantity": 1}
-                        ],
-                        "total_amount": 400,
-                        "subtotal_amount": 350,
-                        "shipping_amount": 50,
-                        "cgst_amount": 18,
-                        "sgst_amount": 18,
-                        "igst_amount": 0,
-                        "pending_amount": 200,
-                        "amount_invoiced": 400,
-                        "payment_status": "Partial",
-                        "is_same_as_billing": True,
-                        "notes": "Thank you for your business.",
-                        "terms_and_conditions": "No returns after 30 days."
-                    }
-                ]
-            }
-        ),
-        400: openapi.Response(
-            description="Invalid request parameters.",
-            examples={
-                "application/json": {
-                    "error": "Invoicing profile ID is required."
-                }
-            }
-        ),
-        404: openapi.Response(
-            description="No invoices found for the provided invoicing profile.",
-            examples={
-                "application/json": {
-                    "error": "Invoicing profile not found."
-                }
-            }
-        ),
-        500: openapi.Response(
-            description="An unexpected server error occurred.",
-            examples={
-                "application/json": {
-                    "error": "An unexpected error occurred. Please try again later."
-                }
-            }
-        ),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        ),
-        openapi.Parameter(
-            'invoicing_profile_id',
-            openapi.IN_QUERY,
-            description="ID of the invoicing profile.",
-            type=openapi.TYPE_INTEGER,
-            required=True
-        ),
-        openapi.Parameter(
-            'financial_year',
-            openapi.IN_QUERY,
-            description="Financial year to filter invoices (optional).",
-            type=openapi.TYPE_STRING,
-            required=False
-        )
-    ]
-)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def retrieve_invoices(request):
@@ -1261,28 +515,6 @@ def retrieve_invoices(request):
         )
 
 
-
-@swagger_auto_schema(
-    method='put',
-    operation_description="Update an existing invoice by ID.",
-    tags=["Invoices"],
-    request_body=InvoiceSerializer,
-    responses={
-        200: openapi.Response("Invoice updated successfully."),
-        404: openapi.Response("Invoice not found."),
-        400: openapi.Response("Validation error."),
-        500: openapi.Response("An unexpected error occurred."),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_invoice(request, invoice_id):
@@ -1317,26 +549,6 @@ def update_invoice(request, invoice_id):
         )
 
 
-
-@swagger_auto_schema(
-    method='delete',
-    operation_description="Delete an existing invoice by ID.",
-    tags=["Invoices"],
-    responses={
-        204: openapi.Response("Invoice deleted successfully."),
-        404: openapi.Response("Invoice not found."),
-        500: openapi.Response("An unexpected error occurred."),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_invoice(request, invoice_id):
@@ -1430,50 +642,16 @@ def split_address(address):
 
     return first_half + '<br/>' + second_half
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Generate a PDF document for the specified invoice.",
-    tags=["Invoices"],
-    responses={
-        200: openapi.Response(
-            "PDF document generated successfully",
-            openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    'file': openapi.Schema(type=openapi.TYPE_FILE, description="Generated PDF file"),
-                }
-            ),
-        ),
-        404: openapi.Response("Invoice not found"),
-        500: openapi.Response("Internal server error"),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        ),
-        openapi.Parameter(
-            'id',
-            openapi.IN_PATH,
-            description="The ID of the invoice to generate the document for.",
-            type=openapi.TYPE_INTEGER,
-            required=True
-        ),
-    ]
-)
+
+
 @api_view(["GET"])
+# @require_permissions(2, required_actions=['Invoice.print'])
 def createDocument(request, id):
     try:
         # Fetch the invoice object
         invoice = Invoice.objects.get(id=id)
-
         signature_base64 = ''
-        # if invoice.invoicing_profile.signature:
-        #     with open(invoice.invoicing_profile.signature.path, "rb") as image_file:
-        #         signature_base64 = base64.b64encode(image_file.read()).decode('utf-8')
+        signature_url = invoice.invoicing_profile.signature.url if invoice.invoicing_profile.signature else ""
 
         # No need to check 'if not invoice' since it's already guaranteed to be set by .get()
         contexts = []
@@ -1491,34 +669,33 @@ def createDocument(request, id):
         invoice_date_str = invoice_date.strftime('%d-%m-%Y')
         due_date_str = invoice.due_date.strftime('%d-%m-%Y')
 
-        if len(invoice.invoicing_profile.email) > 26:
-            business_name = split_address(invoice.invoicing_profile.email)
+        if len(getattr(invoice.invoicing_profile.business, 'email', '')) > 26:
+            business_name = split_address(invoice.invoicing_profile.business.email)
             adjust_layout = True
         else:
             business_name = invoice.invoicing_profile.business.email
             adjust_layout = False
 
-
         context = {
             'company_name': getattr(invoice.invoicing_profile.business, 'nameOfBusiness', ''),
             'business_type': getattr(invoice.invoicing_profile.business, 'entityType', '') or
-                              getattr(invoice.invoicing_profile, 'business_type', ''),
-            'address': getattr(invoice.invoicing_profile, 'address_line1', ''),
-            'state': getattr(invoice.invoicing_profile, 'state', ''),
+                               getattr(invoice.invoicing_profile, 'business_type', ''),
+            'address': invoice.invoicing_profile.business.headOffice.get('address_line1', ''),
+            'state': invoice.invoicing_profile.business.headOffice.get('state', ''),
             'country': "India",
-            'pincode': getattr(invoice.invoicing_profile, 'pinCode', ''),
-            'registration_number': getattr(invoice.invoicing_profile, 'business_registration_number', ''),
+            'pincode': invoice.invoicing_profile.business.headOffice.get('pincode', ''),
+            'registration_number': getattr(invoice.invoicing_profile.business, 'registrationNumber', ''),
             'gst_registered': getattr(invoice.invoicing_profile, 'gst_registered', ''),
             'gstin': getattr(invoice.invoicing_profile, 'gstin', ''),
-            'email': getattr(invoice.invoicing_profile, 'email', ''),
-            'mobile': getattr(invoice.invoicing_profile, 'mobile', ''),
-            'pan': getattr(invoice.invoicing_profile, 'pan_number', ''),
+            'email': getattr(invoice.invoicing_profile.business, 'email', ''),
+            'mobile': getattr(invoice.invoicing_profile.business, 'mobile_number', ''),
+            'pan': getattr(invoice.invoicing_profile.business, 'pan', ''),
             'bank_name': getattr(invoice.invoicing_profile, 'bank_name', ''),
             'account_number': getattr(invoice.invoicing_profile, 'account_number', ''),
             'ifsc_code': getattr(invoice.invoicing_profile, 'ifsc_code', ''),
             'invoice_format': getattr(invoice.invoicing_profile, 'ifsc_code', ''),
             'swift_code': getattr(invoice.invoicing_profile, 'ifsc_code', ''),
-            'signature': signature_base64,
+            'image_url': signature_url,
             # Invoice data fields (only for the selected invoice)
             'customer_name': getattr(invoice, 'customer', ''),
             'terms': getattr(invoice, 'terms', ''),
@@ -1528,12 +705,15 @@ def createDocument(request, id):
             'invoice_date': invoice_date_str,
             'place_of_supply': getattr(invoice, 'place_of_supply', ''),
 
+
             # Bill To address fields
             'bill_to_address': invoice.billing_address.get('address_line1', '') if hasattr(invoice,
                                                                                            'billing_address') else '',
             'bill_to_state': invoice.billing_address.get('state', '') if hasattr(invoice, 'billing_address') else '',
             'bill_to_country': invoice.billing_address.get('country', '') if hasattr(invoice,
                                                                                      'billing_address') else '',
+            'customer_gstin': getattr(invoice, 'customer_gstin', ''),
+            'customer_pan': getattr(invoice, 'customer_pan', ''),
             'bill_to_pincode': invoice.billing_address.get('postal_code', '') if hasattr(invoice,
                                                                                          'billing_address') else '',
 
@@ -1547,6 +727,7 @@ def createDocument(request, id):
             'item_details': [
                             {
                                 'item': item.get('item', ''),
+                                'note': item.get('note',''),
                                 'hsn_sac': item.get('hsn_sac', ''),
                                 'units': item.get('units', '-') if item.get('units') and item['units'] != 'NA' else '-',
                                 'quantity': "{:,}".format(int(float(item.get('quantity', 0)))),
@@ -1559,7 +740,6 @@ def createDocument(request, id):
                             }
                             for item in getattr(invoice, 'item_details', [])
             ],
-            'total': "{:,}".format(round(float(getattr(invoice, 'total_amount', 0)))),
             'subtotal': "{:,}".format(round(float(getattr(invoice, 'subtotal_amount', 0)))),
             'shipping': f"{round(float(getattr(invoice, 'shipping_amount', 0)), 2):.2f}",
             'cgst_amt': f"{round(float(getattr(invoice, 'total_cgst_amount', 0)), 2):.2f}",
@@ -1640,49 +820,6 @@ def get_days_in_current_month(current_year, current_month):
     return monthrange(current_year, current_month)[1]
 
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve invoice statistics for the given invoicing profile and financial year.",
-    tags=["Invoices"],
-    responses={
-        200: openapi.Response(
-            "Invoice statistics retrieved successfully.",
-            openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    'total_revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
-                    'today_revenue': openapi.Schema(type=openapi.TYPE_NUMBER),
-                    'revenue_this_month': openapi.Schema(type=openapi.TYPE_NUMBER),
-                    'revenue_last_month': openapi.Schema(type=openapi.TYPE_NUMBER),
-                    'average_revenue_per_day': openapi.Schema(type=openapi.TYPE_NUMBER),
-                    'over_dues': openapi.Schema(type=openapi.TYPE_NUMBER),
-                    'due_today': openapi.Schema(type=openapi.TYPE_NUMBER),
-                    'due_within_30_days': openapi.Schema(type=openapi.TYPE_NUMBER),
-                    'total_recievables': openapi.Schema(type=openapi.TYPE_NUMBER),
-                }
-            )
-        ),
-        400: openapi.Response("Invalid parameters or missing invoicing profile ID."),
-        500: openapi.Response("An unexpected error occurred."),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'invoicing_profile_id',
-            openapi.IN_QUERY,
-            description="The invoicing profile ID to filter the invoices.",
-            type=openapi.TYPE_INTEGER,
-            required=True
-        ),
-        openapi.Parameter(
-            'financial_year',
-            openapi.IN_QUERY,
-            description="The financial year for filtering invoices. "
-                        "If not provided, the current financial year will be used.",
-            type=openapi.TYPE_STRING,
-            required=False
-        ),
-    ]
-)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_invoice_stats(request):
@@ -1804,62 +941,6 @@ def get_invoice_stats(request):
         error_message = str(e)
         return Response({"error": f"An error occurred: {error_message}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve invoices based on the provided invoicing profile and filter type.",
-    tags=["Invoices"],
-    responses={
-        200: openapi.Response(
-            "Invoices retrieved successfully.",
-            openapi.Schema(
-                type=openapi.TYPE_ARRAY,
-                items=openapi.Schema(
-                    type=openapi.TYPE_OBJECT,
-                    properties={
-                        'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                        'invoice_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
-                        'invoice_number': openapi.Schema(type=openapi.TYPE_STRING),
-                        'customer_name': openapi.Schema(type=openapi.TYPE_STRING),
-                        'total_amount': openapi.Schema(type=openapi.TYPE_NUMBER),
-                        'pending_amount': openapi.Schema(type=openapi.TYPE_NUMBER),
-                        'payment_status': openapi.Schema(type=openapi.TYPE_STRING),
-                        'due_date': openapi.Schema(type=openapi.TYPE_STRING, format=openapi.FORMAT_DATE),
-                    }
-                )
-            )
-        ),
-        400: openapi.Response("Invalid parameters or missing invoicing profile ID."),
-        500: openapi.Response("An unexpected error occurred."),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'invoicing_profile_id',
-            openapi.IN_QUERY,
-            description="The invoicing profile ID to filter the invoices.",
-            type=openapi.TYPE_INTEGER,
-            required=True
-        ),
-        openapi.Parameter(
-            'filter_type',
-            openapi.IN_QUERY,
-            description="The filter type for the invoices. Required to specify the filter criteria.",
-            type=openapi.TYPE_STRING,
-            required=True,
-            enum=["total_revenue", "today_revenue", "revenue_this_month", "revenue_last_month",
-                  "average_revenue_per_day", "over_dues", "due_today", "due_within_30_days",
-                  "total_recievables", "bad_debt"]
-        ),
-        openapi.Parameter(
-            'financial_year',
-            openapi.IN_QUERY,
-            description="The financial year for filtering invoices."
-                        " If not provided, the current financial year will be used.",
-            type=openapi.TYPE_STRING,
-            required=False
-        ),
-    ]
-)
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_invoices(request):
@@ -1960,34 +1041,6 @@ def get_invoices(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR
         )
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve an invoice by its ID.",
-    tags=["Invoices"],
-    responses={
-        200: openapi.Response(
-            "Invoice retrieved successfully.",
-            openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    'id': openapi.Schema(type=openapi.TYPE_INTEGER),
-                    'customer': openapi.Schema(type=openapi.TYPE_STRING),
-                    # Add more fields here based on your serializer
-                }
-            )
-        ),
-        404: openapi.Response("Invoice not found.")
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['GET'])
 def get_invoice_by_id(request, id):
     try:
@@ -2010,113 +1063,123 @@ def get_invoice_by_id(request, id):
 @permission_classes([AllowAny])
 def latest_invoice_id(request, invoicing_profile_id):
     try:
-        # Fetch the invoicing profile
-        invoicing_profile = get_object_or_404(InvoicingProfile, id=invoicing_profile_id)
+        # Step 1: Fetch Invoicing Profile
+        try:
+            invoicing_profile = InvoicingProfile.objects.get(id=invoicing_profile_id)
+        except InvoicingProfile.DoesNotExist:
+            return JsonResponse({
+                "error": "Invoicing Profile not found."
+            }, status=404)
+        gstin = request.query_params.get("gstin", "NA")
 
-        # Fetch the InvoiceFormat using gstin from the InvoicingProfile
-        invoice_format = InvoiceFormat.objects.get(gstin=invoicing_profile.gstin,
-                                                   invoicing_profile_id=invoicing_profile_id)
-
-        # Get the current format version
-        current_format_version = invoice_format.invoice_format.get("format_version")
-
-        # Fetch the latest invoice for the given invoicing_profile_id and gstin
-        latest_invoice = (
-            Invoice.objects.filter(
+        # Step 2: Get Invoice Format
+        try:
+            # First try to get common format
+            invoice_format = InvoiceFormat.objects.get(
                 invoicing_profile_id=invoicing_profile_id,
-                gstin=invoicing_profile.gstin
+                is_common_format='yes'
             )
-            .order_by('-id')  # Sort by ID to get the latest
-            .first()
-        )
+            use_common_format = True
+        except InvoiceFormat.DoesNotExist:
+            # Fallback to GSTIN-specific format
+            invoice_format = InvoiceFormat.objects.get(
+                invoicing_profile_id=invoicing_profile_id,
+                gstin=gstin,
+                is_common_format='no'
+            )
+            use_common_format = False
 
-        # Initialize new_invoice_number
-        new_invoice_number = None
+        # Step 3: Calculate financial year
+        today = date.today()
+        fy_start = today.year if today.month > 3 else today.year - 1
+        fy_string = f"{str(fy_start)}-{str(fy_start + 1)[-2:]}" if invoice_format.include_financial_year else ""
+
+        # Step 4: Branch code and series code handling
+        branch_code = request.query_params.get("branch_code", "") if invoice_format.include_branch_code else ""
+        series_code = invoice_format.series_code if invoice_format.include_series_code else ""
+
+        # Step 5: Filter invoices
+        invoices_qs = Invoice.objects.filter(invoicing_profile_id=invoicing_profile_id)
+
+        if not use_common_format:
+            invoices_qs = invoices_qs.filter(gstin=invoicing_profile.gstin)
+
+        if invoice_format.maintain_sequence_per_branch and branch_code:
+            invoices_qs = invoices_qs.filter(branch_code=branch_code)
+
+        if invoice_format.maintain_sequence_per_gstin and not use_common_format:
+            invoices_qs = invoices_qs.filter(gstin=invoicing_profile.gstin)
+
+        if invoice_format.reset_every_fy:
+            invoices_qs = invoices_qs.filter(financial_year=fy_string)
+
+        latest_invoice = invoices_qs.order_by('-id').first()
+
+        if use_common_format:
+            latest_invoice_format = InvoiceFormat.objects.filter(
+                invoicing_profile=invoicing_profile,
+                gstin='NA'
+            ).order_by('-format_version').first()
+
+            latest_invoice = Invoice.objects.filter(
+                invoicing_profile=invoicing_profile,
+                format_version=latest_invoice_format.format_version,
+                gstin='NA',
+            ).order_by('-id').first()
+        else:
+            latest_invoice_format = InvoiceFormat.objects.filter(
+                invoicing_profile=invoicing_profile,
+                gstin=gstin
+            ).order_by('-format_version').first()
+
+            latest_invoice = Invoice.objects.filter(
+                invoicing_profile=invoicing_profile,
+                format_version=latest_invoice_format.format_version,
+                gstin=gstin,
+            ).order_by('-id').first()
 
         if latest_invoice:
-            # Check if the format version matches
-            if latest_invoice.format_version == current_format_version:
-                # Split the invoice_number into prefix, number, and suffix
-                parts = latest_invoice.invoice_number.split('-')
-                if len(parts) == 3:
-                    prefix, number, suffix = parts
-                    new_number = int(number) + 1  # Increment the numeric part
-                    new_invoice_number = f"{prefix}-{new_number:03d}-{suffix}"
-                else:
-                    return JsonResponse(
-                        {"error": "Existing invoice format is invalid."},
-                        status=400
-                    )
-            else:
-                # Format version has changed, start with the new format
-                prefix = invoice_format.invoice_format.get("prefix")
-                starting_number = invoice_format.invoice_format.get("startingNumber", 1)
-                suffix = invoice_format.invoice_format.get("suffix")
-                starting_number = int(starting_number)
-                new_invoice_number = f"{prefix}-{starting_number:03d}-{suffix}"
+            last_part = latest_invoice.invoice_number.split('/')[-1]
+            running_number = int(last_part) + 1
         else:
-            # No previous invoices, start with the new format
-            prefix = invoice_format.invoice_format.get("prefix")
-            starting_number = invoice_format.invoice_format.get("startingNumber")
-            suffix = invoice_format.invoice_format.get("suffix")
+            running_number = invoice_format.running_number_start or 1
 
-            # Ensure starting_number is an integer before formatting
-            starting_number = int(starting_number)
+        # Step 7: Build invoice number
+        parts = []
 
-            new_invoice_number = f"{prefix}-{starting_number:03d}-{suffix}"
+        if invoice_format.prefix:
+            parts.append(invoice_format.prefix)
 
-        # Return the new invoice number along with the format version
+        if invoice_format.include_branch_code and branch_code:
+            parts.append(branch_code)
+
+        if invoice_format.include_financial_year:
+            parts.append(fy_string)
+
+        if invoice_format.include_series_code and series_code:
+            parts.append(series_code)
+
+        if invoice_format.include_running_number:
+            parts.append(str(running_number).zfill(4))
+
+        new_invoice_number = '/'.join(parts)
+
         return JsonResponse({
             "latest_invoice_number": new_invoice_number,
-            "format_version": current_format_version
+            "financial_year": fy_string,
+            "running_number": running_number
         })
 
     except InvoiceFormat.DoesNotExist:
         return JsonResponse({
-            "error": "No Invoice Format found for the provided GSTIN."
+            "error": "No Invoice Format found for the provided profile."
         }, status=404)
 
     except Exception as e:
-        # Return error response if an exception occurs
         return JsonResponse({"error": str(e)}, status=500)
 
-@swagger_auto_schema(
-    method='get',  # Keeping GET method
-    operation_description="Filter invoices based on provided filters.",
-    tags=["Invoices"],
-    responses={
-        200: openapi.Response(
-            description="Filtered invoices retrieved successfully.",
-            schema=openapi.Schema(
-                type=openapi.TYPE_OBJECT,
-                properties={
-                    'invoice_id': openapi.Schema(type=openapi.TYPE_INTEGER, description="Invoice ID"),
-                    'invoice_date': openapi.Schema(type=openapi.TYPE_STRING, description="Invoice Date"),
-                    'invoice_number': openapi.Schema(type=openapi.TYPE_STRING, description="Invoice Number"),
-                    'customer': openapi.Schema(type=openapi.TYPE_STRING, description="Customer name or ID"),
-                    'total_amount': openapi.Schema(type=openapi.TYPE_NUMBER, format=openapi.FORMAT_FLOAT, description="Total Amount"),
-                    'pending_amount': openapi.Schema(type=openapi.TYPE_NUMBER, format=openapi.FORMAT_FLOAT, description="Pending Amount"),
-                    'payment_status': openapi.Schema(type=openapi.TYPE_STRING, description="Payment Status"),
-                    'due_date': openapi.Schema(type=openapi.TYPE_STRING, description="Due Date"),
-                }
-            )
-        ),
-        400: openapi.Response(description="Bad request - Missing or invalid data."),
-        500: openapi.Response(description="Internal server error.")
-    },
-    manual_parameters=[
-        openapi.Parameter('invoicing_profile_id', openapi.IN_QUERY, description="Invoicing profile ID", type=openapi.TYPE_INTEGER, required=True),
-        openapi.Parameter('financial_year', openapi.IN_QUERY, description="Financial year", type=openapi.TYPE_STRING, required=True),
-        openapi.Parameter('invoice_id', openapi.IN_QUERY, description="Invoice ID", type=openapi.TYPE_INTEGER, required=False),
-        openapi.Parameter('payment_status', openapi.IN_QUERY, description="Payment status (e.g., Paid, Pending, Overdue)", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('due_date', openapi.IN_QUERY, description="Due date of the invoice (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('invoice_date', openapi.IN_QUERY, description="Date of the invoice (YYYY-MM-DD)", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('invoice_number', openapi.IN_QUERY, description="Invoice number", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('customer', openapi.IN_QUERY, description="Customer name or ID", type=openapi.TYPE_STRING, required=False),
-        openapi.Parameter('total_amount', openapi.IN_QUERY, description="Total amount", type=openapi.TYPE_NUMBER, required=False),
-        openapi.Parameter('invoice_status', openapi.IN_QUERY, description="Invoice status", type=openapi.TYPE_NUMBER, required=False),
-    ]
-)
+
+
 @api_view(['GET'])  # Keeping GET method
 def filter_invoices(request):
     try:
@@ -2204,26 +1267,6 @@ def filter_invoices(request):
         )
 
 
-@swagger_auto_schema(
-    method='post',
-    operation_description="Create a new customer invoice receipt.",
-    tags=["CustomerInvoiceReceipts"],
-    request_body=CustomerInvoiceReceiptSerializer,
-    responses={
-        201: openapi.Response("Customer Invoice Receipt created successfully."),
-        400: openapi.Response("Bad request."),
-        500: openapi.Response("An unexpected error occurred."),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_customer_invoice_receipt(request):
@@ -2263,31 +1306,6 @@ def create_customer_invoice_receipt(request):
         )
 
 
-@swagger_auto_schema(
-    method='get',
-    operation_description="Retrieve customer invoice receipts.",
-    tags=["CustomerInvoiceReceipts"],
-    responses={
-        200: openapi.Response("Success"),
-        404: openapi.Response("Not Found"),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'id',
-            openapi.IN_QUERY,
-            description="Receipt ID (optional)",
-            type=openapi.TYPE_INTEGER,
-            required=False
-        ),
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_customer_invoice_receipts(request):
@@ -2312,26 +1330,7 @@ def get_customer_invoice_receipts(request):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-@swagger_auto_schema(
-    method='put',
-    operation_description="Update a customer invoice receipt.",
-    tags=["CustomerInvoiceReceipts"],
-    request_body=CustomerInvoiceReceiptSerializer,
-    responses={
-        200: openapi.Response("Customer Invoice Receipt updated successfully."),
-        404: openapi.Response("Not Found."),
-        400: openapi.Response("Bad request."),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
+
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_customer_invoice_receipt(request, receipt_id):
@@ -2358,24 +1357,7 @@ def update_customer_invoice_receipt(request, receipt_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-@swagger_auto_schema(
-    method='delete',
-    operation_description="Delete a customer invoice receipt.",
-    tags=["CustomerInvoiceReceipts"],
-    responses={
-        204: openapi.Response("Customer Invoice Receipt deleted successfully."),
-        404: openapi.Response("Not Found."),
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def delete_customer_invoice_receipt(request, receipt_id):
@@ -2398,63 +1380,7 @@ def delete_customer_invoice_receipt(request, receipt_id):
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
 
-@swagger_auto_schema(
-    method='put',
-    operation_description="Mark an invoice as written off or partially written off.",
-    tags=["Invoices"],
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            "invoice_id": openapi.Schema(
-                type=openapi.TYPE_INTEGER,
-                description="ID of the invoice to be written off"
-            )
-        },
-        required=[]  # No request body fields are required as invoice_id comes from the URL
-    ),
-    responses={
-        200: openapi.Response(
-            "Wave-off processed successfully.",
-            examples={
-                "application/json": {
-                    "message": "Wave-off processed successfully.",
-                    "wave_off_receipt": {
-                        "id": 6,
-                        "date": "2025-01-10",
-                        "amount": 600.0,
-                        "method": "wave off",
-                        "payment_number": 3
-                    }
-                }
-            }
-        ),
-        404: openapi.Response(
-            "Invoice not found.",
-            examples={
-                "application/json": {
-                    "error": "Invoice not found."
-                }
-            }
-        ),
-        400: openapi.Response(
-            "Bad request.",
-            examples={
-                "application/json": {
-                    "error": "The invoice is already fully paid or written off."
-                }
-            }
-        )
-    },
-    manual_parameters=[
-        openapi.Parameter(
-            'Authorization',
-            openapi.IN_HEADER,
-            description="Bearer <JWT Token>",
-            type=openapi.TYPE_STRING,
-            required=True
-        )
-    ]
-)
+
 @api_view(['PUT'])
 def wave_off_invoice(request, invoice_id):
     """
@@ -2545,7 +1471,17 @@ def invoice_format_list(request):
 
     # POST Method - Create a new Invoice Format
     elif request.method == 'POST':
-        serializer = InvoiceFormatSerializer(data=request.data)
+        profile_id = request.data.get("invoicing_profile")
+        if not profile_id:
+            return Response({"error": "invoicing_profile is required."}, status=400)
+
+        profile = get_object_or_404(InvoicingProfile, id=profile_id)
+
+        # Replace FK ID with instance (optional, DRF should handle it, but safe)
+        data = request.data.copy()
+        data['invoicing_profile'] = profile.id
+
+        serializer = InvoiceFormatSerializer(data=data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
