@@ -1,17 +1,19 @@
 #!/bin/bash
+set -e
 
+echo "🚀 Starting Docker deployment..."
+
+# Navigate to the deployment directory
 cd /home/ubuntu/tarafirst
 
-# Stop old container
+# Stop and remove existing container if it exists
 docker stop tarafirst || true
 docker rm tarafirst || true
 
-# Build new image
-docker build -t tarafirst:latest .
+# Build Docker image
+docker build -t tarafirst .
 
-# Run new container
-docker run -d \
-  --name tarafirst \
-  -p 8000:8000 \
-  --env DJANGO_SETTINGS_MODULE=Tara.settings.default \
-  tarafirst:latest
+# Run the container
+docker run -d -p 8000:8000 --name tarafirst tarafirst
+
+echo "✅ Deployment complete! App running on port 8000"
