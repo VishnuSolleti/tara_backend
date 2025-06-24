@@ -15,6 +15,7 @@ docker run -d \
   --env-file /home/ubuntu/.env \
   -v /home/ubuntu/tarafirst/Tara/:/app/Tara/ \
   --name tarafirst \
-  tarafirst
+  tarafirst gunicorn Tara.wsgi:application --bind unix:/app/Tara/Tara.sock --workers 1
+
 
 echo "✅ Deployment complete! App running with secure envs"
