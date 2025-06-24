@@ -2,11 +2,8 @@ version: 0.0
 os: linux
 files:
   - source: /
-    destination: /home/ubuntu/TaraFirst
-permissions:
-  - object: /home/ubuntu/TaraFirst
-    owner: ubuntu
-    group: ubuntu
+    destination: /home/ubuntu/tarafirst
+    overwrite: yes
 
 hooks:
   AfterInstall:
@@ -14,7 +11,5 @@ hooks:
       timeout: 300
       runas: ubuntu
 
-  ApplicationStop:
-    - location: scripts/stop_docker.sh
-      timeout: 300
-      runas: ubuntu
+
+
