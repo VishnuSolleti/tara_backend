@@ -13,7 +13,7 @@ docker build -t tarafirst .
 # Run container with env file
 docker run -d \
   --env-file /home/ubuntu/.env \
-  -p 8000:8000 \
+  -p 8001:8000 \
   --name tarafirst \
   tarafirst
 
