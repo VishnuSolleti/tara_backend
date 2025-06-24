@@ -3,20 +3,18 @@ set -e
 
 echo "🚀 Starting Docker deployment..."
 
-# Navigate to the deployment directory
 cd /home/ubuntu/tarafirst
 
-# Stop and remove existing container if it exists
 docker stop tarafirst || true
 docker rm tarafirst || true
 
-# Build Docker image
 docker build -t tarafirst .
 
-# Run the container WITHOUT exposing a port, and MOUNT the socket path
+# Run container with env file
 docker run -d \
-  --name tarafirst \
+  --env-file /home/ubuntu/.env \
   -v /home/ubuntu/tarafirst/Tara/:/app/Tara/ \
+  --name tarafirst \
   tarafirst
 
-echo "✅ Deployment complete! App running behind Nginx via UNIX socket"
+echo "✅ Deployment complete! App running with secure envs"
