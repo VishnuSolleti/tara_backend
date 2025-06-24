@@ -13,7 +13,10 @@ docker rm tarafirst || true
 # Build Docker image
 docker build -t tarafirst .
 
-# Run the container
-docker run -d -p 8000:8000 --name tarafirst tarafirst
+# Run the container WITHOUT exposing a port, and MOUNT the socket path
+docker run -d \
+  --name tarafirst \
+  -v /home/ubuntu/tarafirst/Tara/:/app/Tara/ \
+  tarafirst
 
-echo "✅ Deployment complete! App running on port 8000"
+echo "✅ Deployment complete! App running behind Nginx via UNIX socket"
