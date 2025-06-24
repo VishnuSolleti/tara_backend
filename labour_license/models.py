@@ -380,3 +380,8 @@ def sync_review_filing_certificate_status(sender, instance, **kwargs):
 
     task.save()
 
+
+@receiver(post_save, sender=AdditionalSpaceBusiness)
+def sync_business_location_Proofs_status(sender, instance, **kwargs):
+    instance.business_location_proofs.status = "in progress"
+    instance.business_location_proofs.save()
