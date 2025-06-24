@@ -431,7 +431,7 @@ def delete_module_permission(request, permission_id):
 @permission_classes([AllowAny])
 def happy_coder(request):
     """Return a simple success message."""
-    return Response({"message": "Happy Coder it is your Job to be so efficient"}, status=status.HTTP_200_OK)
+    return Response({"message": "Happy Coder, your Job to be so efficient"}, status=status.HTTP_200_OK)
 
 
 """Views for user management functionality.
