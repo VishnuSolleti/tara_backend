@@ -1,15 +1,22 @@
 version: 0.0
 os: linux
+
 files:
   - source: /
     destination: /home/ubuntu/tarafirst
-    overwrite: yes
 
 hooks:
+  ApplicationStop:
+    - location: scripts/docker_stop.sh
+      timeout: 120
+      runas: ubuntu
+
+  BeforeInstall:
+    - location: scripts/docker_stop.sh
+      timeout: 120
+      runas: ubuntu
+
   AfterInstall:
     - location: scripts/docker_deploy.sh
       timeout: 300
       runas: ubuntu
-
-
-
