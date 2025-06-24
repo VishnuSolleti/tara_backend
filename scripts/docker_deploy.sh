@@ -13,9 +13,10 @@ docker build -t tarafirst .
 # Run container with env file
 docker run -d \
   --env-file /home/ubuntu/.env \
-  -v /home/ubuntu/tarafirst/Tara/:/app/Tara/ \
+  -p 8000:8000 \
   --name tarafirst \
-  tarafirst gunicorn Tara.wsgi:application --bind unix:/app/Tara/Tara.sock --workers 1
+  tarafirst
+
 
 
 echo "✅ Deployment complete! App running with secure envs"
