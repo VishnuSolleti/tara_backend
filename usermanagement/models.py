@@ -966,7 +966,7 @@ def handle_payment_success(sender, instance, created, **kwargs):
                         'status': 'active',
                         'start_date': timezone.now(),
                         'end_date': timezone.now() + timedelta(days=instance.plan.billing_cycle_days),
-                        'auto_renew': 'no',  # Default to no auto-renewal
+                        'auto_renew': False,  # Default to no auto-renewal
                         'added_by': instance.added_by
                     }
                 )
@@ -995,7 +995,7 @@ def handle_payment_success(sender, instance, created, **kwargs):
                     start_date=subscription.start_date,
                     end_date=subscription.end_date,
                     amount=round(float(instance.amount), 2),
-                    is_paid='yes',
+                    is_paid=True,
                     payment_id=instance.razorpay_payment_id,
                     feature_usage={}  # Initialize empty feature usage
                 )
@@ -1054,13 +1054,13 @@ def create_initial_subscription_cycle(sender, instance, created, **kwargs):
             # Determine amount
             if instance.status == 'trial':
                 amount = 0.00
-                is_paid = 'yes'
+                is_paid = True
             else:
                 try:
                     amount = round(float(instance.plan.base_price), 2)
                 except (TypeError, ValueError):
                     amount = 0.00
-                is_paid = 'no'
+                is_paid = False
 
             # Create the initial subscription cycle
             cycle = SubscriptionCycle.objects.create(
@@ -1292,7 +1292,7 @@ class Business(BaseModel):
         super().clean()
 
         # Check if MSME is registered but no registration number provided
-        if (self.is_msme_registered == 'yes' or self.is_msme_registered == 'Yes') and not self.msme_registration_number:
+        if (self.is_msme_registered == True or self.is_msme_registered == True) and not self.msme_registration_number:
             raise ValidationError({
                 'msme_registration_number': 'MSME registration number is required when business is MSME registered.'
             })
