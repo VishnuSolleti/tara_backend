@@ -34,6 +34,7 @@ YES_NO_CHOICES = [
     ]
 
 KEY = b'zSwtDDLJp6Qkb9CMCJnVeOzAeSJv-bA3VYNCy5zM-b4='  # Fernet key
+cipher = Fernet(KEY)
 
 
 class PendingUserOTP(models.Model):
@@ -46,34 +47,40 @@ class PendingUserOTP(models.Model):
         return timezone.now() > self.expires_at
 
 
-class EncryptedField(models.Field):
-    def __init__(self, *args, **kwargs):
-        self.cipher = Fernet(KEY)
-        super().__init__(*args, **kwargs)
+class EncryptedField(models.TextField):  # Inherit from TextField to map to varchar/text
+    description = "Field that encrypts/decrypts data"
 
     def get_prep_value(self, value):
-        """Override to encrypt data before saving to the database"""
         if value is None:
             return None
         try:
-            # Encrypt and decode to ensure it's a string
-            encrypted_value = self.cipher.encrypt(value.encode()).decode()
-            return encrypted_value
+            return cipher.encrypt(value.encode()).decode()
         except Exception as e:
-            print(f"Encryption failed with error: {str(e)}")
+            print(f"[Encryption Error] {str(e)}")
             return None
 
     def from_db_value(self, value, expression, connection):
-        """Override to decrypt data when retrieving from the database"""
         if value is None:
             return None
         try:
-            # Decrypt the value before returning it
-            decrypted_value = self.cipher.decrypt(value.encode()).decode()
-            return decrypted_value
+            return cipher.decrypt(value.encode()).decode()
         except Exception as e:
-            print(f"Decryption failed with error: {str(e)}")
+            print(f"[Decryption Error] {str(e)}")
             return None
+
+    def to_python(self, value):
+        """Decrypt for forms/admin/etc"""
+        if value is None:
+            return None
+        try:
+            return cipher.decrypt(value.encode()).decode()
+        except Exception:
+            return value  # already decrypted (e.g. admin form)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        # Include any special arguments here
+        return name, path, args, kwargs
 
 
 class CustomAccountManager(BaseUserManager):
@@ -1144,8 +1151,24 @@ def create_usage_cycles(sender, instance, created, **kwargs):
 class UserKYC(models.Model):
     user = models.OneToOneField(Users, on_delete=models.CASCADE, related_name='userkyc')  # `related_name='userkyc'`
     name = models.CharField(max_length=40, blank=False, null=False)
-    pan_number = EncryptedField(max_length=20, blank=True, null=True)
-    aadhaar_number = EncryptedField(max_length=20, blank=True, null=True)
+    pan_number = models.CharField(
+        max_length=20, blank=True, null=True,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Z]{5}[0-9]{4}[A-Z]$',
+                message='Enter a valid PAN number (e.g., ABCDE1234F)'
+            )
+        ]
+    )
+    aadhaar_number = models.CharField(
+        max_length=20, blank=True, null=True,
+        validators=[
+            RegexValidator(
+                regex=r'^\d{12}$',
+                message='Enter a valid 12-digit Aadhaar number'
+            )
+        ]
+    )
     date = models.DateField(null=True, blank=True)
     icai_number = models.CharField(max_length=15, blank=True, null=True)
     address = models.JSONField(default=dict, null=True, blank=True)
