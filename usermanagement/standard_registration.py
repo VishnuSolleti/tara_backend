@@ -233,7 +233,7 @@ def select_context(request):
 
     try:
         user = User.objects.get(id=user_id)
-        if user.is_active != 'yes':
+        if not user.is_active:
             return Response({"error": "User is not active."}, status=status.HTTP_403_FORBIDDEN)
 
         if context_type == 'personal':
