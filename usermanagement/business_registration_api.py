@@ -155,7 +155,7 @@ def register_business(request):
                 status='trial',
                 start_date=timezone.now(),
                 end_date=end_date,
-                auto_renew='no',  # Don't auto-renew trial
+                auto_renew=False,  # Don't auto-renew trial
                 added_by=user  # Set the added_by field to the user being registered
             )
 

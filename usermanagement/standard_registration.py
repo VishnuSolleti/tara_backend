@@ -434,7 +434,7 @@ def subscribe_business_suite(request):
                 start_date=timezone.now(),
                 end_date=timezone.now() + timezone.timedelta(days=30 if subscription_type == 'monthly' else 365),
                 auto_renew=auto_renew,
-                via_suite="yes",
+                via_suite=True,
                 suite_subscription=context_suite
             )
             module_subscriptions.append(module_subscription)
