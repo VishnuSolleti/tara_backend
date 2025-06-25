@@ -1080,7 +1080,7 @@ def latest_invoice_id(request, invoicing_profile_id):
             # First try to get common format
             invoice_format = InvoiceFormat.objects.get(
                 invoicing_profile_id=invoicing_profile_id,
-                is_common_format='yes'
+                is_common_format=True
             )
             use_common_format = True
         except InvoiceFormat.DoesNotExist:
@@ -1088,7 +1088,7 @@ def latest_invoice_id(request, invoicing_profile_id):
             invoice_format = InvoiceFormat.objects.get(
                 invoicing_profile_id=invoicing_profile_id,
                 gstin=gstin,
-                is_common_format='no'
+                is_common_format=False
             )
             use_common_format = False
 

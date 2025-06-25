@@ -15,7 +15,7 @@ class CustomerProfileSerializers(serializers.Serializer):
     address_line2 = serializers.CharField(max_length=200, allow_null=True, allow_blank=True)
     state = serializers.CharField(max_length=30, allow_null=True, allow_blank=True)
     postal_code = serializers.CharField(max_length=10, allow_null=True, allow_blank=True)
-    gst_registered = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
+    gst_registered = serializers.BooleanField(default=False)
     gstin = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)
     gst_type = serializers.CharField(max_length=60, allow_null=True, allow_blank=True)
     email = serializers.CharField(max_length=100, allow_null=True, allow_blank=True)

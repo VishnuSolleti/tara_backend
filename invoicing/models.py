@@ -84,7 +84,8 @@ class InvoiceFormat(models.Model):
     #     default=False,
     #     help_text="Indicates if this format applies to all GSTINs under the invoicing profile"
     # )
-    is_common_format = models.CharField(max_length=10, choices=[('yes', 'Yes'), ('no', 'No')], default='yes')
+    is_common_format = models.BooleanField(default=True,
+                            help_text="Indicates if this format applies to all GSTINs under the invoicing profile")
     gstin = models.CharField(max_length=20, null=True, blank=False)
     prefix = models.CharField(max_length=20, blank=True, null=True)
     series_code = models.CharField(max_length=10, blank=True, null=True)
@@ -128,7 +129,7 @@ class CustomerProfile(models.Model):
     state = models.CharField(max_length=30, null=True, blank=True)
     postal_code = models.CharField(max_length=10, null=True, blank=True)
     city = models.CharField(max_length=30, null=True, blank=True)
-    gst_registered = models.CharField(max_length=100, null=True, blank=True)
+    gst_registered = models.BooleanField(default=False, null=True, blank=True)
     gstin = models.CharField(max_length=100, null=True, blank=True)
     gst_type = models.CharField(max_length=60, null=True, blank=True)
     email = models.CharField(max_length=100, null=True, blank=True)
