@@ -2,13 +2,15 @@ from http.client import responses
 from django.db import models
 from Tara.settings.default import *
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from djongo.models import ArrayField, EmbeddedField, JSONField
+from django.contrib.postgres.fields import ArrayField
+from django.db.models import JSONField
 from .helpers import *
 from usermanagement.models import Users, ServiceRequest
 from docwallet.models import PrivateS3Storage
 from servicetasks.models import ServiceTask
 from usermanagement.models import *
 from django.db.models import JSONField
+
 
 class ProposedCompanyDetails(models.Model):
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,

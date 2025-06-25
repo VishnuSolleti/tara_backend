@@ -1,7 +1,8 @@
 from django.db import models
 from Tara.settings.default import *
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from djongo.models import ArrayField, EmbeddedField, JSONField
+from django.db.models import JSONField
+from django.contrib.postgres.fields import ArrayField
 from .helpers import *
 from usermanagement.models import ServiceRequest, Users
 from servicetasks.models import ServiceTask

@@ -55,7 +55,6 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'user_management',
-    'drf_yasg',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -164,7 +163,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 # Directory where static files will be collected
-STATIC_ROOT = os.path.join(BASE_DIR, '../staticfiles')
+# STATIC_ROOT = os.path.join(BASE_DIR, '../staticfiles')
 
 # STATICFILES_DIRS = [
 #     os.path.join(BASE_DIR, 'static'),  # Root-level static files
@@ -321,25 +320,22 @@ print("*******************")
 
 S3_BUCKET_NAME = "tarafirstdevelopment"
 
+database_host = os.getenv('DATABASE_HOST')
+username = os.getenv('DATABASE_USERNAME')
+password = os.getenv('DATABASE_PASSWORD')
+database_name = os.getenv('DATABASE_NAME')
+
 
 DATABASES = {
-        'default': {
-            'ENGINE': 'djongo',
-            'NAME': 'development',
-            'ENFORCE_SCHEMA': False,
-            'CLIENT': {
-                'host': 'mongodb+srv://Development:jJ649y2MEH99Ykdu@cluster0.xozfe.mongodb.net/development'
-                        '?tls=true&tlsAllowInvalidCertificates=true',
-                'port': 27017,
-                'username': 'Development',
-                'password': 'jJ649y2MEH99Ykdu',
-                'authSource': 'admin',
-                'authMechanism': 'SCRAM-SHA-1',
-                'tls': True,
-                'tlsAllowInvalidCertificates': True
-            },
-            'CONN_MAX_AGE': None
-        }
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': database_name,
+        'USER': username,
+        'PASSWORD': password,
+        'HOST': database_host,
+        'PORT': '5432',
+
+    }
 }
 
 

@@ -1,7 +1,8 @@
 from django.core.validators import RegexValidator
 from django.db import models
 from .helpers import *
-from djongo.models import ArrayField, EmbeddedField, JSONField
+from django.contrib.postgres.fields import ArrayField
+from django.db.models import JSONField
 from usermanagement.models import Users, Business, GSTDetails
 from django.core.exceptions import ValidationError
 from django.db import models

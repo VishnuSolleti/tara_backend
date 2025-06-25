@@ -12,7 +12,8 @@ from django.utils import timezone
 from django.db import transaction
 from decimal import Decimal
 from cryptography.fernet import Fernet
-from djongo.models import ArrayField, EmbeddedField, JSONField
+from django.contrib.postgres.fields import ArrayField
+from django.db.models import JSONField
 from .helpers import *
 from django.core.validators import RegexValidator
 from decimal import Decimal, InvalidOperation
