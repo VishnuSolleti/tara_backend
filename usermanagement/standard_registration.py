@@ -453,7 +453,7 @@ def subscribe_business_suite(request):
                 user_context_role=user_context_role,
                 module=module,
                 actions=all_actions,  # All service.action combinations
-                is_active="yes",
+                is_active=True,
                 created_by=user  # Set the created_by field to the user being registered
             )
 
@@ -553,7 +553,7 @@ def subscribe_to_module(request):
             user_context_role=user_context_role,
             module=module,
             actions=all_actions,
-            is_active="yes",
+            is_active=True,
             created_by=user
         )
 

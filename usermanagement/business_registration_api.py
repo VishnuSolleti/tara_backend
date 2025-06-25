@@ -526,7 +526,7 @@ def get_user_permissions(request):
                 "user_context_role_id": user_context_role_id,
                 "module_id": module_id,
                 "actions": [],
-                "is_active": "no",
+                "is_active": False,
                 "created_at": None,
                 "updated_at": None
             }, status=status.HTTP_200_OK)

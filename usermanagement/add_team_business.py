@@ -274,7 +274,7 @@ def add_team_member_to_business(request):
                     user_context_role=user_context_role,
                     module=module,
                     actions=service_actions,
-                    is_active='yes',
+                    is_active=True,
                     created_by=authenticated_user
                 )
 
@@ -628,7 +628,7 @@ def get_user_contexts(request):
             permissions = []
             feature_permissions = UserFeaturePermission.objects.filter(
                 user_context_role=ucr,
-                is_active='yes'
+                is_active=True
             ).select_related('module')
 
             for permission in feature_permissions:
@@ -771,7 +771,7 @@ def list_context_users(request):
             permissions = []
             feature_permissions = UserFeaturePermission.objects.filter(
                 user_context_role=ucr,
-                is_active='yes'
+                is_active=True
             ).select_related('module')
 
             for permission in feature_permissions:
