@@ -619,7 +619,6 @@ def auto_create_shareholder_from_director_details(sender, instance, created, **k
                 # If found, update the fields
                 shareholderdetails.middle_name = instance.middle_name
                 shareholderdetails.last_name = instance.last_name
-                shareholderdetails.shareholder_type = 'Individual Indian Resident'
                 shareholderdetails.pan_card_file = instance.pan_card_file
                 shareholderdetails.aadhaar_card_file = instance.aadhaar_card_file
                 shareholderdetails.shareholding_percentage = instance.shareholding_percentage
