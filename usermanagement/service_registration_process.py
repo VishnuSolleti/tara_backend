@@ -88,7 +88,7 @@ def register_user_with_service(request):
             user = User.objects.create_user(
                 email=email,
                 password=password,
-                is_active='yes',  # No email activation needed
+                is_active=True,  # No email activation needed
                 registration_flow='service',
                 registration_completed=False,
                 status='active',

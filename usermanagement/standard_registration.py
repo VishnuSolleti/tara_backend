@@ -197,7 +197,7 @@ def initial_registration(request):
             status='active',
             registration_flow='standard',
             registration_completed='no',
-            is_active='yes',  # Now activate the user directly
+            is_active=True,  # Now activate the user directly
             is_super_admin=False,
         )
         user.set_password(password)

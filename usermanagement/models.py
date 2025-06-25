@@ -336,11 +336,7 @@ class Users(AbstractBaseUser):
         default='no',
         help_text="Indicates if the user has completed the registration process"
     )
-    is_active = models.CharField(
-        max_length=3,
-        choices=YES_NO_CHOICES,
-        default='no'
-    )
+    is_active = models.BooleanField(default=False, help_text="Indicates if the user account is active")
     first_name = models.CharField(max_length=40, null=True, blank=True, default=None)
     last_name = models.CharField(max_length=40, null=True, blank=True, default=None)
     is_super_admin = models.BooleanField(default=False, editable=False)
@@ -372,11 +368,7 @@ class Module(models.Model):
     )
 
     # Replace BooleanField with CharField
-    is_active = models.CharField(
-        max_length=3,
-        choices=YES_NO_CHOICES,
-        default='yes'
-    )
+    is_active = models.BooleanField(default=False, help_text="Indicates if the module is active")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -388,11 +380,7 @@ class Service(models.Model):  # Use singular 'Service'
     group_key = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     type = models.CharField(max_length=30, null=True, blank=True)
-    is_active = models.CharField(
-        max_length=3,
-        choices=YES_NO_CHOICES,
-        default='yes'
-    )
+    is_active = models.BooleanField(default=False, help_text="Indicates if the service is active")
     label = models.CharField(max_length=100, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -493,18 +481,10 @@ class ServicePaymentInfo(models.Model):
 
     status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='initiated')
     method = models.CharField(max_length=50, null=True, blank=True)
-    captured = models.CharField(
-        max_length=3,
-        choices=YES_NO_CHOICES,
-        default='no'
-    )
+    captured = models.BooleanField(default=False, help_text="Indicates if the payment has been captured")
     failure_reason = models.TextField(null=True, blank=True)
 
-    is_latest = models.CharField(
-        max_length=3,
-        choices=YES_NO_CHOICES,
-        default='yes'
-    )  # ✅ New field to track active order
+    is_latest = models.BooleanField(default=True)  # ✅ New field to track active order
     paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -692,11 +672,7 @@ class UserFeaturePermission(models.Model):
     actions = models.JSONField(default=list)  # List of service.action combinations
     created_by = models.ForeignKey(Users, on_delete=models.SET_NULL, null=True,
                                    related_name='created_feature_permissions')
-    is_active = models.CharField(
-        max_length=3,
-        choices=YES_NO_CHOICES,
-        default='yes'
-    )
+    is_active = models.BooleanField(default=True, help_text="Indicates if the permission is currently active")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -759,11 +735,7 @@ class SubscriptionPlan(models.Model):
     billing_cycle_days = models.IntegerField(default=30,
                                              help_text="Number of days in billing cycle")
     features_enabled = models.JSONField(default=dict)
-    is_active = models.CharField(
-        max_length=3,
-        choices=YES_NO_CHOICES,
-        default='yes'
-    )
+    is_active = models.BooleanField(default=True, help_text="Indicates if the plan is active")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -923,11 +895,7 @@ class ModuleSubscription(models.Model):
     )
 
     # New field to track if this subscription is part of a suite
-    via_suite = models.CharField(
-        max_length=3,
-        choices=YES_NO_CHOICES,
-        default='no'
-    )
+    via_suite = models.BooleanField(default=False, help_text="Indicates if this subscription is part of a suite")
     suite_subscription = models.ForeignKey(
         ContextSuiteSubscription,
         on_delete=models.SET_NULL,
@@ -1319,7 +1287,7 @@ class Business(BaseModel):
     mobile_number = models.CharField(max_length=15, null=True, blank=True, default=None)
     email = models.EmailField(null=True, blank=True, default=None)
     dob_or_incorp_date = models.DateField(null=True, blank=True, default=None)
-    is_msme_registered = models.CharField(max_length=5, choices=YES_NO_CHOICES, default='no')
+    is_msme_registered = models.BooleanField(default=False, help_text="Is the business MSME registered?")
     msme_registration_type = models.CharField(max_length=100, null=True, blank=True)
     msme_registration_number = models.CharField(max_length=100, null=True, blank=True)
 
@@ -1406,9 +1374,10 @@ class GSTDetails(BaseModel):
     authorized_signatory_pan = models.CharField(max_length=60, null=True, blank=True, default=None)
     gst_document = models.FileField(upload_to=gst_document_upload_path, null=True, blank=True,
                                     storage=PrivateS3Storage())
-    is_composition_scheme = models.CharField(max_length=3, choices=YES_NO_CHOICES, default='no')
+    is_composition_scheme = models.BooleanField(default=False,
+                                                help_text="Is the business registered under composition scheme?")
     composition_scheme_percent = models.CharField(max_length=200, null=True, blank=True)
-    is_export_sez = models.CharField(max_length=3, choices=YES_NO_CHOICES, default='no')
+    is_export_sez = models.BooleanField(default=False, help_text="Is the business registered for export under SEZ?")
     lut_reg_no = models.CharField(max_length=100, blank=True)
     dob = models.DateField(null=True, blank=True)
     financial_year = models.CharField(max_length=20, blank=True)

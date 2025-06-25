@@ -248,7 +248,7 @@ def add_team_member_to_business(request):
                     status='invited',
                     registration_flow='standard',
                     registration_completed='no',
-                    is_active='no',
+                    is_active=False,
                     created_by=authenticated_user,
                     is_super_admin=False,
                     active_context=context
@@ -515,7 +515,7 @@ def accept_team_invitation(request):
         if user.status in ['pending', 'invited'] and user.registration_flow in ['invited', 'standard']:
             user.status = 'active'
             user.registration_completed = True
-            user.is_active = 'yes'
+            user.is_active = True
             user.active_context = user_context_role.context.id
             user.save()
             logger.info("New user status updated successfully")

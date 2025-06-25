@@ -64,8 +64,8 @@ def create_razorpay_order_for_services(request):
             old_payments = ServicePaymentInfo.objects.filter(
                 service_request=service_request.id,
                 status__iexact='initiated',
-                captured="no",
-                is_latest="yes"
+                captured=False,
+                is_latest=True
             )
             print("[DEBUG] About to check if old payments exist")
             if old_payments.exists():
@@ -104,7 +104,7 @@ def create_razorpay_order_for_services(request):
             'amount': plan.amount,
             'razorpay_order_id': order_id,
             'status': 'initiated',
-            'is_latest': 'yes'
+            'is_latest': True,
         })
 
         if serializer.is_valid():
