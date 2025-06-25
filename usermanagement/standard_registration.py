@@ -290,7 +290,7 @@ def select_context(request):
 
         # Assign role and make this the active context
         role = Role.objects.get(name='Owner', context=context)
-        UserContextRole.objects.create(user=user, context=context, role=role, status='active')
+        UserContextRole.objects.create(user=user, context=context, role=role, status='active', added_by=user)
         user.active_context = context
         user.save()
 
