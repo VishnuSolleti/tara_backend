@@ -334,15 +334,9 @@ class Users(AbstractBaseUser):
         help_text="The initial module or service the user selected during registration"
     )
     # Add registration completion status
-    registration_completed = models.CharField(
-        max_length=3,
-        choices=[
-                ('yes', 'Yes'),
-                ('no', 'No'),
-            ],
-        default='no',
-        help_text="Indicates if the user has completed the registration process"
-    )
+    registration_completed = models.BooleanField(default=False,
+                                                 help_text="Indicates if the user has"
+                                                           " completed the registration process")
     is_active = models.BooleanField(default=False, help_text="Indicates if the user account is active")
     first_name = models.CharField(max_length=40, null=True, blank=True, default=None)
     last_name = models.CharField(max_length=40, null=True, blank=True, default=None)
@@ -784,14 +778,7 @@ class ContextSuiteSubscription(models.Model):
     )
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-    auto_renew = models.CharField(
-        max_length=3,
-        choices=[
-                ('yes', 'Yes'),
-                ('no', 'No'),
-            ],
-        default='no'
-    )
+    auto_renew = models.BooleanField(default=False, help_text="Indicates if the subscription will auto-renew")
     # New fields for proration
     original_price = models.DecimalField(max_digits=10, decimal_places=2)
     applied_credit = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -892,14 +879,7 @@ class ModuleSubscription(models.Model):
     )
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
-    auto_renew = models.CharField(
-        max_length=3,
-        choices=[
-                ('yes', 'Yes'),
-                ('no', 'No'),
-            ],
-        default='no'
-    )
+    auto_renew = models.BooleanField(default=False, help_text="Indicates if the subscription will auto-renew")
 
     # New field to track if this subscription is part of a suite
     via_suite = models.BooleanField(default=False, help_text="Indicates if this subscription is part of a suite")
@@ -937,14 +917,7 @@ class SubscriptionCycle(models.Model):
     start_date = models.DateTimeField()
     end_date = models.DateTimeField()
     amount = models.FloatField()
-    is_paid = models.CharField(
-        max_length=3,
-        choices=[
-            ('yes', 'Yes'),
-            ('no', 'No'),
-        ],
-        default='no',
-    )
+    is_paid = models.BooleanField(default=False, help_text="Indicates if this cycle has been paid")
     payment_id = models.CharField(max_length=100, null=True, blank=True)
     feature_usage = models.JSONField(
         default=dict,

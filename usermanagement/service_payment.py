@@ -361,7 +361,7 @@ def create_subscription_cycle(subscription):
                 start_date=subscription.start_date,
                 end_date=subscription.end_date,
                 amount=Decimal(str(subscription.plan.base_price)),
-                is_paid='yes',
+                is_paid=True,
                 feature_usage=initial_feature_usage
             )
 
