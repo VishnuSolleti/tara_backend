@@ -455,3 +455,9 @@ def sync_review_filing_certificate_service_task_status(sender, instance, **kwarg
     task.completion_percentage = calculate_completion_percentage(instance)
 
     task.save()
+
+
+@receiver(post_save, sender=AdditionalSpaceBusiness)
+def sync_business_location_status(sender, instance, **kwargs):
+    instance.business_locations.status = "in progress"
+    instance.business_locations.save()

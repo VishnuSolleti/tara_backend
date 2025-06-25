@@ -489,6 +489,8 @@ def retrieve_invoices(request):
         # Retrieve query parameters
         invoicing_profile_id = request.query_params.get('invoicing_profile_id')
         financial_year = request.query_params.get('financial_year')
+        month = request.query_params.get('month')
+
 
         # Validate input
         invoicing_profile = InvoicingProfile.objects.get(id=invoicing_profile_id)
@@ -500,7 +502,8 @@ def retrieve_invoices(request):
     except InvoicingProfile.DoesNotExist:
         logger.warning(
             f"User {request.user.id} tried to access an invoicing profile with ID {invoicing_profile_id}, "
-            f"financial year {financial_year}, but it does not exist."
+            f"financial year {financial_year}, "
+            f"month {month}, but it does not exist."
         )
         return Response(
             {"error": "Invoicing profile not found."},

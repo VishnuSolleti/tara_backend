@@ -347,3 +347,9 @@ def sync_msme_review_filing_certificate_task_status(sender, instance, **kwargs):
     task.completion_percentage = calculate_completion_percentage(instance)
 
     task.save()
+
+
+@receiver(post_save, sender=LocationOfPlantOrUnit)
+def sync_registered_address_status(sender, instance, **kwargs):
+    instance.registered_address.status = "in progress"
+    instance.registered_address.save()
