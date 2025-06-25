@@ -250,7 +250,7 @@ def handle_service_payment(order_id, payment_id, method):
         payment.razorpay_payment_id = payment_id
         payment.method = method
         payment.status = 'captured'
-        payment.captured = 'yes'
+        payment.captured = True
         payment.paid_at = timezone.now()
         payment.save()
 
