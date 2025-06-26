@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12
 
 # Install system dependencies including wkhtmltopdf
 RUN apt-get update && apt-get install -y \
@@ -6,7 +6,11 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     curl \
     wkhtmltopdf \
-    && rm -rf /var/lib/apt/lists/*
+    xfonts-base \
+    fontconfig \
+    libjpeg62-turbo \
+    libxrender1 \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* /var/cache/apt/*
 
 # Set working directory
 WORKDIR /app
@@ -19,8 +23,8 @@ RUN pip install -r requirements.txt
 # Copy project code
 COPY . .
 
-# Expose port
+# Expose the port your app runs on
 EXPOSE 8000
 
-# Start the app using Gunicorn
+# Start the Django app with Gunicorn
 CMD ["gunicorn", "Tara.wsgi:application", "--bind", "0.0.0.0:8000", "--workers=2"]
