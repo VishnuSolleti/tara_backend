@@ -111,7 +111,7 @@ class PrincipalPlaceDetails(models.Model):
     OWNERSHIP_TYPE_CHOICES = [
         ('own', 'Own'),
         ('rented', 'Rented'),
-        ('lease', 'Lease'),
+        ('leased', 'Leased'),
     ]
     principal_place = JSONField(default=dict, blank=True, null=True)
     nature_of_possession_of_premise = models.CharField(max_length=255,
