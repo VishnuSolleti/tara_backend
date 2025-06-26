@@ -215,7 +215,7 @@ class MsmeReviewFilingCertificate(models.Model):
     review_certificate = models.FileField(upload_to=review_filing_certificate_path, null=True,
                                           blank=True, storage=PrivateS3Storage())
     review_certificate_status = models.CharField(max_length=20,choices=REVIEW_STATUS_CHOICES,
-                                                 null=False, blank=False,default=None)
+                                                 null=True, blank=True,default=None)
 
     draft_income_file = models.FileField(upload_to=draft_filing_certificate,
                                          null=True, blank=True, storage=PrivateS3Storage())
