@@ -93,8 +93,7 @@ class signatoryDetailsInfo(models.Model):
         null=True, blank=True, storage=PrivateS3Storage())
     mobile_number = models.BigIntegerField(null=False, blank=False)
     email = models.EmailField(null=False, blank=False)
-    residential_address = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
-                                           null=False, blank=False)
+    residential_address = models.BooleanField(default=False)
     address = models.TextField(null=True, blank=True)
 
     def __str__(self):
@@ -122,8 +121,7 @@ class BusinessLocationProofs(models.Model):
     bank_statement = models.FileField(
         upload_to=business_location_bank_statement,
         null=True, blank=True, storage=PrivateS3Storage())
-    additional_space = models.CharField(max_length=3, choices=[('yes', 'YES'), ('no', 'No')],
-                                        null=False, blank=False)
+    additional_space = models.BooleanField(default=False)
     workplace = models.CharField(max_length=200, null=True, blank=True)
 
     status = models.CharField(max_length=20, choices=[('in progress', 'In Progress'), ('completed', 'Completed'),
@@ -373,8 +371,8 @@ def sync_review_filing_certificate_status(sender, instance, **kwargs):
     task = instance.service_task
 
     # Sync status
-    if task.status != instance.filing_status:
-        task.status = instance.filing_status
+    if task.status != instance.status:
+        task.status = instance.status
 
     # Sync completion %
     task.completion_percentage = calculate_completion_percentage(instance)
@@ -386,3 +384,9 @@ def sync_review_filing_certificate_status(sender, instance, **kwargs):
 def sync_business_location_Proofs_status(sender, instance, **kwargs):
     instance.business_location_proofs.status = "in progress"
     instance.business_location_proofs.save()
+
+
+@receiver(post_save, sender=signatoryDetailsInfo)
+def sync_signatory_details_info_status(sender, instance, **kwargs):
+    instance.signatory_details.status = "in progress"
+    instance.signatory_details.save()
