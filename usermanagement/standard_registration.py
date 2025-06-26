@@ -196,7 +196,7 @@ def initial_registration(request):
             email=email,
             status='active',
             registration_flow='standard',
-            registration_completed='no',
+            registration_completed=False,
             is_active=True,  # Now activate the user directly
             is_super_admin=False,
         )
