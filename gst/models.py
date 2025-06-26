@@ -369,3 +369,8 @@ def sync_gst_review_service_task_status(sender, instance, **kwargs):
     task.completion_percentage = calculate_completion_percentage(instance)
 
     task.save()
+
+@receiver(post_save, sender=PromoterSignatoryInfo)
+def sync_promoter_signatory_details_status(sender, instance, **kwargs):
+    instance.promoter_detail.status = "in progress"
+    instance.promoter_detail.save(update_fields=["status"])
