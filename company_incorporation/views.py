@@ -1,6 +1,7 @@
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.db import transaction
 from .models import *
 from django.shortcuts import get_object_or_404
 from .serializers import *
@@ -256,25 +257,30 @@ def directors_list(request):
         service_request = data.get('service_request')
 
         try:
-            instance = Directors.objects.get(service_request=service_request)
-            serializer = DirectorsSerializer(instance, data=data, partial=True)
-        except Directors.DoesNotExist:
-            serializer = DirectorsSerializer(data=data)
+            with transaction.atomic():
+                try:
+                    instance = Directors.objects.get(service_request=service_request)
+                    serializer = DirectorsSerializer(instance, data=data, partial=True)
+                except Directors.DoesNotExist:
+                    serializer = DirectorsSerializer(data=data)
 
-        if serializer.is_valid():
-            main_data = serializer.save()
+                if serializer.is_valid():
+                    main_data = serializer.save()
 
-            if data.get('director_first_name'):
-                data['directors_ref'] = main_data.id
-                serializer_info = DirectorsDetailsSerializer(data=data)
-                if serializer_info.is_valid():
-                    serializer_info.save()
-                else:
-                    return Response(serializer_info.errors, status=status.HTTP_400_BAD_REQUEST)
+                    if data.get('director_first_name'):
+                        data['directors_ref'] = main_data.id
+                        serializer_info = DirectorsDetailsSerializer(data=data)
+                        if serializer_info.is_valid():
+                            serializer_info.save()
+                        else:
+                            return Response(serializer_info.errors, status=status.HTTP_400_BAD_REQUEST)
 
-            return Response(DirectorsSerializer(main_data).data, status=status.HTTP_201_CREATED)
+                    return Response(DirectorsSerializer(main_data).data, status=status.HTTP_201_CREATED)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -381,24 +387,28 @@ def shareholders_list(request):
         data = request.data.copy()
         service_request = data.get('service_request')
         try:
-            instance = Shareholders.objects.get(service_request=service_request)
-            serializer = ShareholdersSerializer(instance, data=data, partial=True)
-        except Shareholders.DoesNotExist:
-            serializer = ShareholdersSerializer(data=data)
-        if serializer.is_valid():
-            main_data = serializer.save()
-            # Auto-create ShareholdersDetails if detail data is provided
-            if data.get('shareholder_first_name'):
-                data['shareholders_ref'] = main_data.id
-                combined_data = data.copy()
-                combined_data.update(request.FILES)
-                serializer_info = ShareholdersDetailsSerializer(data=combined_data)
-                if serializer_info.is_valid():
-                    serializer_info.save()
-                else:
-                    return Response(serializer_info.errors, status=status.HTTP_400_BAD_REQUEST)
-            return Response(ShareholdersSerializer(main_data).data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            with transaction.atomic():
+                try:
+                    instance = Shareholders.objects.get(service_request=service_request)
+                    serializer = ShareholdersSerializer(instance, data=data, partial=True)
+                except Shareholders.DoesNotExist:
+                    serializer = ShareholdersSerializer(data=data)
+                if serializer.is_valid():
+                    main_data = serializer.save()
+                    # Auto-create ShareholdersDetails if detail data is provided
+                    if data.get('shareholder_first_name'):
+                        data['shareholders_ref'] = main_data.id
+                        combined_data = data.copy()
+                        combined_data.update(request.FILES)
+                        serializer_info = ShareholdersDetailsSerializer(data=combined_data)
+                        if serializer_info.is_valid():
+                            serializer_info.save()
+                        else:
+                            return Response(serializer_info.errors, status=status.HTTP_400_BAD_REQUEST)
+                    return Response(ShareholdersSerializer(main_data).data, status=status.HTTP_201_CREATED)
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])

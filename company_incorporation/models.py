@@ -15,7 +15,7 @@ from django.db.models import JSONField
 class ProposedCompanyDetails(models.Model):
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                            related_name='proposed_company_details')
-    service_type = models.CharField(max_length=20, default="Company Incorporation", editable=False)
+    service_type = models.CharField(max_length=50, default="Company Incorporation", editable=False)
     service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
                                         related_name='service_task_proposed_company_details')
 
@@ -83,7 +83,7 @@ class ProposedCompanyDetails(models.Model):
 class RegisteredOfficeAddressDetails(models.Model):
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                            related_name='registered_office_address')
-    service_type = models.CharField(max_length=20, default="Company Incorporation", editable=False)
+    service_type = models.CharField(max_length=50, default="Company Incorporation", editable=False)
     service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
                                         related_name='service_task_registered_office_address')
 
@@ -140,7 +140,7 @@ class RegisteredOfficeAddressDetails(models.Model):
 class AuthorizedPaidUpShareCapital(models.Model):
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                            related_name='authorized_capital_service_request')
-    service_type = models.CharField(max_length=20, default="Company Incorporation", editable=False)
+    service_type = models.CharField(max_length=50, default="Company Incorporation", editable=False)
     service_task = models.OneToOneField(ServiceTask, on_delete=models.CASCADE,
                                         related_name='service_task_authorized_capital')
     authorized_share_capital = models.IntegerField(null=True)
@@ -185,7 +185,7 @@ class AuthorizedPaidUpShareCapital(models.Model):
 class Directors(models.Model):
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                            related_name='directors_details')
-    service_type = models.CharField(max_length=20, default="Company Incorporation", editable=False)
+    service_type = models.CharField(max_length=50, default="Company Incorporation", editable=False)
     service_task = models.OneToOneField(
         ServiceTask,
         on_delete=models.CASCADE,
@@ -280,9 +280,8 @@ class DirectorsDetails(models.Model):
     area_of_occupation = models.CharField(max_length=30, null=True, blank=True)
     qualification = models.CharField(max_length=30, choices=qualification_choices, null=True, blank=True)
 
-    residential_same_as_aadhaar_address = models.CharField(
-        max_length=3, choices=[('Yes', 'Yes'), ('No', 'No')], default='No'
-    )
+    residential_same_as_aadhaar_address = models.BooleanField(default=False, null=True, blank=True,
+                                                help_text="Is the residential address same as Aadhaar address?")
     residential_address = JSONField(default=dict, blank=True, null=True)
     residential_address_proof = models.CharField(
         max_length=50, choices=residential_address_proof_choices, null=True, blank=True
@@ -290,13 +289,13 @@ class DirectorsDetails(models.Model):
     residential_address_proof_file = models.FileField(
         upload_to=upload_residential_address_proof_file, null=True, blank=True
     )
-    din_number = models.CharField(max_length=30, choices=[('Yes', 'Yes'), ('No', 'No')], null=True, blank=True)
+    din_number = models.BooleanField(default=False, null=True, blank=True,
+                                     help_text="Does the director have a Director Identification Number (DIN)?")
     din_number_value = models.CharField(max_length=30, blank=True, null=True)
-    dsc = models.CharField(max_length=30, choices=[('Yes', 'Yes'), ('No', 'No')], null=True, blank=True)
+    dsc = models.BooleanField(default=False, help_text="Does the director have a Digital Signature Certificate (DSC)?")
     authorised_signatory_name = models.CharField(max_length=100, blank=True, null=True)
-    details_of_existing_directorships = models.CharField(
-        max_length=3, choices=[('Yes', 'Yes'), ('No', 'No')], blank=True, null=True
-    )
+    details_of_existing_directorships = models.BooleanField(default=False, null=True, blank=True,
+                                                    help_text='Does the director have any existing directorships?')
     existing_directorships_details = JSONField(default=list, blank=True, null=True)
     # Example structure for existing_directorships_details:
     # [
@@ -309,8 +308,8 @@ class DirectorsDetails(models.Model):
     #   ...
     # ]
     form_dir2 = models.FileField(upload_to=upload_form_dir2, null=True, blank=True, storage=PrivateS3Storage())
-    is_this_director_also_shareholder = models.CharField(max_length=3,
-                                                         choices=[('Yes', 'Yes'), ('No', 'No')], default='No')
+    is_this_director_also_shareholder = models.BooleanField(default=False, null=True, blank=True,
+                                                            help_text='Is this director also a shareholder?')
     no_of_shares = models.PositiveIntegerField(default=0, blank=True, null=True)
     shareholding_percentage = models.FloatField(null=True)
     paid_up_capital = models.IntegerField(null=True)
@@ -325,7 +324,7 @@ class DirectorsDetails(models.Model):
 class Shareholders(models.Model):
     service_request = models.OneToOneField(ServiceRequest, on_delete=models.CASCADE,
                                            related_name='shareholders_details')
-    service_type = models.CharField(max_length=20, default="Company Incorporation", editable=False)
+    service_type = models.CharField(max_length=50, default="Company Incorporation", editable=False)
     service_task = models.OneToOneField(
         ServiceTask,
         on_delete=models.CASCADE,
@@ -400,11 +399,8 @@ class ShareholdersDetails(models.Model):
 
     shareholding_percentage = models.FloatField(null=True)
 
-    residential_same_as_aadhaar_address = models.CharField(
-        max_length=3,
-        choices=[('Yes', 'Yes'), ('No', 'No')],
-        default='No'
-    )
+    residential_same_as_aadhaar_address = models.BooleanField(default=False, null=True, blank=True,
+                                                help_text='Is the residential address same as Aadhaar address?')
     residential_address = models.JSONField(default=dict, blank=True, null=True)
 
     residential_address_proof_choices = [
@@ -462,7 +458,7 @@ class ReviewFilingCertificate(models.Model):
                                            related_name='company_service_request_review_certificate')
 
     service_type = models.CharField(
-        max_length=20,
+        max_length=50,
         default="Company Incorporation",
         editable=False
     )
@@ -597,7 +593,7 @@ def sync_directors_service_task_status(sender, instance, **kwargs):
 
 @receiver(post_save, sender=DirectorsDetails)
 def auto_create_shareholder_from_director_details(sender, instance, created, **kwargs):
-    if instance.is_this_director_also_shareholder != 'Yes':
+    if not instance.is_this_director_also_shareholder:
         return
 
     try:
@@ -701,3 +697,15 @@ def sync_review_service_task_status(sender, instance, **kwargs):
     task.completion_percentage = calculate_completion_percentage(instance)
 
     task.save()
+
+
+@receiver(post_save, sender=DirectorsDetails)
+def sync_directors_details_status(sender, instance, **kwargs):
+    instance.directors_ref.status = 'in progress'
+    instance.directors_ref.save()
+
+
+@receiver(post_save, sender=ShareholdersDetails)
+def sync_shareholders_details_status(sender, instance, **kwargs):
+    instance.shareholders_ref.status = 'in progress'
+    instance.shareholders_ref.save()
