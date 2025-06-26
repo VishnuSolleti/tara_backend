@@ -448,8 +448,8 @@ def sync_review_filing_certificate_service_task_status(sender, instance, **kwarg
     task = instance.service_task
 
     # Sync status
-    if task.status != instance.review_certificate_status:
-        task.status = instance.review_certificate_status
+    if task.status != instance.status:
+        task.status = instance.status
 
     # Sync completion %
     task.completion_percentage = calculate_completion_percentage(instance)
@@ -461,3 +461,9 @@ def sync_review_filing_certificate_service_task_status(sender, instance, **kwarg
 def sync_business_location_status(sender, instance, **kwargs):
     instance.business_locations.status = "in progress"
     instance.business_locations.save()
+
+
+@receiver(post_save, sender=SignatoryInfo)
+def sync_signatory_info_status(sender, instance, **kwargs):
+    instance.signatory_details.status = "in progress"
+    instance.signatory_details.save()
