@@ -197,7 +197,8 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',  # Only JSON response, no HTML
-    ]
+    ],
+    'EXCEPTION_HANDLER': 'Tara.utils.custom_exception_handler'
 }
 
 
