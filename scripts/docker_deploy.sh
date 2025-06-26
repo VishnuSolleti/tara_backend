@@ -20,7 +20,9 @@ echo "🚀 Running Docker container..."
 sudo docker run -d \
   --env-file $ENV_FILE \
   -p 8001:8000 \
+  --restart on-failure:3 \
   --name $APP_NAME \
   $APP_NAME
+
 
 echo "✅ Deployment complete! App '$APP_NAME' is now running."
