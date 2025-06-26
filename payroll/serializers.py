@@ -655,7 +655,7 @@ class CurrentMonthEmployeeDataSerializer(serializers.ModelSerializer):
     def get_gross_salary(self, obj):
         """Retrieves the latest gross salary (monthly) of the employee."""
         latest_salary = obj.employee_salary  # Already the latest active one
-        return latest_salary.gross_salary.get('monthly', 0) if latest_salary and latest_salary.gross_salary else 0
+        return round(latest_salary.gross_salary.get('monthly', 0),2) if latest_salary and latest_salary.gross_salary else 0
 
     def get_annual_ctc(self, obj):
         """Retrieves the latest annual CTC of the employee."""
