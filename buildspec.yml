@@ -1,23 +1,33 @@
-version: 0.0
-os: linux
+version: 0.2
 
-files:
-  - source: /
-    destination: /home/ubuntu/tarafirst
-    overwrite: true
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'  # Cache pip dependencies
+    - '/tmp/previous_*'        # Cache requirements hash file
 
-hooks:
-  ApplicationStop:
-    - location: scripts/docker_stop.sh
-      timeout: 120
-      runas: ubuntu
+phases:
+  pre_build:
+    commands:
+      - echo "Starting pre-build phase..."
+      - |
+        # Check if requirements.txt has changed by comparing their hashes
+        if [ ! -f /tmp/previous_requirements.txt ] || ! cmp -s requirements.txt /tmp/previous_requirements.txt; then
+          echo "Requirements changed, installing dependencies..."
+          pip3 install --cache-dir=/root/.cache/pip -r requirements.txt
+          sha256sum requirements.txt > /tmp/previous_requirements.txt  # Save the hash of requirements.txt
+        else
+          echo "No changes in requirements.txt, skipping dependency installation."
+        fi
 
-  BeforeInstall:
-      - location: scripts/clean_instance.sh
-        timeout: 300
-        runas: ubuntu
+  build:
+    commands:
+      - echo "Starting build phase..."
+      - echo "No static files to collect. Skipping collectstatic."
 
-  AfterInstall:
-    - location: scripts/docker_deploy.sh
-      timeout: 300
-      runas: ubuntu
+  post_build:
+    commands:
+      - echo "Build completed on $(date)"
+
+artifacts:
+  files:
+    - '**/*'  # Include all files
