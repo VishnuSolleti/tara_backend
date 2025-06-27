@@ -28,7 +28,11 @@ def parse_excel_date(date_str):
             try:
                 return datetime.strptime(date_str.strip(), "%Y-%m-%d").date()
             except Exception:
-                return None
+                try:
+                    if isinstance(date_str, datetime):
+                        return date_str.date()
+                except Exception:
+                    return None
 
 
 
@@ -68,7 +72,8 @@ def upload_employee_excel(request):
         'mobile_number', 'gender', 'work_location', 'designation', 'department',
         'enable_portal_access', 'epf_enabled', 'pf_account_number', 'uan',
         'esi_enabled', 'esi_number', 'professional_tax', 'employee_status',
-        'dob', 'age', 'guardian_name', 'pan', 'aadhar', 'address',
+        'dob', 'age', 'guardian_name', 'pan', 'aadhar', 'address_line1',
+        'address_city', 'address_state', 'address_pinCode',
         'alternate_contact_number', 'marital_status', 'blood_group',
         'account_holder_name', 'bank_name', 'account_number', 'ifsc_code', 'branch_name',
     ]
@@ -83,7 +88,8 @@ def upload_employee_excel(request):
         'mobile_number', 'gender', 'work_location', 'designation', 'department',
         'enable_portal_access', 'epf_enabled',
         'esi_enabled', 'professional_tax', 'employee_status',
-        'dob', 'age', 'guardian_name', 'aadhar', 'address',
+        'dob', 'age', 'guardian_name', 'aadhar', 'address_line1',
+        'address_city', 'address_state', 'address_pinCode',
         'marital_status', 'blood_group',
         'account_holder_name', 'bank_name', 'account_number', 'ifsc_code',
     ]
@@ -156,16 +162,21 @@ def upload_employee_excel(request):
         row_num = idx + 2
 
         # Validate address JSON
-        try:
-            address_json = json.loads(row['address'])
-            if not isinstance(address_json, dict):
-                raise ValueError("Address must be a JSON object")
-        except Exception as e:
-            errors.append(f"Row {row_num}: Invalid address JSON - {str(e)}")
+        address_json = {
+            "address_line1": row.get('address_line1', '').strip(),
+            "address_line2": row.get('address_line2', '').strip() if not pd.isna(row.get('address_line2')) else "",
+            "address_city": row.get('address_city', '').strip(),
+            "address_state": row.get('address_state', '').strip(),
+            "address_pinCode": str(row.get('address_pinCode', '')).strip()
+        }
+
+        missing_address_fields = [k for k, v in address_json.items() if k != "address_line2" and not v]
+        if missing_address_fields:
+            errors.append(f"Row {row_num}: Missing required address fields: {missing_address_fields}")
             continue
 
         try:
-            # FK validation from cached maps by name (case insensitive)
+            # FK validation from cached maps by name (case-insensitive)
             work_location_obj = work_locations_map.get(str(row['work_location']).strip().lower())
             designation_obj = designations_map.get(str(row['designation']).strip().lower())
             department_obj = departments_map.get(str(row['department']).strip().lower())
