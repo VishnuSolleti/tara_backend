@@ -57,10 +57,7 @@ def request_otp(request):
         email=email,
         defaults={'otp_code': otp_code, 'expires_at': expires_at}
     )
-    if email in ['dharma@tarafirst.com']:
-        send_otp_email('dharmatejavaddi@gmail.com', otp_code)
-    else:
-        send_otp_email(email, otp_code)
+    send_otp_email(email, otp_code)
 
     return Response({'message': 'OTP sent to email'}, status=status.HTTP_200_OK)
 
