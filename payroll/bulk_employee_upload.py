@@ -238,7 +238,7 @@ def upload_employee_excel(request):
                         'department_id': department_obj.id,
                         'enable_portal_access': bool(row['enable_portal_access']),
                         'statutory_components': json.dumps(statutory_components),
-                        'employee_status': bool(row['employee_status']),
+                        'employee_status': bool(row.get('employee_status', True)),
                     }
                 )
 
@@ -279,4 +279,3 @@ def upload_employee_excel(request):
         "error_count": len(errors),
         "errors": errors,
     }, status=status.HTTP_200_OK if success_count > 0 else status.HTTP_400_BAD_REQUEST)
-
