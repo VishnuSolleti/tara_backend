@@ -3672,15 +3672,15 @@ def employee_monthly_salary_template(request):
         # Add EPF Deduction to Total Deduction only if EPF object exists and is enabled
         if EPF.objects.filter(payroll=salary_record.employee.payroll).exists() and \
            not EPF.objects.filter(payroll=salary_record.employee.payroll).first().is_disabled and \
-        salary_record.employee.statutory_components.get('employee_provident_fund', {}).get('epf_employee_contribution'):
+        salary_record.employee.statutory_components.get('epf_enabled', False):
             epf_deduction = deduction_values.get("epf_employee_contribution", 0) \
-            if deduction_values.get("esi_employee_contribution") != 'NA' else 0
+            if deduction_values.get("epf_employee_contribution") != 'NA' else 0
             total_deduction += epf_deduction
 
         # Add ESI Deduction to Total Deduction only if ESI object exists and is enabled
         if ESI.objects.filter(payroll=salary_record.employee.payroll).exists() and \
            not ESI.objects.filter(payroll=salary_record.employee.payroll).first().is_disabled and \
-        salary_record.employee.statutory_components.get('employee_provident_fund', {}).get('esi_employee_contribution'):
+        salary_record.employee.statutory_components.get('esi_enabled', False):
             esi_deduction = deduction_values.get("esi_employee_contribution", 0) \
                 if deduction_values.get("esi_employee_contribution") != 'NA' else 0
             total_deduction += esi_deduction
