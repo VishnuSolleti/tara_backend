@@ -1480,10 +1480,8 @@ def calculate_employee_deductions(pf_wage, basic_monthly, epf_enabled, esi_enabl
             pt_monthly = 0
         elif 15001 <= basic_monthly <= 20000:
             pt_monthly = 150
-        elif 20001 <= basic_monthly <= 25000:
-            pt_monthly = 200
         else:
-            pt_monthly = 250
+            pt_monthly = 200
 
         deductions["PT"] = {
             "monthly": pt_monthly,
@@ -1702,8 +1700,8 @@ def pay_schedule_list_create(request):
                     'fourth_saturday'
                 ]
             ])
-            if days_selected < 2:
-                return Response({"error": "At least two days must be selected."}, status=status.HTTP_400_BAD_REQUEST)
+            # if days_selected < 2:
+            #     return Response({"error": "At least two days must be selected."}, status=status.HTTP_400_BAD_REQUEST)
             serializer.save()
             return Response({"data": serializer.data, "message": "Pay Schedule created successfully."},
                             status=status.HTTP_201_CREATED)
@@ -3237,6 +3235,8 @@ def detail_employee_monthly_salary(request):
                 epf_base = min(epf_eligible_total, 15000)
                 pf = round(epf_base * 0.12, 2)
 
+                # PT Calculation
+                pt_amount = 0
                 # ESI Calculation
                 esi = round(earned_salary * 0.0075, 2) if gross_salary <= 21000 else 0
 
@@ -3272,7 +3272,6 @@ def detail_employee_monthly_salary(request):
                     salary_record.earnings, total_working_days, attendance.total_days_of_month
                 )
 
-                pt_amount = 0
                 epf_value = pf
                 other_deductions = 0
                 employee_deductions = 0
@@ -3286,7 +3285,7 @@ def detail_employee_monthly_salary(request):
                                 employee_deductions += value
                             elif name == "esi_employee_contribution" and employee.statutory_components.get("esi_enabled", False):
                                 employee_deductions += value
-                            elif name == "pt" and employee.statutory_components.get("professional_tax", False):
+                            elif name == "pt" and employee.statutory_components.get("professional_tax", False) and pt_amount == 0:
                                 pt_amount= prorate(value)
                             elif name == "tds":
                                 employee_deductions += value
