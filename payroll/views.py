@@ -363,6 +363,7 @@ class PayrollOrgBusinessDetailView(APIView):
                 # Checking existence of related objects
                 "organisation_details": organisation_details,
                 "payroll_id": payroll_org.id if organisation_details else None,
+                "sender_email": payroll_org.sender_email if payroll_org.sender_email else None,
                 "work_locations": WorkLocations.objects.filter(
                     payroll=payroll_org.id).exists() or payroll_org.work_location if organisation_details else False,
                 "departments": Departments.objects.filter(payroll=payroll_org.id).exists() or payroll_org.department
@@ -2068,7 +2069,7 @@ def new_employees_list(request):
         if payroll_id:
             filter_criteria["payroll_id"] = payroll_id
 
-        employees = EmployeeManagement.objects.filter(**filter_criteria)
+        employees = EmployeeManagement.objects.filter(**filter_criteria).order_by('-id')
 
         # If no employees found, return an empty list with a message
         if not employees.exists():
@@ -3152,6 +3153,15 @@ def calculate_employee_monthly_salary(request):
     return Response(salaries, status=status.HTTP_200_OK)
 
 
+def is_valid_number(value):
+    try:
+        float(value)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+
 import traceback
 @api_view(['GET'])
 def detail_employee_monthly_salary(request):
@@ -3172,9 +3182,9 @@ def detail_employee_monthly_salary(request):
         if not payroll_id:
             return Response({"error": "Payroll ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # if current_day < 26 and month == today.month:
-        #     return Response({"message": "Salary processing will be initiated between the 26th and 30th of the month."},
-        #                     status=status.HTTP_200_OK)
+        if current_day < 26 and month == today.month:
+            return Response({"message": "Salary processing will be initiated between the 26th and 30th of the month."},
+                            status=status.HTTP_200_OK)
 
         salary_records = EmployeeSalaryDetails.objects.filter(employee__payroll_id=payroll_id)
         if not salary_records.exists():
@@ -3230,38 +3240,6 @@ def detail_employee_monthly_salary(request):
                 # ESI Calculation
                 esi = round(earned_salary * 0.0075, 2) if gross_salary <= 21000 else 0
 
-                # PT Calculation
-                pt_amount = 0
-                pt_obj = PT.objects.filter(payroll=payroll_id, work_location=employee.work_location).first()
-                if pt_obj and employee.statutory_components.get("professional_tax", False):
-                    for slab in pt_obj.slab:
-                        salary_range = slab.get("Monthly Salary (₹)")
-                        pt_value = slab.get("Professional Tax (₹ per month)", "0").replace("₹", "").replace(",", "").strip()
-
-                        try:
-                            if "to" in salary_range:
-                                parts = salary_range.split("to")
-                                lower = int(parts[0].strip().replace("Up to", "").replace(",", ""))
-                                upper = int(parts[1].strip().replace(",", ""))
-                                if lower < gross_salary <= upper:
-                                    pt_amount = int(pt_value) if pt_value.isdigit() else 0
-                                    break
-
-                            elif "and above" in salary_range:
-                                threshold = int(salary_range.split("and")[0].strip().replace(",", ""))
-                                if gross_salary > threshold:
-                                    pt_amount = int(pt_value) if pt_value.isdigit() else 0
-                                    break
-
-                            elif "Up to" in salary_range:
-                                upper = int(salary_range.replace("Up to", "").strip().replace(",", ""))
-                                if gross_salary <= upper:
-                                    pt_amount = int(pt_value) if pt_value.isdigit() else 0
-                                    break
-
-                        except (ValueError, IndexError):
-                            continue  # Skip this slab if parsing fails
-
                 # Benefits
                 benefits_total = sum(
                     b["monthly"] if isinstance(b.get("monthly"), (int, float)) else 0
@@ -3269,8 +3247,11 @@ def detail_employee_monthly_salary(request):
                 )
 
                 # Taxes
-                taxes = sum(d.get("monthly", 0) for d in salary_record.deductions if "Tax" in d.get("component_name", ""))
-
+                taxes = sum(
+                    float(d["monthly"])
+                    for d in salary_record.deductions
+                    if "Tax" in d.get("component_name", "") and is_valid_number(d.get("monthly"))
+                )
                 # Advance Loan EMI
                 advance_loan = getattr(employee, "employee_advance_loan", None)
                 emi_deduction = 0
@@ -3291,6 +3272,7 @@ def detail_employee_monthly_salary(request):
                     salary_record.earnings, total_working_days, attendance.total_days_of_month
                 )
 
+                pt_amount = 0
                 epf_value = pf
                 other_deductions = 0
                 employee_deductions = 0
@@ -3305,7 +3287,7 @@ def detail_employee_monthly_salary(request):
                             elif name == "esi_employee_contribution" and employee.statutory_components.get("esi_enabled", False):
                                 employee_deductions += value
                             elif name == "pt" and employee.statutory_components.get("professional_tax", False):
-                                pass
+                                pt_amount= prorate(value)
                             elif name == "tds":
                                 employee_deductions += value
                         if all(ex not in name for ex in exclude_deductions):
