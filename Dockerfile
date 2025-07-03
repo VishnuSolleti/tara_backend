@@ -20,7 +20,7 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Copy project code
+# Copy project cod
 COPY . .
 
 # Expose the port your app runs on
