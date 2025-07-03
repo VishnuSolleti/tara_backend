@@ -54,3 +54,5 @@
 2025-07-03 14:32:33,477 django.utils.autoreload INFO     Watching for file changes with StatReloader
 2025-07-04 01:04:36,572 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\invoicing\migrations\0001_initial.py changed, reloading.
 2025-07-04 01:04:36,572 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\invoicing\migrations\0001_initial.py changed, reloading.
+2025-07-04 01:04:47,595 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-04 01:04:47,595 django.utils.autoreload INFO     Watching for file changes with StatReloader
