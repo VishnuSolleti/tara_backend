@@ -20,10 +20,10 @@ COPY requirements.txt .
 RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
-# Copy project cod
+# Copy project code
 COPY . .
 
-# Expose the port your app runs on
+# Expose the port your app runs 
 EXPOSE 8000
 
 # Start the Django app with Gunicorn
