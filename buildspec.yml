@@ -92,5 +92,5 @@ cache:
     - LOCAL_SOURCE_CACHE
   cache:
   paths:
-    - '/root/.cache/pip'                 # Python package cache
+    - '/root/.cache/pip'                 # Python package cach
     - '/root/.docker' 
