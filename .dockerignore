@@ -1,0 +1,28 @@
+# IDE/config files
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Python virtualenvs
+.venv/
+env/
+venv/
+
+.env
+
+# Git
+.git
+.gitignore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files not needed inside image
+.dockerignore
+Dockerfile
+docker-compose*
+*.log

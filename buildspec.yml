@@ -1,33 +1,96 @@
+# version: 0.2
+
+# cache:
+#   paths:
+#     - '/root/.cache/pip/**/*'  # Cache pip dependencies
+#     - '/tmp/previous_*'        # Cache requirements hash file
+
+# phases:
+#   pre_build:
+#     commands:
+#       - echo "Starting pre-build phase..."
+#       - |
+#         # Check if requirements.txt has changed by comparing their hashes
+#         if [ ! -f /tmp/previous_requirements.txt ] || ! cmp -s requirements.txt /tmp/previous_requirements.txt; then
+#           echo "Requirements changed, installing dependencies..."
+#           pip3 install --cache-dir=/root/.cache/pip -r requirements.txt
+#           sha256sum requirements.txt > /tmp/previous_requirements.txt  # Save the hash of requirements.txt
+#         else
+#           echo "No changes in requirements.txt, skipping dependency installation."
+#         fi
+
+#   build:
+#     commands:
+#       - echo "Starting build phase..."
+#       - echo "No static files to collect. Skipping collectstatic."
+
+#   post_build:
+#     commands:
+#       - echo "Build completed on $(date)"
+
+# artifacts:
+#   files:
+#     - '**/*'  # Include all file
 version: 0.2
 
-cache:
-  paths:
-    - '/root/.cache/pip/**/*'  # Cache pip dependencies
-    - '/tmp/previous_*'        # Cache requirements hash file
+env:
+  variables:
+    DOCKER_IMAGE: "sadanandtummuri/tara_dev_backend_image"
+  parameter-store:
+    DOCKER_HUB_USERNAME: /tara_backend/docker-credentials/username
+    DOCKER_HUB_PASSWORD: /tara_backend/docker-credentials/password
 
 phases:
+  install:
+    runtime-versions:
+      python: 3.x
+    commands:
+      - echo "[Install] Installing required tools..."
+      - apt-get update && apt-get install -y docker.io jq awscli
+      - echo "[Install] Docker version:" && docker --version
+
   pre_build:
     commands:
-      - echo "Starting pre-build phase..."
-      - |
-        # Check if requirements.txt has changed by comparing their hashes
-        if [ ! -f /tmp/previous_requirements.txt ] || ! cmp -s requirements.txt /tmp/previous_requirements.txt; then
-          echo "Requirements changed, installing dependencies..."
-          pip3 install --cache-dir=/root/.cache/pip -r requirements.txt
-          sha256sum requirements.txt > /tmp/previous_requirements.txt  # Save the hash of requirements.txt
-        else
-          echo "No changes in requirements.txt, skipping dependency installation."
-        fi
+      - echo "[PreBuild] Logging in to Docker Hub..."
+      - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+      - export IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - echo "IMAGE_TAG=$IMAGE_TAG"
+      - echo "$IMAGE_TAG" > image_tag.txt
+      - echo "IMAGE_TAG=$IMAGE_TAG" > image_tag.env
 
   build:
     commands:
-      - echo "Starting build phase..."
-      - echo "No static files to collect. Skipping collectstatic."
+      - echo "[Build] Building multi-stage Docker image..."
+      - docker build -t $DOCKER_IMAGE:$IMAGE_TAG .
+      - echo "[Build] Pushing image to Docker Hub..."
+      - docker push $DOCKER_IMAGE:$IMAGE_TAG
 
   post_build:
     commands:
-      - echo "Build completed on $(date)"
+      - echo "[PostBuild] Build completed successfully!"
+      - chmod 644 image_tag.txt image_tag.env
 
 artifacts:
   files:
-    - '**/*'  # Include all file
+    - image_tag.txt
+    - image_tag.env
+    - appspec.yml
+    - docker-compose.yml
+    - nginx/nginx.conf
+    - Dockerfile
+    - entrypoint.sh
+    - requirements.txt
+    - scripts/**
+    - Tara/**
+    - manage.py
+    - staticfiles/**
+
+cache:
+  type: LOCAL
+  modes:
+    - LOCAL_DOCKER_LAYER_CACHE
+    - LOCAL_SOURCE_CACHE
+  cache:
+  paths:
+    - '/root/.cache/pip'                 # Python package cache
+    - '/root/.docker' 

@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  backend:
+    image: sadanandtummuri/tara_dev_backend_image:${TAG:-latest}
+    container_name: tara_backend_prod
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    command: >
+      gunicorn Tara.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 3
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - taranet
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  taranet:
+    driver: bridge
