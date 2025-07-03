@@ -1,0 +1,56 @@
+2025-07-02 15:32:52,726 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-02 15:32:52,726 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-02 15:33:16,619 django.request WARNING  Not Found: /
+2025-07-02 15:33:16,619 django.request WARNING  Not Found: /
+2025-07-02 15:33:16,645 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:33:16,645 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:33:26,447 django.request WARNING  Not Found: /
+2025-07-02 15:33:26,447 django.request WARNING  Not Found: /
+2025-07-02 15:33:26,449 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:33:26,449 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:33:26,905 django.request WARNING  Not Found: /
+2025-07-02 15:33:26,905 django.request WARNING  Not Found: /
+2025-07-02 15:33:26,906 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:33:26,906 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:35:14,193 django.request WARNING  Not Found: /usermanagement/happy-coder/
+2025-07-02 15:35:14,193 django.request WARNING  Not Found: /usermanagement/happy-coder/
+2025-07-02 15:35:14,196 django.server WARNING  [33m"GET /usermanagement/happy-coder/ HTTP/1.1" 404 179[0m
+2025-07-02 15:35:14,196 django.server WARNING  [33m"GET /usermanagement/happy-coder/ HTTP/1.1" 404 179[0m
+2025-07-02 15:35:58,911 django.request WARNING  Not Found: /usermanagement/happy-coder/
+2025-07-02 15:35:58,911 django.request WARNING  Not Found: /usermanagement/happy-coder/
+2025-07-02 15:35:58,914 django.server WARNING  [33m"GET /usermanagement/happy-coder/ HTTP/1.1" 404 179[0m
+2025-07-02 15:35:58,914 django.server WARNING  [33m"GET /usermanagement/happy-coder/ HTTP/1.1" 404 179[0m
+2025-07-02 15:36:50,693 django.server INFO     [m"GET /user_management/happy-coder/ HTTP/1.1" 200 68[0m
+2025-07-02 15:36:50,693 django.server INFO     [m"GET /user_management/happy-coder/ HTTP/1.1" 200 68[0m
+2025-07-02 15:36:57,584 django.request WARNING  Not Found: /user_management/
+2025-07-02 15:36:57,584 django.request WARNING  Not Found: /user_management/
+2025-07-02 15:36:57,585 django.server WARNING  [33m"GET /user_management/ HTTP/1.1" 404 179[0m
+2025-07-02 15:36:57,585 django.server WARNING  [33m"GET /user_management/ HTTP/1.1" 404 179[0m
+2025-07-02 15:37:02,829 django.server INFO     [m"GET /user_management/happy-coder/ HTTP/1.1" 200 68[0m
+2025-07-02 15:37:02,829 django.server INFO     [m"GET /user_management/happy-coder/ HTTP/1.1" 200 68[0m
+2025-07-02 15:37:14,421 django.request WARNING  Not Found: /
+2025-07-02 15:37:14,421 django.request WARNING  Not Found: /
+2025-07-02 15:37:14,423 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:37:14,423 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:37:14,961 django.request WARNING  Not Found: /
+2025-07-02 15:37:14,961 django.request WARNING  Not Found: /
+2025-07-02 15:37:14,962 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:37:14,962 django.server WARNING  [33m"GET / HTTP/1.1" 404 179[0m
+2025-07-02 15:37:45,707 django.server INFO     [m"GET /user_management/happy-coder/ HTTP/1.1" 200 68[0m
+2025-07-02 15:37:45,707 django.server INFO     [m"GET /user_management/happy-coder/ HTTP/1.1" 200 68[0m
+2025-07-03 11:17:20,800 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-03 11:17:20,800 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-03 12:18:59,289 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\usermanagement\service_views.py changed, reloading.
+2025-07-03 12:18:59,289 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\usermanagement\service_views.py changed, reloading.
+2025-07-03 12:19:08,812 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-03 12:19:08,812 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-03 14:26:42,147 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\Tara\settings\default.py changed, reloading.
+2025-07-03 14:26:42,147 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\Tara\settings\default.py changed, reloading.
+2025-07-03 14:26:50,855 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-03 14:26:50,855 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-03 14:32:29,816 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\Tara\settings\default.py changed, reloading.
+2025-07-03 14:32:29,816 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\Tara\settings\default.py changed, reloading.
+2025-07-03 14:32:33,477 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-03 14:32:33,477 django.utils.autoreload INFO     Watching for file changes with StatReloader
+2025-07-04 01:04:36,572 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\invoicing\migrations\0001_initial.py changed, reloading.
+2025-07-04 01:04:36,572 django.utils.autoreload INFO     C:\Users\solle\Videos\TaraFirst Final\tara_final\dev\invoicing\migrations\0001_initial.py changed, reloading.
