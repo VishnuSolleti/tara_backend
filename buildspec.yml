@@ -35,7 +35,7 @@ version: 0.2
 
 env:
   variables:
-    DOCKER_IMAGE: "sadanandtummuri/tara_dev_backend_image"
+    DOCKER_IMAGE: "sadanandtummuri/my_backend_images"
   parameter-store:
     DOCKER_HUB_USERNAME: /tara_backend/docker-credentials/username
     DOCKER_HUB_PASSWORD: /tara_backend/docker-credentials/password
