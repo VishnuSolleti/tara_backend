@@ -31,11 +31,79 @@
 # artifacts:
 #   files:
 #     - '**/*'  # Include all file
+# version: 0.2
+
+# env:
+#   variables:
+#     DOCKER_IMAGE: "sadanandtummuri/my_backend_images"
+#   parameter-store:
+#     DOCKER_HUB_USERNAME: /tara_backend/docker-credentials/username
+#     DOCKER_HUB_PASSWORD: /tara_backend/docker-credentials/password
+
+# phases:
+#   install:
+#     runtime-versions:
+#       python: 3.x
+#     commands:
+#       - echo "[Install] Installing required tools..."
+#       - apt-get update && apt-get install -y docker.io jq awscli
+#       - echo "[Install] Docker version:" && docker --version
+
+#   pre_build:
+#     commands:
+#       - echo "[PreBuild] Logging in to Docker Hub..."
+#       - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+#       - export IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+#       - echo "IMAGE_TAG=$IMAGE_TAG"
+#       - echo "$IMAGE_TAG" > image_tag.txt
+#       - echo "IMAGE_TAG=$IMAGE_TAG" > image_tag.env
+
+#   build:
+#     commands:
+#       - echo "[Build] Building multi-stage Docker image..."
+#       - docker build -t $DOCKER_IMAGE:$IMAGE_TAG .
+#       - echo "[Build] Pushing image to Docker Hub..."
+#       - docker push $DOCKER_IMAGE:$IMAGE_TAG
+
+#   post_build:
+#     commands:
+#       - echo "[PostBuild] Build completed successfully!"
+#       - chmod 644 image_tag.txt image_tag.env
+
+# artifacts:
+#   files:
+#     - image_tag.txt
+#     - image_tag.env
+#     - appspec.yml
+#     - docker-compose.dev.yml
+#     - nginx/nginx.conf
+#     - Dockerfile
+#     - requirements.txt
+#     - scripts/**
+#     - Tara/**
+#     - manage.py
+#     - staticfiles/**
+
+# cache:
+#   type: LOCAL
+#   modes:
+#     - LOCAL_DOCKER_LAYER_CACHE
+#     - LOCAL_SOURCE_CACHE
+#   cache:
+#   paths:
+#     - '/root/.cache/pip'                 # Python package cach
+#     - '/root/.docker' 
+
 version: 0.2
+
+cache:
+  paths:
+    - '/root/.cache/pip/**/*'  # Cache Python packages
+    - '/root/.docker/**/*'     # Cache Docker layers
 
 env:
   variables:
-    DOCKER_IMAGE: "sadanandtummuri/my_backend_images"
+    DOCKER_IMAGE: "sadanandtummuri/tara_dev_backend_image"
   parameter-store:
     DOCKER_HUB_USERNAME: /tara_backend/docker-credentials/username
     DOCKER_HUB_PASSWORD: /tara_backend/docker-credentials/password
@@ -45,51 +113,35 @@ phases:
     runtime-versions:
       python: 3.x
     commands:
-      - echo "[Install] Installing required tools..."
+      - echo "[Install] Installing Docker..."
       - apt-get update && apt-get install -y docker.io jq awscli
-      - echo "[Install] Docker version:" && docker --version
 
   pre_build:
     commands:
       - echo "[PreBuild] Logging in to Docker Hub..."
       - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
       - export IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - echo "IMAGE_TAG=$IMAGE_TAG"
-      - echo "$IMAGE_TAG" > image_tag.txt
-      - echo "IMAGE_TAG=$IMAGE_TAG" > image_tag.env
+      - echo "IMAGE_TAG=$IMAGE_TAG" > image_tag.txt
 
   build:
     commands:
-      - echo "[Build] Building multi-stage Docker image..."
+      - echo "[Build] Building Docker image..."
       - docker build -t $DOCKER_IMAGE:$IMAGE_TAG .
-      - echo "[Build] Pushing image to Docker Hub..."
+      - echo "[Build] Pushing to Docker Hub..."
       - docker push $DOCKER_IMAGE:$IMAGE_TAG
 
   post_build:
     commands:
-      - echo "[PostBuild] Build completed successfully!"
-      - chmod 644 image_tag.txt image_tag.env
+      - echo "[PostBuild] Generating artifacts..."
+      - echo "DOCKER_IMAGE=$DOCKER_IMAGE" >> image_vars.env
+      - echo "IMAGE_TAG=$IMAGE_TAG" >> image_vars.env
 
 artifacts:
   files:
     - image_tag.txt
-    - image_tag.env
+    - image_vars.env
     - appspec.yml
+    - scripts/*
+    - nginx/*
     - docker-compose.dev.yml
-    - nginx/nginx.conf
-    - Dockerfile
-    - requirements.txt
-    - scripts/**
-    - Tara/**
-    - manage.py
-    - staticfiles/**
-
-cache:
-  type: LOCAL
-  modes:
-    - LOCAL_DOCKER_LAYER_CACHE
-    - LOCAL_SOURCE_CACHE
-  cache:
-  paths:
-    - '/root/.cache/pip'                 # Python package cach
-    - '/root/.docker' 
+  

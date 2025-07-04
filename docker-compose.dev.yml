@@ -2,13 +2,16 @@ version: "3.9"
 
 services:
   backend:
-    image: sadanandtummuri/tara_dev_backend_image:${TAG:-latest}
+    image: ${DOCKER_IMAGE}:${TAG:-latest}
     container_name: tara_backend_prod
     restart: always
     ports:
       - "8000:8000"
     env_file:
       - .env
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
     command: >
       gunicorn Tara.wsgi:application
       --bind 0.0.0.0:8000
@@ -23,6 +26,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+volumes:
+  static_volume:
+  media_volume:
 
 networks:
   taranet:
