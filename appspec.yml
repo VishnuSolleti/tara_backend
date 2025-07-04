@@ -2,22 +2,25 @@ version: 0.0
 os: linux
 
 files:
-  - source: /
-    destination: /home/ubuntu/tarafirst
-    overwrite: true
+  - source: docker-compose.prod.yml
+    destination: /home/ubuntu/tara_dev_backend
+  - source: nginx/tara_prod.conf
+    destination: /tmp
 
 hooks:
-  ApplicationStop:
-    - location: scripts/docker_stop.sh
-      timeout: 120
-      runas: ubuntu
-
   BeforeInstall:
-      - location: scripts/clean_instance.sh
-        timeout: 300
-        runas: ubuntu
-
-  AfterInstall:
-    - location: scripts/docker_deploy.sh
+    - location: scripts/beforeinstall.sh
       timeout: 300
+      runas: root
+  AfterInstall:
+    - location: scripts/afterinstall.sh
+      timeout: 300
+      runas: root
+  ApplicationStart:
+    - location: scripts/applicationstart.sh
+      timeout: 600
+      runas: ubuntu
+  ApplicationStop:
+    - location: scripts/applicationstop.sh
+      timeout: 180
       runas: ubuntu

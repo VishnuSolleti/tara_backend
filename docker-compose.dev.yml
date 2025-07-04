@@ -2,8 +2,8 @@ version: "3.9"
 
 services:
   backend:
-    image: ${DOCKER_IMAGE}:${TAG:-latest}
-    container_name: tara_backend_prod
+    image: sadanandtummuri/my_backend_images:${TAG:-latest}
+    container_name: tara_backend_dev
     restart: always
     ports:
       - "8000:8000"
