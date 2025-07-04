@@ -1,1 +1,74 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+*.log
+*.pot
+*.mo
+
+# Virtualenv / pipenv / poetry
 .env
+.venv/
+env/
+venv/
+Pipfile.lock
+poetry.lock
+
+# VSCode / IDEs
+.vscode/
+.idea/
+
+# PyCharm specific
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Migrations (optional: include if auto-generated)
+**/migrations/*.py
+**/migrations/__pycache__/
+
+# Docker
+docker-compose.local.yml
+*.pid
+*.tar
+image_tag.txt
+image_tag.env
+
+# Django
+db.sqlite3
+/media/
+staticfiles/
+local_settings.py
+
+# Build artifacts
+build/
+dist/
+*.bak
+
+# Node/npm (if frontend exists in same repo)
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Coverage / Testing
+htmlcov/
+.coverage
+coverage.xml
+.tox/
+.pytest_cache/
+
+# AWS/Secrets
+*.pem
+*.key
+*.crt
+
+# Logs
+*.log
+logs/

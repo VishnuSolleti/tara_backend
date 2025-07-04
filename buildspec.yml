@@ -75,10 +75,9 @@ artifacts:
     - image_tag.txt
     - image_tag.env
     - appspec.yml
-    - docker-compose.yml
+    - docker-compose.dev.yml
     - nginx/nginx.conf
     - Dockerfile
-    - entrypoint.sh
     - requirements.txt
     - scripts/**
     - Tara/**
