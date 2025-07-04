@@ -25,7 +25,7 @@ command -v nginx >/dev/null || {
 }
 
 echo "[BeforeInstall] Cleaning Docker resources..."
-docker system prune -af --volumes  # Remove ALL unused images, containers, volumes
+docker system prune -af --volumes  # Remove ALL unused images, containers, volume
 docker builder prune -af  # Clean build cache
 
 echo "[BeforeInstall] Preparing deployment directory..."
