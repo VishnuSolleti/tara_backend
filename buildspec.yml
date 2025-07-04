@@ -143,5 +143,5 @@ artifacts:
     - appspec.yml
     - scripts/*
     - nginx/*
-    - docker-compose.dev.yml
+    - docker-compose.yml
   
