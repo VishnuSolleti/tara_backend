@@ -16,9 +16,9 @@ services:
       gunicorn Tara.wsgi:application
       --bind 0.0.0.0:8000
       --workers 3
-    depends_on:
-      db:
-        condition: service_healthy
+    # depends_on:
+    #   db:
+    #     condition: service_healthy
     networks:
       - taranet
     healthcheck:
