@@ -3,6 +3,18 @@ set -e
 
 echo "[BeforeInstall] Starting pre-deployment setup..."
 
+# 0. Clean Previous Deployment (NEW)
+echo "-> Cleaning previous deployment..."
+if [ -d "/home/ubuntu/tara_dev_backend" ]; then
+    # Keep .env but remove other files
+    find /home/ubuntu/tara_dev_backend -mindepth 1 ! -name '.env' -exec rm -rf {} +
+    echo "-> Removed existing deployment files (preserved .env)"
+else
+    sudo mkdir -p /home/ubuntu/tara_dev_backend
+fi
+
+# ... rest of your existing script ...
+
 # 1. Install CodeDeploy Agent (first run only)
 if [ ! -f /etc/init.d/codedeploy-agent ]; then
     echo "-> Installing CodeDeploy agent..."
@@ -51,9 +63,9 @@ echo "-> Cleaning Docker system..."
 docker system prune -af --volumes
 docker builder prune -af
 
-# 6. Prepare deployment directory (always run)
-echo "-> Preparing deployment directory..."
-sudo mkdir -p /home/ubuntu/tara_dev_backend
+# 6. Prepare deployment directory (now simplified)
+echo "-> Setting directory permissions..."
 sudo chown -R ubuntu:ubuntu /home/ubuntu/tara_dev_backend
+sudo chmod 755 /home/ubuntu/tara_dev_backend
 
 echo "[BeforeInstall] Setup completed successfully"
