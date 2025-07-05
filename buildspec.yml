@@ -141,7 +141,7 @@ phases:
       - echo "[PostBuild] Generating artifacts..."
       - echo "DOCKER_IMAGE=$DOCKER_IMAGE" >> image_vars.env
       - echo "IMAGE_TAG=$IMAGE_TAG" >> image_vars.env
-      - chmod 644 image_tag.txt image_tag.env
+      - chmod 644 image_tag.txt image_vars.env
       #this is for the appspec file
 
 artifacts:
