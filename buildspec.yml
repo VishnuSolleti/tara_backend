@@ -120,8 +120,10 @@ phases:
     commands:
       - echo "[PreBuild] Logging in to Docker Hub..."
       - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-      - export IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
-      - echo "IMAGE_TAG=$IMAGE_TAG" > image_tag.txt
+      # - export IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      # - echo "IMAGE_TAG=$IMAGE_TAG" > image_tag.txt
+      - export IMAGE_TAG=$(git rev-parse --short HEAD)
+      - echo $IMAGE_TAG > image_tag.txt  # Correct: just the hash
 
   build:
     commands:
