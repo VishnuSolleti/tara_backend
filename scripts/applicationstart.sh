@@ -3,6 +3,10 @@ set -e
 
 echo "[ApplicationStart] Starting containers..."
 cd /home/ubuntu/tara_dev_backend
+
+# In deployment scripts
+export DOCKER_IMAGE="sadanandtummuri/my_backend_images"
+export IMAGE_TAG=$(cat image_tag.txt)
 docker-compose up -d
 
 echo "[ApplicationStart] Running DB migrations..."

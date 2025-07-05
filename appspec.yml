@@ -2,7 +2,7 @@ version: 0.0
 os: linux
 
 files:
-  - source: docker-compose.yml
+  - source: /
     destination: /home/ubuntu/tara_dev_backend
   - source: nginx/tara_prod.conf
     destination: /tmp
