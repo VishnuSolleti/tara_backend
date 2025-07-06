@@ -33,7 +33,7 @@
 
 # networks:
 #   taranet:
-#     driver: bridge
+#     driver: bridge#uu
 services:
   backend:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
