@@ -10,6 +10,7 @@ echo "[AfterInstall] Validating config..."
 nginx -t
 systemctl restart nginx
 
+
 echo "[AfterInstall] Ensuring .env exists..."
 touch /home/ubuntu/tara_dev_backend/.env
 chmod 600 /home/ubuntu/tara_dev_backend/.env
