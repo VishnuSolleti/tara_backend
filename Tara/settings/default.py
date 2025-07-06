@@ -185,10 +185,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Tara/settings/default.py
 
 # Disable migrations for certain built-in apps
-MIGRATION_MODULES = {
-    'auth': None,
-    'admin': None,
-}
+# MIGRATION_MODULES = {
+#     'auth': None,
+#     'admin': None,
+# }
 
 
 FRONTEND_URL = 'https://tarafirst.com/'
