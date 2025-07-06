@@ -333,12 +333,6 @@ password = os.getenv("POSTGRES_PASSWORD")
 database_name = os.getenv("POSTGRES_DB")
 database_port = os.getenv("POSTGRES_PORT")
 
-POSTGRES_DB=TaraFirstDb
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=TaraFirst@2024
-POSTGRES_HOST=db
-POSTGRES_PORT=5432
-
 
 DATABASES = {
     'default': {
