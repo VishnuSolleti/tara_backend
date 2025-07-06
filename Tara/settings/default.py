@@ -42,7 +42,8 @@ ALLOWED_HOSTS = [
     'ec2-13-233-201-80.ap-south-1.compute.amazonaws.com',  # EC2 public DNS
     'api.ipify.org',  # Add this if your app needs to handle requests from this domain
     '*',
-    'dev.tarafirst.com'
+    'dev.tarafirst.com',
+    '49.206.44.223'
 ]
 
 CORS_ORIGIN_ALLOW_ALL =True
@@ -326,10 +327,17 @@ print("*******************")
 
 S3_BUCKET_NAME = "tarafirstdevelopment"
 
-database_host = os.getenv('DATABASE_HOST')
-username = os.getenv('DATABASE_USERNAME')
-password = os.getenv('DATABASE_PASSWORD')
-database_name = os.getenv('DATABASE_NAME')
+database_host = os.getenv("POSTGRES_HOST")
+username = os.getenv("POSTGRES_USER")
+password = os.getenv("POSTGRES_PASSWORD")
+database_name = os.getenv("POSTGRES_DB")
+database_port = os.getenv("POSTGRES_PORT")
+
+POSTGRES_DB=TaraFirstDb
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=TaraFirst@2024
+POSTGRES_HOST=db
+POSTGRES_PORT=5432
 
 
 DATABASES = {
@@ -339,7 +347,7 @@ DATABASES = {
         'USER': username,
         'PASSWORD': password,
         'HOST': database_host,
-        'PORT': '5432',
+        'PORT': database_port,
 
     }
 }
