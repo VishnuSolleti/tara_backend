@@ -28,53 +28,30 @@
 # docker exec $CONTAINER_ID python manage.py collectstatic --noinput
 
 #!/bin/bash
-set -e  # Exit immediately on any error
+set -e
 
-echo "[ApplicationStart] Starting containers..."
+echo "[Start] Starting Docker containers..."
 cd /home/ubuntu/tara_dev_backend
 
-# 1. Load and export variables from image_vars.env
-echo "[ApplicationStart] Loading image variables..."
-
 if [ -f "image_vars.env" ]; then
-    set -a  # Auto-export variables
+    set -a
     source image_vars.env
     set +a
 else
-    echo "❌ ERROR: image_vars.env not found!"
+    echo "❌ image_vars.env not found!"
     exit 1
 fi
 
-# 2. Validate required variables
 if [[ -z "$DOCKER_IMAGE" || -z "$IMAGE_TAG" ]]; then
-    echo "❌ ERROR: DOCKER_IMAGE or IMAGE_TAG is missing!"
-    echo "DOCKER_IMAGE='$DOCKER_IMAGE', IMAGE_TAG='$IMAGE_TAG'"
+    echo "❌ DOCKER_IMAGE or IMAGE_TAG is missing"
     exit 1
 fi
 
 echo "✅ Using image: ${DOCKER_IMAGE}:${IMAGE_TAG}"
-
-# 3. Bring up containers
-echo "[ApplicationStart] Running docker-compose..."
 docker-compose --env-file image_vars.env up -d
 
-# 4. Run DB migrations
-echo "[ApplicationStart] Running database migrations..."
-CONTAINER_ID=$(docker ps -qf "name=backend")
+echo "[Start] ✅ Containers launched."
 
-if [[ -z "$CONTAINER_ID" ]]; then
-    echo "❌ ERROR: Backend container not running!"
-    docker ps
-    exit 1
-fi
-
-docker exec "$CONTAINER_ID" python manage.py migrate --noinput
-
-# 5. Collect static files
-echo "[ApplicationStart] Collecting static files..."
-docker exec "$CONTAINER_ID" python manage.py collectstatic --noinput
-
-echo "[ApplicationStart] ✅ Done."
 
 
 # echo "[ApplicationStart] Syncing static and media to host..."
