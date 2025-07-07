@@ -28,38 +28,54 @@
 # docker exec $CONTAINER_ID python manage.py collectstatic --noinput
 
 #!/bin/bash
-set -e
+set -e  # Exit immediately on any error
 
 echo "[ApplicationStart] Starting containers..."
 cd /home/ubuntu/tara_dev_backend
 
-# 1. Load image variables
+# 1. Load and export variables from image_vars.env
+echo "[ApplicationStart] Loading image variables..."
+
 if [ -f "image_vars.env" ]; then
+    set -a  # Auto-export variables
     source image_vars.env
+    set +a
 else
-    echo "ERROR: image_vars.env not found!"
+    echo "❌ ERROR: image_vars.env not found!"
     exit 1
 fi
 
-# 2. Validation
-if [ -z "$DOCKER_IMAGE" ] || [ -z "$IMAGE_TAG" ]; then
-    echo "ERROR: Missing DOCKER_IMAGE or IMAGE_TAG in image_vars.env"
+# 2. Validate required variables
+if [[ -z "$DOCKER_IMAGE" || -z "$IMAGE_TAG" ]]; then
+    echo "❌ ERROR: DOCKER_IMAGE or IMAGE_TAG is missing!"
+    echo "DOCKER_IMAGE='$DOCKER_IMAGE', IMAGE_TAG='$IMAGE_TAG'"
     exit 1
 fi
 
-# 3. Logging
-echo "Using image: ${DOCKER_IMAGE}:${IMAGE_TAG}"
+echo "✅ Using image: ${DOCKER_IMAGE}:${IMAGE_TAG}"
 
-# 4. Start container
-docker-compose up -d
+# 3. Bring up containers
+echo "[ApplicationStart] Running docker-compose..."
+docker-compose --env-file image_vars.env up -d
 
-# 5. Migrate DB
-echo "[ApplicationStart] Running DB migrations..."
+# 4. Run DB migrations
+echo "[ApplicationStart] Running database migrations..."
 CONTAINER_ID=$(docker ps -qf "name=backend")
-docker exec $CONTAINER_ID python manage.py migrate --noinput
 
+if [[ -z "$CONTAINER_ID" ]]; then
+    echo "❌ ERROR: Backend container not running!"
+    docker ps
+    exit 1
+fi
+
+docker exec "$CONTAINER_ID" python manage.py migrate --noinput
+
+# 5. Collect static files
 echo "[ApplicationStart] Collecting static files..."
-docker exec $CONTAINER_ID python manage.py collectstatic --noinput
+docker exec "$CONTAINER_ID" python manage.py collectstatic --noinput
+
+echo "[ApplicationStart] ✅ Done."
+
 
 # echo "[ApplicationStart] Syncing static and media to host..."
 # docker cp $CONTAINER_ID:/app/staticfiles /home/ubuntu/tara_dev_backend/staticfiles
