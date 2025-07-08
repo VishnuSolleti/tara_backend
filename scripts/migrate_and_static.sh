@@ -11,12 +11,12 @@ if [[ -z "$CONTAINER_ID" ]]; then
     exit 1
 fi
 
-# Run migrations
-echo "[Migrate/Static] Applying migrations..."
-docker exec "$CONTAINER_ID" python manage.py migrate --noinput
+# # Run migrations
+# echo "[Migrate/Static] Applying migrations..."
+# docker exec "$CONTAINER_ID" python manage.py migrate --noinput
 
-# Collect static files
-echo "[Migrate/Static] Collecting static files..."
-docker exec "$CONTAINER_ID" python manage.py collectstatic --noinput
+# # Collect static files
+# echo "[Migrate/Static] Collecting static files..."
+# docker exec "$CONTAINER_ID" python manage.py collectstatic --noinput
 
 echo "[Migrate/Static] ✅ Done."
