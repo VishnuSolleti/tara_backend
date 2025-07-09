@@ -231,7 +231,8 @@ LOG_DIR = os.path.join(BASE_DIR, 'logs')
 
 # Ensure the 'logs' directory exists
 if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+    os.makedirs(LOG_DIR, exist_ok=True)
+
 
 LOGGING = {
     # Version of logging

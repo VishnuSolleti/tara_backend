@@ -53,11 +53,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8000/usermanagement/happy-coder/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+    # healthcheck:
+    #   test: ["CMD-SHELL", "curl -f http://localhost:8000/usermanagement/happy-coder/ || exit 1"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 5
     networks:
       - taranet
     deploy:
