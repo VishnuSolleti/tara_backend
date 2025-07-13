@@ -120,6 +120,7 @@ services:
     #     reservations:
     #       cpus: '0.10'
     #       memory: 128M
+    # hi 
 
 volumes:
   db_data:
