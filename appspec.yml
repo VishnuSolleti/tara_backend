@@ -36,6 +36,9 @@ files:
 
 hooks:
   BeforeInstall:
+    - location: scripts/bootstrap-ec2.sh
+      timeout: 600
+      runas: root
     - location: scripts/beforeinstall.sh
       timeout: 300
       runas: root
