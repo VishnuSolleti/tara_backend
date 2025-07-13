@@ -33,7 +33,7 @@ SECRET_KEY = 'l$03&@y2zwp$uf3xj14=5whvkl6t)j2#9-=7l73x6t0@x3#=s%'
 
 
 # SECURITY WARNING: don't run with debug turned on in production
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = [
     'localhost',  # Local development
