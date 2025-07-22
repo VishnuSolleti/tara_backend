@@ -37,8 +37,6 @@ services:
     command: celery -A Tara worker --loglevel=info --pool=solo
     depends_on:
       - redis
-    volumes:
-      - /home/ubuntu/tara_dev_backend:/app
     environment:
       - PYTHONPATH=/app
       - DJANGO_SETTINGS_MODULE=Tara.settings.default               # ✅ Important
@@ -53,8 +51,6 @@ services:
     command: celery -A Tara beat --loglevel=info
     depends_on:
       - redis
-    volumes:
-      - /home/ubuntu/tara_dev_backend:/app
     environment:
       - PYTHONPATH=/app
       - DJANGO_SETTINGS_MODULE=Tara.settings.default               # ✅ Important
