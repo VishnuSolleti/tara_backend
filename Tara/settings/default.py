@@ -324,10 +324,11 @@ print("*******************")
 
 S3_BUCKET_NAME = "tarafirstdevelopment"
 
-database_host = os.getenv('DATABASE_HOST')
-username = os.getenv('DATABASE_USERNAME')
-password = os.getenv('DATABASE_PASSWORD')
-database_name = os.getenv('DATABASE_NAME')
+database_host = os.getenv("POSTGRES_HOST")
+username = os.getenv("POSTGRES_USER")
+password = os.getenv("POSTGRES_PASSWORD")
+database_name = os.getenv("POSTGRES_DB")
+database_port = os.getenv("POSTGRES_PORT")
 
 CELERY_BROKER_URL = 'redis://localhost:6379/0'
 
@@ -339,7 +340,7 @@ DATABASES = {
         'USER': username,
         'PASSWORD': password,
         'HOST': database_host,
-        'PORT': '5432',
+        'PORT': database_port,
 
     }
 }

@@ -11,6 +11,7 @@ env:
     DOCKER_HUB_PASSWORD: /tara_backend/docker-credentials/password
     DOCKER_IMAGE_NAME: /tara_backend/docker/image_name
     REDIS_IMAGE: /tara_backend/docker/redis_image
+    POSTGRES_IMAGE_NAME: /tara_backend/docker/postgres_image_name
 
 phases:
   install:
@@ -26,11 +27,14 @@ phases:
       - echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
       - export IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
       - export DOCKER_IMAGE=$DOCKER_IMAGE_NAME
+      - export POSTGRES_IMAGE=$POSTGRES_IMAGE_NAME
       - export REDIS_IMAGE=$REDIS_IMAGE
       - echo "DOCKER_IMAGE=$DOCKER_IMAGE"
+      - echo "POSTGRES_IMAGE=$POSTGRES_IMAGE"
       - echo "IMAGE_TAG=$IMAGE_TAG"
       - echo "REDIS_IMAGE=$REDIS_IMAGE"
       - docker pull $REDIS_IMAGE || true
+      - docker pull $POSTGRES_IMAGE
 
   build:
     commands:
@@ -45,6 +49,7 @@ phases:
       - echo "DOCKER_IMAGE=$DOCKER_IMAGE" > image_vars.env
       - echo "IMAGE_TAG=$IMAGE_TAG" >> image_vars.env
       - echo "REDIS_IMAGE=$REDIS_IMAGE" >> image_vars.env
+      - echo "POSTGRES_IMAGE=$POSTGRES_IMAGE" >> image_vars.env
       - chmod 644 image_vars.env
 
 artifacts:
