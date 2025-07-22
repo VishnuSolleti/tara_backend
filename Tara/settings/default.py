@@ -330,7 +330,7 @@ password = os.getenv("POSTGRES_PASSWORD")
 database_name = os.getenv("POSTGRES_DB")
 database_port = os.getenv("POSTGRES_PORT")
 
-CELERY_BROKER_URL = 'redis://redis:6379/0'
+# CELERY_BROKER_URL = 'redis://redis:6379/0'
 
 
 DATABASES = {
@@ -367,8 +367,8 @@ TEMPLATES = [
 # settings.py
 
 # Celery settings
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = 'redis://redis:6379/0'
+CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
