@@ -330,7 +330,7 @@ password = os.getenv("POSTGRES_PASSWORD")
 database_name = os.getenv("POSTGRES_DB")
 database_port = os.getenv("POSTGRES_PORT")
 
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = 'redis://redis:6379/0'
 
 
 DATABASES = {
