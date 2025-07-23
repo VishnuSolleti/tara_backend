@@ -19,7 +19,7 @@ def print_current_time():
     )
 
     sender_email = 'admin@tarafirst.com'  # ✅ Your verified sender in AWS SES
-    recipient_email = 'saikiranmekala@tarafirst.com'  # ✅ Must be verified if SES in sandbox mode
+    recipient_email = 'taraintern3@tarafirst.com'  # ✅ Must be verified if SES in sandbox mode
 
     try:
         response = ses_client.send_email(

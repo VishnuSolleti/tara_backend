@@ -2,8 +2,9 @@ version: 0.2
 
 cache:
   paths:
-    - '/root/.cache/pip/**/*'
-    - '/root/.docker/**/*'
+    - '/root/.cache/pip'
+  modes:
+    - LOCAL_DOCKER_LAYER_CACHE
 
 env:
   parameter-store:
@@ -59,4 +60,4 @@ artifacts:
     - scripts/*
     - nginx/*
     - docker-compose.yml
-    - Tara/**/*
+  
