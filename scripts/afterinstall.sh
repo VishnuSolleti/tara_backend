@@ -119,7 +119,7 @@ else
 fi
 
 # Health Check
-HEALTH_ENDPOINT="http://localhost:$TARGET_PORT/user_management/healthz"
+HEALTH_ENDPOINT="http://localhost:$TARGET_PORT/user_management/healthz/"
 echo "🔍 Checking health at $HEALTH_ENDPOINT..."
 RETRY=5
 SUCCESS=false
