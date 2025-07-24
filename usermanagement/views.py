@@ -438,6 +438,12 @@ def happy_coder(request):
                     status=status.HTTP_200_OK)
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def health_check(request):
+    return JsonResponse({"status": "ok"})
+
+
 """Views for user management functionality.
 
 This module contains views for handling user-related operations including:

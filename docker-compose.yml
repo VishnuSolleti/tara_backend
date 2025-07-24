@@ -17,7 +17,7 @@ services:
     container_name: tara_backend_dev
     restart: always
     ports:
-      - "8001:8000"
+      - "8002:8000"
     env_file:
       - .env
     volumes:

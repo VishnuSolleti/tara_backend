@@ -320,6 +320,7 @@ urlpatterns = [
     path('branches/<int:pk>/', other_factors.branch_detail, name='branch-detail'),
 
     path('happy-coder/', views.happy_coder, name='happy_coder'),
+    path("healthz/", views.health_check, name="health_check"),
 
     # Business Logo Upload Api
     path('business-logo/', other_factors.upload_business_logo, name='upload_business_logo'),

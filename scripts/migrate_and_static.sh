@@ -2,7 +2,7 @@
 set -e
 
 echo "[Migrate/Static] Running DB migrations and collectstatic..."
-cd /home/ubuntu/tara_dev_backend
+cd /home/ubuntu/tara_green
 
 CONTAINER_ID=$(docker ps -qf "name=backend")
 if [[ -z "$CONTAINER_ID" ]]; then
