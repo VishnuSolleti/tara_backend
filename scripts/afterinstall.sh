@@ -103,20 +103,23 @@ set -e
 
 echo "[AfterInstall] ✅ Setting up Nginx..."
 
-# Detect deployment directory
-if [[ "$PWD" == *"tara_green"* ]]; then
+# Set deployment directory explicitly
+DEPLOY_DIR="/home/ubuntu/tara_green"
+
+# Determine target port based on directory name
+if [[ "$DEPLOY_DIR" == *"tara_green"* ]]; then
   TARGET_PORT="8002"
   echo "🟢 Detected Green Deployment"
-elif [[ "$PWD" == *"tara_blue"* ]]; then
+elif [[ "$DEPLOY_DIR" == *"tara_dev_backend"* ]]; then
   TARGET_PORT="8001"
   echo "🔵 Detected Blue Deployment"
 else
-  echo "❌ Unknown deployment directory"
+  echo "❌ Unknown deployment directory: $DEPLOY_DIR"
   exit 1
 fi
 
 # Health Check
-HEALTH_ENDPOINT="http://localhost:$TARGET_PORT/healthz"
+HEALTH_ENDPOINT="http://localhost:$TARGET_PORT/user_management/healthz"
 echo "🔍 Checking health at $HEALTH_ENDPOINT..."
 RETRY=5
 SUCCESS=false
@@ -132,26 +135,27 @@ for i in $(seq 1 $RETRY); do
 done
 
 if [ "$SUCCESS" != "true" ]; then
-    echo "❌ Health check failed"
+    echo "❌ Health check failed. Skipping Nginx update."
     exit 1
 fi
 
-# Update active_color.txt and Nginx
+# Switch active port in nginx config
 if grep -q "blue" /home/ubuntu/active_color.txt; then
-  sed -i 's/127.0.0.1:8001/127.0.0.1:8002/' /tmp/http.conf
+  sed "s/__PORT__/8002/" /tmp/http_template.conf > /etc/nginx/sites-available/http.conf
   echo "green" > /home/ubuntu/active_color.txt
 else
-  sed -i 's/127.0.0.1:8002/127.0.0.1:8001/' /tmp/http.conf
+  sed "s/__PORT__/8001/" /tmp/http_template.conf > /etc/nginx/sites-available/http.conf
   echo "blue" > /home/ubuntu/active_color.txt
 fi
 
-cp /tmp/http.conf /etc/nginx/sites-available/http.conf
+# Link and reload Nginx
 ln -sf /etc/nginx/sites-available/http.conf /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 nginx -t && systemctl restart nginx
+echo "✅ Nginx now routing to port $TARGET_PORT"
 
-DEPLOY_DIR="$PWD"
+# Ensure .env exists
 touch "$DEPLOY_DIR/.env"
 chmod 600 "$DEPLOY_DIR/.env"
 chown ubuntu:ubuntu "$DEPLOY_DIR/.env"
