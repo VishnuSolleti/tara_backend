@@ -119,13 +119,13 @@ else
 fi
 
 # Health Check
-HEALTH_ENDPOINT="http://localhost:$TARGET_PORT/user_management/healthz/"
+HEALTH_ENDPOINT="http://localhost:$TARGET_PORT/user_management/happy-coder/"
 echo "🔍 Checking health at $HEALTH_ENDPOINT..."
 RETRY=5
 SUCCESS=false
 for i in $(seq 1 $RETRY); do
     sleep 5
-    if curl -s "$HEALTH_ENDPOINT" | grep -q '"status": *"ok"'; then
+    if curl -s "$HEALTH_ENDPOINT" | grep -q '"message": *"Happy Coder, My Job is to be Consistent and Discipline"'; then
         SUCCESS=true
         echo "✅ App healthy on port $TARGET_PORT"
         break
@@ -141,10 +141,10 @@ fi
 
 # Switch active port in nginx config
 if grep -q "blue" /home/ubuntu/active_color.txt; then
-  sed "s/__PORT__/8002/" /tmp/http_template.conf > /etc/nginx/sites-available/http.conf
+  sed "s/__PORT__/8002/" /tmp/http.conf > /etc/nginx/sites-available/http.conf
   echo "green" > /home/ubuntu/active_color.txt
 else
-  sed "s/__PORT__/8001/" /tmp/http_template.conf > /etc/nginx/sites-available/http.conf
+  sed "s/__PORT__/8001/" /tmp/http.conf > /etc/nginx/sites-available/http.conf
   echo "blue" > /home/ubuntu/active_color.txt
 fi
 
