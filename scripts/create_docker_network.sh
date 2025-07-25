@@ -11,7 +11,7 @@ else
     echo "Docker network $NETWORK_NAME already exists."
 fi
 
-# List of containers to connect
+# List of containers to conne
 CONTAINERS=(
   "postgres_shared"
   "tara_backend_dev_blue"
