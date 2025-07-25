@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Define network name
-NETWORK_NAME="tara_network"
+NETWORK_NAME="taranet"
 
 # Ensure the network exists
 if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
