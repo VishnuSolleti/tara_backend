@@ -9,7 +9,7 @@ files:
 
 hooks:
   BeforeInstall:
-    - location: scripts/create_docker_network.sh   # ✅ create taranet here
+    - location: scripts/create_docker_network.sh   # ✅ create tara
       timeout: 60
       runas: root
     - location: scripts/shared_service.sh       # 👈 Starts Redis/Postgres once
