@@ -3,12 +3,12 @@
 # Define network name
 NETWORK_NAME="taranet"
 
-# Ensure the network exists
-if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
-    echo "Creating Docker network: $NETWORK_NAME"
-    docker network create "$NETWORK_NAME"
+# Create network only if it doesn't exist
+if ! docker network ls --format '{{.Name}}' | grep -w "$NETWORK_NAME" > /dev/null; then
+  echo "🌐 Creating network: $NETWORK_NAME"
+  docker network create --driver bridge "$NETWORK_NAME"
 else
-    echo "Docker network $NETWORK_NAME already exists."
+  echo "✅ Docker network '$NETWORK_NAME' already exists"
 fi
 
 # List of containers to conne
