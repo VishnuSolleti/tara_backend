@@ -48,7 +48,8 @@ volumes:
 
 networks:
   taranet:
-    driver: bridge
+    # driver: bridge
+    external: true
 EOF
 fi
 
