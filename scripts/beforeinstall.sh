@@ -42,7 +42,7 @@ set -e
 
 echo "[BeforeInstall] 🚀 Starting pre-deployment setup..."
 
-DEPLOY_DIR="/home/ubuntu/tara_green"
+DEPLOY_DIR="/home/ubuntu/tara_dev_backend"
 PRESERVE_FILES=(".env" "image_vars.env")
 
 if [ ! -d "$DEPLOY_DIR" ]; then

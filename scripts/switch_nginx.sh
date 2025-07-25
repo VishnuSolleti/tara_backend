@@ -80,7 +80,7 @@ SUCCESS=false
 
 for i in $(seq 1 $RETRY); do
   sleep 5
-  if curl -s "$HEALTH_ENDPOINT" | grep -q "Happy Coder"; then
+  if curl -s "$HEALTH_ENDPOINT" | grep -q '"message": *"Happy Coder, blue is successfull"'; then
     SUCCESS=true
     echo "✅ Health check passed on port $TARGET_PORT"
     break

@@ -47,7 +47,7 @@
 #!/bin/bash
 set -e
 
-cd /home/ubuntu/tara_green || exit
+cd /home/ubuntu/tara_dev_backend || exit
 
 echo "[Start] Starting Docker containers..."
 

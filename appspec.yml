@@ -3,7 +3,7 @@ os: linux
 
 files:
   - source: /
-    destination: /home/ubuntu/tara_green
+    destination: /home/ubuntu/tara_dev_backend
   - source: nginx/http_template.conf
     destination: /tmp
 
