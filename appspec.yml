@@ -9,6 +9,9 @@ files:
 
 hooks:
   BeforeInstall:
+    - location: scripts/beforeinstall.sh
+      timeout: 300
+      runas: root
     - location: scripts/create_docker_network.sh   # ✅ create tara
       timeout: 60
       runas: root
@@ -18,9 +21,7 @@ hooks:
     - location: scripts/bootstrap-ec2.sh
       timeout: 600
       runas: root
-    - location: scripts/beforeinstall.sh
-      timeout: 300
-      runas: root
+    
     
 
   AfterInstall:
