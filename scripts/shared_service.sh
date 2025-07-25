@@ -10,7 +10,7 @@ if [ ! -d "$SHARED_DIR" ]; then
   chown ubuntu:ubuntu "$SHARED_DIR"
 fi
 
-# Create docker-compose file only once
+# Create docker-compose file only on
 if [ ! -f "$SHARED_DIR/docker-compose.yml" ]; then
   cat > "$SHARED_DIR/docker-compose.yml" <<EOF
 version: '3.8'
