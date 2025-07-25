@@ -3,21 +3,21 @@ version: '3.8'
 services:
   redis:
     image: ${REDIS_IMAGE}
-    container_name: redis_blue
+    container_name: redis_green
     restart: always
     env_file:
       - .env
     ports:
-      - "6379:6379"
+      - "6380:6379"
     networks:
       - taranet
 
   backend:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
-    container_name: tara_backend_dev_blue
+    container_name: tara_backend_dev_green
     restart: always
     ports:
-      - "8001:8000"
+      - "8002:8000"
     env_file:
       - .env
     volumes:
@@ -34,10 +34,10 @@ services:
       - taranet
   db:
     image: ${POSTGRES_IMAGE}
-    container_name: tara_db_blue
+    container_name: tara_db_green
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5433:5432"
     env_file:
       - .env
     volumes:
@@ -52,7 +52,7 @@ services:
 
   celery_worker:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
-    container_name: celery_worker_blue
+    container_name: celery_worker_green
     command: celery -A Tara worker --loglevel=info --pool=solo
     depends_on:
       - redis
@@ -67,7 +67,7 @@ services:
 
   celery_beat:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
-    container_name: celery_beat_blue
+    container_name: celery_beat_green
     command: celery -A Tara beat --loglevel=info
     depends_on:
       - redis
