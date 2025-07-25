@@ -50,6 +50,7 @@ networks:
   taranet:
     # driver: bridge
     external: true
+    name: taranet
 EOF
 fi
 

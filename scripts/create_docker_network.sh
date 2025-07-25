@@ -1,15 +1,17 @@
 #!/bin/bash
 
-# Define network name
+set -e
+
 NETWORK_NAME="taranet"
 
-# Create network only if it doesn't exist
-if ! docker network ls --format '{{.Name}}' | grep -w "$NETWORK_NAME" > /dev/null; then
-  echo "🌐 Creating network: $NETWORK_NAME"
-  docker network create --driver bridge "$NETWORK_NAME"
-else
-  echo "✅ Docker network '$NETWORK_NAME' already exists"
+# Delete if half-exists or broken
+if docker network ls --format '{{.Name}}' | grep -w "$NETWORK_NAME" > /dev/null; then
+  echo "🔁 Network $NETWORK_NAME already exists. Re-creating to ensure clean state."
+  docker network rm "$NETWORK_NAME" || true
 fi
+
+echo "🌐 Creating external Docker network: $NETWORK_NAME"
+docker network create --driver bridge "$NETWORK_NAME"
 
 # List of containers to conne
 CONTAINERS=(
