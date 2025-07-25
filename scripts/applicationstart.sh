@@ -65,19 +65,19 @@ if [[ -z "$DOCKER_IMAGE" || -z "$IMAGE_TAG" ]]; then
     exit 1
 fi
 
-if [[ -z "$POSTGRES_IMAGE" ]]; then
-    echo "❌ POSTGRES_IMAGE is missing"
-    exit 1
-fi
+# if [[ -z "$POSTGRES_IMAGE" ]]; then
+#     echo "❌ POSTGRES_IMAGE is missing"
+#     exit 1
+# fi
 
-if [[ -z "$REDIS_IMAGE" ]]; then
-    echo "❌ REDIS_IMAGE is missing"
-    exit 1
-fi
+# if [[ -z "$REDIS_IMAGE" ]]; then
+#     echo "❌ REDIS_IMAGE is missing"
+#     exit 1
+# fi
 
 echo "✅ Using image: ${DOCKER_IMAGE}:${IMAGE_TAG}"
-echo "✅ Using Redis image: ${REDIS_IMAGE}"
-echo "✅ Using postgres image: ${POSTGRES_IMAGE}"
+# echo "✅ Using Redis image: ${REDIS_IMAGE}"
+# echo "✅ Using postgres image: ${POSTGRES_IMAGE}"
 
 docker-compose --env-file image_vars.env up -d
 

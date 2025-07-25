@@ -9,12 +9,16 @@ files:
 
 hooks:
   BeforeInstall:
+    - location: scripts/shared_service.sh       # 👈 Starts Redis/Postgres once
+      timeout: 300
+      runas: root
     - location: scripts/bootstrap-ec2.sh
       timeout: 600
       runas: root
     - location: scripts/beforeinstall.sh
       timeout: 300
       runas: root
+    
 
   AfterInstall:
     - location: scripts/afterinstall.sh
@@ -31,6 +35,7 @@ hooks:
     - location: scripts/switch_nginx.sh
       timeout: 300
       runas: root
+
   ApplicationStop:
     - location: scripts/applicationstop.sh
       timeout: 180

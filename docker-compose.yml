@@ -1,23 +1,103 @@
+# version: '3.8'
+
+# services:
+#   redis:
+#     image: ${REDIS_IMAGE}
+#     container_name: redis_blue
+#     restart: always
+#     env_file:
+#       - .env
+#     ports:
+#       - "6379:6379"
+#     networks:
+#       - taranet
+
+#   backend:
+#     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
+#     container_name: tara_backend_dev_blue
+#     restart: always
+#     ports:
+#       - "8001:8000"
+#     env_file:
+#       - .env
+#     volumes:
+#       - backend_logs:/app/logs
+#     command: >
+#       gunicorn Tara.wsgi:application
+#       --bind 0.0.0.0:8000
+#       --workers 2
+#       --access-logfile /app/logs/access.log
+#       --error-logfile /app/logs/error.log
+#     depends_on:
+#       - redis
+#     networks:
+#       - taranet
+#   db:
+#     image: ${POSTGRES_IMAGE}
+#     container_name: tara_db_blue
+#     restart: unless-stopped
+#     ports:
+#       - "5432:5432"
+#     env_file:
+#       - .env
+#     volumes:
+#       - db_data:/var/lib/postgresql/data
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 5
+#     networks:
+#       - taranet
+
+#   celery_worker:
+#     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
+#     container_name: celery_worker_blue
+#     command: celery -A Tara worker --loglevel=info --pool=solo
+#     depends_on:
+#       - redis
+#     restart: always
+#     environment:
+#       - PYTHONPATH=/app
+#       - DJANGO_SETTINGS_MODULE=Tara.settings.default               # ✅ Important
+#     env_file:
+#       - .env
+#     networks:
+#       - taranet
+
+#   celery_beat:
+#     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
+#     container_name: celery_beat_blue
+#     command: celery -A Tara beat --loglevel=info
+#     depends_on:
+#       - redis
+#     restart: always
+#     environment:
+#       - PYTHONPATH=/app
+#       - DJANGO_SETTINGS_MODULE=Tara.settings.default               # ✅ Important
+#     env_file:
+#       - .env
+#     networks:
+#       - taranet
+
+# volumes:
+#   backend_logs:
+#   db_data:
+
+# networks:
+#   taranet:
+#     driver: bridge
+
+
 version: '3.8'
 
 services:
-  redis:
-    image: ${REDIS_IMAGE}
-    container_name: redis_blue
-    restart: always
-    env_file:
-      - .env
-    ports:
-      - "6379:6379"
-    networks:
-      - taranet
-
   backend:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
-    container_name: tara_backend_dev_blue
+    container_name: tara_backend_dev_blue  # or _green based on deployment
     restart: always
     ports:
-      - "8001:8000"
+      - "8001:8000"  # or 8002 for green
     env_file:
       - .env
     volumes:
@@ -28,38 +108,17 @@ services:
       --workers 2
       --access-logfile /app/logs/access.log
       --error-logfile /app/logs/error.log
-    depends_on:
-      - redis
-    networks:
-      - taranet
-  db:
-    image: ${POSTGRES_IMAGE}
-    container_name: tara_db_blue
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    env_file:
-      - .env
-    volumes:
-      - db_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
     networks:
       - taranet
 
   celery_worker:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
-    container_name: celery_worker_blue
+    container_name: celery_worker_blue  # or _green
     command: celery -A Tara worker --loglevel=info --pool=solo
-    depends_on:
-      - redis
     restart: always
     environment:
       - PYTHONPATH=/app
-      - DJANGO_SETTINGS_MODULE=Tara.settings.default               # ✅ Important
+      - DJANGO_SETTINGS_MODULE=Tara.settings.default
     env_file:
       - .env
     networks:
@@ -67,14 +126,12 @@ services:
 
   celery_beat:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
-    container_name: celery_beat_blue
+    container_name: celery_beat_blue  # or _green
     command: celery -A Tara beat --loglevel=info
-    depends_on:
-      - redis
     restart: always
     environment:
       - PYTHONPATH=/app
-      - DJANGO_SETTINGS_MODULE=Tara.settings.default               # ✅ Important
+      - DJANGO_SETTINGS_MODULE=Tara.settings.default
     env_file:
       - .env
     networks:
@@ -82,7 +139,6 @@ services:
 
 volumes:
   backend_logs:
-  db_data:
 
 networks:
   taranet:
