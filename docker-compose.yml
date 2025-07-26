@@ -88,16 +88,70 @@
 #   taranet:
 #     driver: bridge
 
+# version: '3.8'
 
-version: '3.8'
+# services:
+#   backend:
+#     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
+#     container_name: tara_backend_dev_blue  # or _green based on deployment
+#     restart: always
+#     ports:
+#       - "8001:8000"  # or 8002 for green
+#     env_file:
+#       - .env
+#     volumes:
+#       - backend_logs:/app/logs
+#     command: >
+#       gunicorn Tara.wsgi:application
+#       --bind 0.0.0.0:8000
+#       --workers 2
+#       --access-logfile /app/logs/access.log
+#       --error-logfile /app/logs/error.log
+#     networks:
+#       - taranet
+
+#   celery_worker:
+#     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
+#     container_name: celery_worker_blue  # or _green
+#     command: celery -A Tara worker --loglevel=info --pool=solo
+#     restart: always
+#     environment:
+#       - PYTHONPATH=/app
+#       - DJANGO_SETTINGS_MODULE=Tara.settings.default
+#     env_file:
+#       - .env
+#     networks:
+#       - taranet
+
+#   celery_beat:
+#     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
+#     container_name: celery_beat_blue  # or _green
+#     command: celery -A Tara beat --loglevel=info
+#     restart: always
+#     environment:
+#       - PYTHONPATH=/app
+#       - DJANGO_SETTINGS_MODULE=Tara.settings.default
+#     env_file:
+#       - .env
+#     networks:
+#       - taranet
+
+# volumes:
+#   backend_logs:
+
+# networks:
+#   taranet:
+#     # driver: bridge
+#     external: true
+#     name: taranet
 
 services:
   backend:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
-    container_name: tara_backend_dev_blue  # or _green based on deployment
+    container_name: tara_backend_dev_blue # or _green
     restart: always
     ports:
-      - "8001:8000"  # or 8002 for green
+      - "8001:8000" # use 8002 for green
     env_file:
       - .env
     volumes:
@@ -113,7 +167,7 @@ services:
 
   celery_worker:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
-    container_name: celery_worker_blue  # or _green
+    container_name: celery_worker_blue
     command: celery -A Tara worker --loglevel=info --pool=solo
     restart: always
     environment:
@@ -126,7 +180,7 @@ services:
 
   celery_beat:
     image: ${DOCKER_IMAGE}:${IMAGE_TAG}
-    container_name: celery_beat_blue  # or _green
+    container_name: celery_beat_blue
     command: celery -A Tara beat --loglevel=info
     restart: always
     environment:
@@ -142,6 +196,5 @@ volumes:
 
 networks:
   taranet:
-    # driver: bridge
     external: true
     name: taranet

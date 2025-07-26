@@ -25,10 +25,10 @@ hooks:
 
   ApplicationStart:
     - location: scripts/applicationstart.sh
-      timeout: 900
+      timeout: 600
       runas: ubuntu
     - location: scripts/migrate_and_static.sh
-      timeout: 600
+      timeout: 300
       runas: ubuntu
     - location: scripts/switch_nginx.sh
       timeout: 300
