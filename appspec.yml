@@ -12,18 +12,12 @@ hooks:
     - location: scripts/beforeinstall.sh
       timeout: 300
       runas: root
-    # - location: scripts/create_docker_network.sh   # ✅ create tara
-    #   timeout: 60
-    #   runas: root
     - location: scripts/shared_service.sh       # 👈 Starts Redis/Postgres once
       timeout: 300
       runas: root
     - location: scripts/bootstrap-ec2.sh
       timeout: 600
       runas: root
-    
-    
-
   AfterInstall:
     - location: scripts/afterinstall.sh
       timeout: 300
@@ -31,7 +25,7 @@ hooks:
 
   ApplicationStart:
     - location: scripts/applicationstart.sh
-      timeout: 300
+      timeout: 900
       runas: ubuntu
     - location: scripts/migrate_and_static.sh
       timeout: 600
