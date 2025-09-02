@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from . import hsn_views
 
 urlpatterns = [
     # DocWallet API URLs
@@ -29,4 +30,6 @@ urlpatterns = [
 
     path("files/search-autocomplete/", views.context_file_autocomplete),
     path("files/search/", views.context_file_filter),
+
+    path("hsn/search/", hsn_views.hsn_search, name="hsn-search"),
 ]
