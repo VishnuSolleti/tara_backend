@@ -491,12 +491,104 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
 
 
     def create(self, validated_data):
+        enable_portal_access = validated_data.get('enable_portal_access', False)
+        
+        if enable_portal_access:
+            # Portal employee - ensure user exists
+            user = validated_data.get('user')
+            if not user:
+                # Create new user automatically using existing model method
+                user = self.create_user_for_employee(validated_data)
+                validated_data['user'] = user
+        else:
+            # Non-portal employee - ensure user is None
+            validated_data['user'] = None
+        
         self.validate_unique_fields(validated_data)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
+        enable_portal_access = validated_data.get('enable_portal_access', instance.enable_portal_access)
+        
+        if enable_portal_access:
+            # Portal employee - ensure user exists
+            user = validated_data.get('user')
+            if not user and not instance.user:
+                # Create new user if none exists
+                user = self.create_user_for_employee(validated_data)
+                validated_data['user'] = user
+            elif not user and instance.user:
+                # Keep existing user
+                validated_data['user'] = instance.user
+        else:
+            # Non-portal employee - ensure user is None and clean up user records
+            if instance.user:
+                self.cleanup_user_records(instance.user)
+            validated_data['user'] = None
+        
         self.validate_unique_fields(validated_data, instance=instance)
         return super().update(instance, validated_data)
+
+    def create_user_for_employee(self, employee_data):
+        """Create a new user for the employee using the existing model method"""
+        from payroll.models import EmployeeManagement
+        
+        try:
+            # Extract required parameters for create_employee method
+            payroll = employee_data.get('payroll_org')
+            work_email = employee_data.get('email')
+            first_name = employee_data.get('first_name', '')
+            last_name = employee_data.get('last_name', '')
+            
+            if not payroll or not work_email:
+                raise serializers.ValidationError("Payroll organization and email are required for portal access")
+            
+            # Use the existing create_employee method from the model
+            # This ensures we use the exact same logic and validation
+            employee = EmployeeManagement.create_employee(
+                payroll=payroll,
+                work_email=work_email,
+                first_name=first_name,
+                last_name=last_name,
+                enable_portal_access=True,
+                added_by=payroll.business.client,
+                **{k: v for k, v in employee_data.items() if k not in ['payroll_org', 'email', 'first_name', 'last_name', 'enable_portal_access']}
+            )
+            
+            # Return the user that was created/updated
+            return employee.user
+            
+        except Exception as e:
+            # If user creation fails, raise validation error
+            raise serializers.ValidationError(f"Failed to create user: {str(e)}")
+
+    def cleanup_user_records(self, user):
+        """Clean up user records when portal access is disabled - make inactive instead of deleting"""
+        from usermanagement.models import UserContextRole, UserFeaturePermission
+        
+        try:
+            # Make user context roles inactive instead of deleting
+            UserContextRole.objects.filter(user=user).update(
+                status='inactive',
+                is_active=False
+            )
+            
+            # Make user feature permissions inactive instead of deleting
+            UserFeaturePermission.objects.filter(user_context_role__user=user).update(
+                is_active=False
+            )
+            
+            # Note: We don't delete the Users object itself as it might be referenced elsewhere
+            # Just disable the user account
+            user.is_active = False
+            user.status = 'inactive'
+            user.save()
+            
+        except Exception as e:
+            # Log the error but don't fail the update
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to cleanup user records for user {user.id}: {str(e)}")
 
 
 class EmployeeSalaryDetailsSerializer(serializers.ModelSerializer):

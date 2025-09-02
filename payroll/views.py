@@ -2276,17 +2276,18 @@ def employee_list(request):
         if error_response:
             return error_response
 
-        # Step 4: Save employee
-        serializer = EmployeeManagementSerializer(data=request.data)
-        if serializer.is_valid():
-            try:
-                serializer.save()
+        # Step 4: Handle employee creation with user setup
+        try:
+            # Use the serializer for all employee creation - it handles portal access automatically
+            serializer = EmployeeManagementSerializer(data=request.data)
+            if serializer.is_valid():
+                employee = serializer.save()
                 increment_usage(usage_entry)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-            except Exception as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 
