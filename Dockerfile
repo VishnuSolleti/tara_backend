@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
    && rm -rf /var/lib/apt/lists/*
 # Create virtual environment
 RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:$PATH" \
     PIP_CACHE_DIR=/root/.cache/pip
 
 # Copy only requirements for caching
