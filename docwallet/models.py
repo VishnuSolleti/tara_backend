@@ -125,6 +125,20 @@ def update_trie_on_new_document(sender, instance, created, **kwargs):
     if created:
         context_id = instance.folder.wallet.context_id
         context_tries[context_id].insert(instance.name)
+        
+
+class hsn_codes(models.Model):
+    code = models.CharField(max_length=40, db_index=True)
+    description = models.TextField()
+
+    class Meta:
+        db_table = "hsn"
+        indexes = [
+            models.Index(fields=["code"]),
+        ]
+
+    def __str__(self):
+        return self.code
 
 
 

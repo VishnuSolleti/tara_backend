@@ -493,7 +493,8 @@ class EmployeeManagement(BaseModel):
         on_delete=models.CASCADE, 
         related_name='employee_profiles', 
         null=True,  # Allow null for non-portal users
-        blank=True
+        blank=True,
+        default=None
     )
     
     first_name = models.CharField(max_length=120, null=False, blank=False)
