@@ -4,6 +4,7 @@ from django.contrib.postgres.fields import ArrayField
 from django.db.models import JSONField
 from .helpers import *
 from usermanagement.models import *
+from .permissions import PayrollPermissionManager
 from datetime import date
 from collections import OrderedDict
 from django.db.models.signals import pre_save, post_save
@@ -78,6 +79,74 @@ def create_work_location(sender, instance, created, **kwargs):
             address_city=head_office.get("city"),
             address_pincode=head_office.get("pincode"),
         )
+
+
+
+@receiver(post_save, sender='payroll.Designation')
+def create_designation_roles(sender, instance, created, **kwargs):
+    """Automatically create roles for new designations in all existing payroll orgs."""
+    if created:  # Only when designation is created
+        from usermanagement.models import Role
+        
+        # Get all payroll orgs that have this designation
+        payroll_orgs = PayrollOrg.objects.filter(
+            business__contexts__isnull=False
+        ).distinct()
+        
+        for payroll_org in payroll_orgs:
+            context = payroll_org.business.contexts
+            
+            # Check if role already exists for this designation (case-insensitive)
+            role_name = EmployeeManagement._normalize_role_name(instance.designation_name, payroll_org.business.nameOfBusiness)
+            existing_role = Role.objects.filter(
+                name__iexact=role_name,
+                context=context,
+                context_type='business'
+            ).exists()
+            
+            if not existing_role:
+                # Create role for this designation
+                Role.objects.create(
+                    name=role_name,
+                    context=context,
+                    context_type='business',
+                    role_type='custom',
+                    description=f"Role for {instance.designation_name} position",
+                    is_system_role=False,
+                    is_default_role=False
+                )
+
+
+@receiver(post_save, sender=PayrollOrg)
+def create_business_owner_employee(sender, instance, created, **kwargs):
+    """Automatically create EmployeeManagement record for business owner when PayrollOrg is created."""
+    if created:  # Ensure it runs only when PayrollOrg is created
+        business = instance.business
+        business_owner = business.client
+        
+        # Check if business owner already has an employee record for this payroll
+        existing_employee = EmployeeManagement.objects.filter(
+            payroll=instance,
+            user=business_owner
+        ).exists()
+        
+        if not existing_employee:
+            # Create employee record for business owner with portal access
+            EmployeeManagement.create_employee(
+                payroll=instance,
+                work_email=business_owner.email,
+                first_name=business_owner.first_name or "Business",
+                last_name=business_owner.last_name or "Owner",
+                mobile_number=business_owner.mobile_number,
+                associate_id=f"OWNER-{business.id}",
+                doj=None,  # User must set the actual joining date
+                gender='male',  # Default, can be updated later
+                enable_portal_access=True,  # Business owner always gets portal access
+                employee_level='0',  # CEO/Director level
+                employee_status=True,
+                statutory_components={},  # Empty for now, can be configured later
+                added_by=business_owner  # Business owner adds themselves
+            )
 
 
 class WorkLocations(models.Model):
@@ -417,25 +486,332 @@ class EmployeeManagement(BaseModel):
     ]
 
     payroll = models.ForeignKey('PayrollOrg', on_delete=models.CASCADE, related_name='employee_managements')
+    
+    # NEW: Link to main Users table (conditional)
+    user = models.ForeignKey(
+        'usermanagement.Users', 
+        on_delete=models.CASCADE, 
+        related_name='employee_profiles', 
+        null=True,  # Allow null for non-portal users
+        blank=True
+    )
+    
     first_name = models.CharField(max_length=120, null=False, blank=False)
     middle_name = models.CharField(max_length=80, null=True, blank=True, default=None)
     last_name = models.CharField(max_length=80, null=False, blank=False)
     associate_id = models.CharField(max_length=120, blank=False, null=False)
-    doj = models.DateField()
+    doj = models.DateField(null=True, blank=True)
     work_email = models.EmailField()
     mobile_number = models.CharField(max_length=20, blank=True, null=True)
     gender = models.CharField(max_length=20, choices=GENDER_CHOICES, default='male')
-    work_location = models.ForeignKey('WorkLocations', on_delete=models.CASCADE,
-                                      related_name='employee_work_location')
-    designation = models.ForeignKey('Designation', on_delete=models.CASCADE, related_name='employee_designation')
-    department = models.ForeignKey('Departments', on_delete=models.CASCADE, related_name='employee_department')
+    
+    # CHANGED: Made org fields nullable for owner bootstrap
+    work_location = models.ForeignKey(
+        'WorkLocations', 
+        on_delete=models.SET_NULL,
+        related_name='employee_work_location', 
+        null=True, blank=True
+    )
+    
+    designation = models.ForeignKey(
+        'Designation', 
+        on_delete=models.SET_NULL, 
+        related_name='employee_designation',
+        null=True, blank=True
+    )
+    
+    department = models.ForeignKey(
+        'Departments', 
+        on_delete=models.SET_NULL, 
+        related_name='employee_department',
+        null=True, blank=True
+    )
+    
     enable_portal_access = models.BooleanField(default=False)
     statutory_components = models.JSONField()
     employee_level = models.CharField(max_length=120, choices=level_choices, null=True, blank=True, default='5')
     employee_status = models.BooleanField(default=True)
 
+    def clean(self):
+        """Enforce conditional user creation and org-structure fields.
+        Business Rules:
+        1. Portal users (enable_portal_access=True) MUST have Users record
+        2. Non-portal users (enable_portal_access=False) MUST NOT have Users record
+        3. Business owner always gets portal access and Users record
+        4. Non-owner employees need org fields (work_location, designation, department)
+        """
+        super().clean()
+        # Rule 1 & 2: Conditional user creation based on portal access
+        if self.enable_portal_access and not self.user:
+            raise ValidationError({
+                'user': 'User record is required when portal access is enabled'
+            })
+        
+        if not self.enable_portal_access and self.user:
+            raise ValidationError({
+                'user': 'User record should not exist when portal access is disabled'
+            })
+        
+        # Guard when relations are not set yet (during migrations/backfill)
+        if not getattr(self, 'payroll', None):
+            return
+        
+        # Rule 3: Business owner validation
+        is_owner = False
+        if self.user:
+            try:
+                is_owner = (self.user == self.payroll.business.client)
+            except Exception:
+                is_owner = False
+        
+        # Rule 4: Non-owner employees need org structure fields
+        if not is_owner:
+            missing = {}
+            if self.work_location is None:
+                missing['work_location'] = 'Work location is required for non-owner employees'
+            if self.designation is None:
+                missing['designation'] = 'Designation is required for non-owner employees'
+            if self.department is None:
+                missing['department'] = 'Department is required for non-owner employees'
+            if missing:
+                raise ValidationError(missing)
+
     def __str__(self):
         return f"{self.associate_id} ({self.gender})"
+    
+    @classmethod
+    def _get_level_based_permissions(cls, employee_level):
+        """Get permissions based on employee level using PayrollPermissionManager"""
+        return PayrollPermissionManager.get_permissions_for_level(employee_level)
+
+    @classmethod
+    def create_employee(cls, payroll, work_email, first_name, last_name, 
+                       enable_portal_access=False, added_by=None, manual_permissions=None, **kwargs):
+        """Helper method for HR to create employees with conditional user logic.
+        
+        For portal users, creates complete user setup following standard registration pattern:
+        - Users record with default password
+        - Use existing business context (Context IS the business)
+        - UserContextRole (permissions based on designation)
+        - UserFeaturePermission (module features based on level or manual permissions)
+        
+        Args:
+            payroll: PayrollOrg instance
+            work_email: Employee email
+            first_name: Employee first name
+            last_name: Employee last name
+            enable_portal_access: Whether employee gets portal access (default: False)
+            added_by: User who is adding the employee (must have permission to add employees)
+            manual_permissions: List of manual permissions to override level-based permissions
+            **kwargs: Additional EmployeeManagement fields
+            
+        Returns:
+            EmployeeManagement instance
+        """
+        user = None
+        
+        if enable_portal_access:
+            # Create complete user setup for portal users following standard pattern
+            from usermanagement.models import Users, Context, Role, UserContextRole, Module, ModuleFeature, UserFeaturePermission
+            from django.contrib.auth.hashers import make_password
+            from django.db import transaction
+            from django.utils import timezone
+            
+            with transaction.atomic():
+                # 1. Check if user already exists by email
+                try:
+                    user = Users.objects.get(email=work_email)
+                    # User exists - update their details if needed
+                    user.first_name = first_name
+                    user.last_name = last_name
+                    if kwargs.get('mobile_number'):
+                        user.mobile_number = kwargs.get('mobile_number')
+                    user.save()
+                except Users.DoesNotExist:
+                    # User doesn't exist - create new user
+                    default_password = cls._generate_default_password()
+                    user = Users.objects.create(
+                        email=work_email,
+                        first_name=first_name,
+                        last_name=last_name,
+                        mobile_number=kwargs.get('mobile_number'),
+                        password=make_password(default_password),
+                        is_active=True,
+                        status='active',
+                        registration_flow='employee',  # Mark as employee registration
+                        registration_completed=True  # Employee registration is complete
+                    )
+                
+                # 2. Get the existing business context (Context IS the business)
+                context = payroll.business.contexts  # OneToOneField relationship
+                
+                # 3. Set active_context for the user (if not already set)
+                if not user.active_context:
+                    user.active_context = context
+                    user.save()
+                
+                # 4. Get or create role for this designation with permissions based on level
+                designation = kwargs.get('designation')
+                employee_level = kwargs.get('employee_level', '5')  # Default to employee level
+                
+                if designation:
+                    # Validate that designation exists and belongs to this payroll org
+                    if not hasattr(designation, 'payroll') or designation.payroll != payroll:
+                        raise ValueError(f"Designation '{designation.designation_name}' does not belong to this payroll organization")
+                    
+                    # Additional validation: Check if designation name exists in this payroll org (case-insensitive)
+                    from payroll.models import Designation
+                    existing_designation = Designation.objects.filter(
+                        designation_name__iexact=designation.designation_name,
+                        payroll=payroll
+                    ).first()
+                    
+                    if not existing_designation:
+                        raise ValueError(f"Designation '{designation.designation_name}' not found in this payroll organization")
+                    
+                    # Get or create role for this designation
+                    role = cls._get_or_create_designation_role_with_permissions(
+                        designation, payroll, employee_level, context
+                    )
+                    
+                    # 5. Check if UserContextRole already exists for this user in this context
+                    user_context_role, created = UserContextRole.objects.get_or_create(
+                        user=user,
+                        context=context,
+                        defaults={
+                            'role': role,
+                            'status': 'active',
+                            'added_by': added_by or payroll.business.client
+                        }
+                    )
+                    
+                    # If UserContextRole already existed, update the role if needed
+                    if not created:
+                        user_context_role.role = role
+                        user_context_role.status = 'active'
+                        user_context_role.save()
+                    
+                    # 6. Create or update UserFeaturePermission for payroll module based on employee level or manual permissions
+                    payroll_module = cls._get_payroll_module()
+                    if payroll_module:
+                        # Determine permissions: manual permissions take precedence over level-based permissions
+                        if manual_permissions:
+                            # Use manual permissions if provided
+                            final_permissions = manual_permissions
+                        else:
+                            # Use level-based permissions as fallback
+                            employee_level = kwargs.get('employee_level', '5')  # Default to employee level
+                            final_permissions = cls._get_level_based_permissions(employee_level)
+                        
+                        # Create or update UserFeaturePermission (following standard pattern)
+                        user_feature_permission, created = UserFeaturePermission.objects.get_or_create(
+                            user_context_role=user_context_role,
+                            module=payroll_module,
+                            defaults={
+                                'actions': final_permissions,
+                                'is_active': True,
+                                'created_by': added_by or payroll.business.client
+                            }
+                        )
+                        
+                        # If UserFeaturePermission already existed, update the actions if needed
+                        if not created:
+                            user_feature_permission.actions = final_permissions
+                            user_feature_permission.is_active = True
+                            user_feature_permission.save()
+        
+        # Create or update EmployeeManagement record
+        employee, created = cls.objects.get_or_create(
+            payroll=payroll,
+            user=user,
+            defaults={
+                'work_email': work_email,
+                'first_name': first_name,
+                'last_name': last_name,
+                'enable_portal_access': enable_portal_access,
+                **kwargs
+            }
+        )
+        
+        # If EmployeeManagement already existed, update the fields if needed
+        if not created:
+            employee.work_email = work_email
+            employee.first_name = first_name
+            employee.last_name = last_name
+            employee.enable_portal_access = enable_portal_access
+            # Update other fields from kwargs
+            for key, value in kwargs.items():
+                setattr(employee, key, value)
+            employee.save()
+        
+        return employee
+    
+    @staticmethod
+    def _generate_default_password():
+        """Generate a secure default password for new employees."""
+        import secrets
+        import string
+        
+        # Generate 12-character password with letters, digits, and symbols
+        alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+        password = ''.join(secrets.choice(alphabet) for _ in range(12))
+        return password
+    
+    @staticmethod
+    def _get_payroll_module():
+        """Get the payroll module."""
+        from usermanagement.models import Module
+        try:
+            return Module.objects.get(name__icontains='payroll')
+        except Module.DoesNotExist:
+            return None
+    
+    @staticmethod
+    def _normalize_role_name(designation_name, business_name):
+        """Normalize role name to ensure consistency and prevent case-sensitive duplicates."""
+        return f"{designation_name.strip().title()} - {business_name.strip().title()}"
+    
+    @staticmethod
+    def _get_or_create_designation_role_with_permissions(designation, payroll, employee_level, context):
+        """Get or create a role for the given designation with permissions based on employee level."""
+        from usermanagement.models import Role
+        
+        # First, check if designation exists and is valid
+        if not designation:
+            raise ValueError("Designation is required for role creation")
+        
+        # Create normalized role name based on designation and business
+        role_name = EmployeeManagement._normalize_role_name(designation.designation_name, payroll.business.nameOfBusiness)
+        
+        # Check if role already exists for this designation in this context (case-insensitive)
+        existing_role = Role.objects.filter(
+            name__iexact=role_name,
+            context=context,
+            context_type='business'
+        ).first()
+        
+        if existing_role:
+            # Role exists, return it
+            return existing_role
+        
+        # Create new role only if it doesn't exist
+        role = Role.objects.create(
+            name=role_name,
+            context=context,  # Role is specific to this business context
+            context_type='business',
+            role_type='custom',  # Custom role for employees
+            description=f"Role for {designation.designation_name} position (Level {employee_level})",
+            is_system_role=False,
+            is_default_role=False
+        )
+        
+        return role
+
+    class Meta:
+        constraints = [
+            # Ensure one employee record per user per payroll org
+            models.UniqueConstraint(fields=['user', 'payroll'], name='unique_user_per_payroll')
+        ]
 
 
 class EmployeeReportingManager(models.Model):
