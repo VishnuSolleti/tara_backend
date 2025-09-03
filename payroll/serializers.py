@@ -529,7 +529,7 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         enable_portal_access = validated_data.get('enable_portal_access', instance.enable_portal_access)
         
-        if enable_portal_access:
+        if enable_portal_access and not instance.enable_portal_access:
             # Portal employee - ensure user exists
             user = validated_data.get('user')
             if not user and not instance.user:
@@ -539,7 +539,7 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
             elif not user and instance.user:
                 # Keep existing user
                 validated_data['user'] = instance.user
-        else:
+        elif not enable_portal_access and instance.enable_portal_access:
             # Non-portal employee - ensure user is None and clean up user records
             if instance.user:
                 self.cleanup_user_records(instance.user)
