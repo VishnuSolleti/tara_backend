@@ -1478,7 +1478,7 @@ class EmployeeCredentials(models.Model):
 
 
 class EmployeeEducationDetails(models.Model):
-    employee = models.ForeignKey('EmployeeCredentials', on_delete=models.CASCADE, related_name='education_details')
+    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE, related_name='education_details')
     qualification = models.CharField(max_length=120, null=False, blank=False)
     year_of_passing = models.IntegerField(null=False, blank=False)
     upload_certificate = models.FileField(upload_to=employee_education_certificate, null=True, blank=True,
@@ -1498,7 +1498,7 @@ class AttendanceLog(models.Model):
         ('biometric', 'Biometric Device'),
         ('auto', 'System Auto'),
     ]
-    employee = models.ForeignKey(EmployeeCredentials, on_delete=models.CASCADE, related_name='attendance_logs')
+    employee = models.ForeignKey(EmployeeManagement, on_delete=models.CASCADE, related_name='attendance_logs')
     date = models.DateField()
     check_in = models.DateTimeField()
     check_out = models.DateTimeField(null=True, blank=True)
@@ -1536,7 +1536,7 @@ class EmployeeFaceRecognition(models.Model):
         ('back', 'back')
     ]
 
-    employee = models.ForeignKey(EmployeeCredentials, on_delete=models.CASCADE, related_name='images')
+    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE, related_name='images')
     direction = models.CharField(max_length=50, choices=DIRECTION_CHOICES)
     image_file = models.FileField(upload_to=employee_image_upload_path)
     labels = models.JSONField(default=list)
@@ -1561,7 +1561,7 @@ class LeaveApplication(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
-    employee = models.ForeignKey(EmployeeCredentials, on_delete=models.CASCADE, related_name='leave_applications')
+    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE, related_name='leave_applications')
     leave_type = models.ForeignKey(LeaveManagement, on_delete=models.CASCADE, related_name='payroll_leave_applications')
     start_date = models.DateField()
     end_date = models.DateField()
@@ -1570,14 +1570,14 @@ class LeaveApplication(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     applied_on = models.DateTimeField(auto_now_add=True)
     reviewer = models.ForeignKey(
-        EmployeeCredentials,
+        'EmployeeManagement',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='reviewed_leaves'
     )
     cc_to = models.ManyToManyField(
-        EmployeeCredentials,
+        'EmployeeManagement',
         blank=True,
         related_name='cc_leaves'
     )
@@ -1591,7 +1591,7 @@ class LeaveApplication(models.Model):
 
 class LeaveNotification(models.Model):
     leave_application = models.ForeignKey('LeaveApplication', on_delete=models.CASCADE)
-    reviewer = models.ForeignKey('EmployeeCredentials', on_delete=models.CASCADE)
+    reviewer = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)
