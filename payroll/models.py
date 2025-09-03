@@ -610,10 +610,11 @@ class EmployeeManagement(BaseModel):
             EmployeeManagement instance
         """
         user = None
-        
+        from usermanagement.models import Users, Context, Role, UserContextRole, Module, ModuleFeature, \
+            UserFeaturePermission
+
         if enable_portal_access:
             # Create complete user setup for portal users following standard pattern
-            from usermanagement.models import Users, Context, Role, UserContextRole, Module, ModuleFeature, UserFeaturePermission
             from django.contrib.auth.hashers import make_password
             from django.db import transaction
             from django.utils import timezone
@@ -748,15 +749,15 @@ class EmployeeManagement(BaseModel):
                             user_context_role=user_context_role,
                             module=payroll_module,
                             defaults={
-                                'actions': list(set(final_permissions)),
+                                'actions': final_permissions,
                                 'is_active': True,
                                 'created_by': added_by or payroll.business.client
                             }
                         )
                         # If UserFeaturePermission already existed, update the actions if needed
                         if not created:
-                            final_permissions = final_permissions.append(user_feature_permission.actions)
-                            user_feature_permission.actions = list(set(final_permissions))
+                            user_feature_permission.actions = list(
+                                set((final_permissions or []) + (user_feature_permission.actions or [])))
                             user_feature_permission.is_active = True
                             user_feature_permission.save()
 
@@ -773,6 +774,9 @@ class EmployeeManagement(BaseModel):
                 **kwargs
             }
         )
+        if enable_portal_access:
+            employee.user = user  # Ensure user is set (None for non-portal users)
+            employee.save()
         
         # If EmployeeManagement already existed, update the fields if needed
         if not created:
