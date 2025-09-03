@@ -617,7 +617,7 @@ class EmployeeManagement(BaseModel):
             from django.contrib.auth.hashers import make_password
             from django.db import transaction
             from django.utils import timezone
-            
+
             with transaction.atomic():
                 # 1. Check if user already exists by email
                 try:
@@ -642,39 +642,39 @@ class EmployeeManagement(BaseModel):
                         registration_flow='employee',  # Mark as employee registration
                         registration_completed=True  # Employee registration is complete
                     )
-                
+
                 # 2. Get the existing business context (Context IS the business)
                 context = payroll.business.contexts  # OneToOneField relationship
-                
+
                 # 3. Set active_context for the user (if not already set)
                 if not user.active_context:
                     user.active_context = context
                     user.save()
-                
+
                 # 4. Get or create role for this designation with permissions based on level
                 designation = kwargs.get('designation')
                 employee_level = kwargs.get('employee_level', '5')  # Default to employee level
-                
+
                 if designation:
                     # Validate that designation exists and belongs to this payroll org
                     if not hasattr(designation, 'payroll') or designation.payroll != payroll:
                         raise ValueError(f"Designation '{designation.designation_name}' does not belong to this payroll organization")
-                    
+
                     # Additional validation: Check if designation name exists in this payroll org (case-insensitive)
                     from payroll.models import Designation
                     existing_designation = Designation.objects.filter(
                         designation_name__iexact=designation.designation_name,
                         payroll=payroll
                     ).first()
-                    
+
                     if not existing_designation:
                         raise ValueError(f"Designation '{designation.designation_name}' not found in this payroll organization")
-                    
+
                     # Get or create role for this designation
                     role = cls._get_or_create_designation_role_with_permissions(
                         designation, payroll, employee_level, context
                     )
-                    
+
                     # 5. Check if UserContextRole already exists for this user in this context
                     user_context_role, created = UserContextRole.objects.get_or_create(
                         user=user,
@@ -685,13 +685,13 @@ class EmployeeManagement(BaseModel):
                             'added_by': added_by or payroll.business.client
                         }
                     )
-                    
+
                     # If UserContextRole already existed, update the role if needed
                     if not created:
                         user_context_role.role = role
                         user_context_role.status = 'active'
                         user_context_role.save()
-                    
+
                     # 6. Create or update UserFeaturePermission for payroll module based on employee level or manual permissions
                     payroll_module = cls._get_payroll_module()
                     if payroll_module:
@@ -703,7 +703,7 @@ class EmployeeManagement(BaseModel):
                             # Use level-based permissions as fallback
                             employee_level = kwargs.get('employee_level', '5')  # Default to employee level
                             final_permissions = cls._get_level_based_permissions(employee_level)
-                        
+
                         # Create or update UserFeaturePermission (following standard pattern)
                         user_feature_permission, created = UserFeaturePermission.objects.get_or_create(
                             user_context_role=user_context_role,
@@ -714,12 +714,52 @@ class EmployeeManagement(BaseModel):
                                 'created_by': added_by or payroll.business.client
                             }
                         )
-                        
+
                         # If UserFeaturePermission already existed, update the actions if needed
                         if not created:
                             user_feature_permission.actions = final_permissions
                             user_feature_permission.is_active = True
                             user_feature_permission.save()
+
+
+                else:
+                    role = Role.objects.get(name__iexact='Owner', context=context, context_type='business')
+
+                    user_context_role, created = UserContextRole.objects.get_or_create(
+                        user=user,
+                        context=context,
+                        defaults={
+                            'role': role,
+                            'status': 'active',
+                            'added_by': added_by or payroll.business.client
+                        }
+                    )
+                    if not created:
+                        user_context_role.role = role
+                        user_context_role.status = 'active'
+                        user_context_role.save()
+                    payroll_module = cls._get_payroll_module()
+                    if payroll_module:
+                        # Business owner gets all permissions
+                        employee_level = kwargs.get('employee_level', '0') # Default to owner level
+                        final_permissions = cls._get_level_based_permissions(employee_level)
+
+                        user_feature_permission, created = UserFeaturePermission.objects.get_or_create(
+                            user_context_role=user_context_role,
+                            module=payroll_module,
+                            defaults={
+                                'actions': list(set(final_permissions)),
+                                'is_active': True,
+                                'created_by': added_by or payroll.business.client
+                            }
+                        )
+                        # If UserFeaturePermission already existed, update the actions if needed
+                        if not created:
+                            final_permissions = final_permissions.append(user_feature_permission.actions)
+                            user_feature_permission.actions = list(set(final_permissions))
+                            user_feature_permission.is_active = True
+                            user_feature_permission.save()
+
         
         # Create or update EmployeeManagement record
         employee, created = cls.objects.get_or_create(
@@ -1439,7 +1479,7 @@ class EmployeeCredentials(models.Model):
 
 
 class EmployeeEducationDetails(models.Model):
-    employee = models.ForeignKey('EmployeeCredentials', on_delete=models.CASCADE, related_name='education_details')
+    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE, related_name='education_details')
     qualification = models.CharField(max_length=120, null=False, blank=False)
     year_of_passing = models.IntegerField(null=False, blank=False)
     upload_certificate = models.FileField(upload_to=employee_education_certificate, null=True, blank=True,
@@ -1459,7 +1499,7 @@ class AttendanceLog(models.Model):
         ('biometric', 'Biometric Device'),
         ('auto', 'System Auto'),
     ]
-    employee = models.ForeignKey(EmployeeCredentials, on_delete=models.CASCADE, related_name='attendance_logs')
+    employee = models.ForeignKey(EmployeeManagement, on_delete=models.CASCADE, related_name='attendance_logs')
     date = models.DateField()
     check_in = models.DateTimeField()
     check_out = models.DateTimeField(null=True, blank=True)
@@ -1497,7 +1537,7 @@ class EmployeeFaceRecognition(models.Model):
         ('back', 'back')
     ]
 
-    employee = models.ForeignKey(EmployeeCredentials, on_delete=models.CASCADE, related_name='images')
+    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE, related_name='images')
     direction = models.CharField(max_length=50, choices=DIRECTION_CHOICES)
     image_file = models.FileField(upload_to=employee_image_upload_path)
     labels = models.JSONField(default=list)
@@ -1522,7 +1562,7 @@ class LeaveApplication(models.Model):
         ('cancelled', 'Cancelled'),
     ]
 
-    employee = models.ForeignKey(EmployeeCredentials, on_delete=models.CASCADE, related_name='leave_applications')
+    employee = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE, related_name='leave_applications')
     leave_type = models.ForeignKey(LeaveManagement, on_delete=models.CASCADE, related_name='payroll_leave_applications')
     start_date = models.DateField()
     end_date = models.DateField()
@@ -1531,14 +1571,14 @@ class LeaveApplication(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
     applied_on = models.DateTimeField(auto_now_add=True)
     reviewer = models.ForeignKey(
-        EmployeeCredentials,
+        'EmployeeManagement',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name='reviewed_leaves'
     )
     cc_to = models.ManyToManyField(
-        EmployeeCredentials,
+        'EmployeeManagement',
         blank=True,
         related_name='cc_leaves'
     )
@@ -1552,7 +1592,7 @@ class LeaveApplication(models.Model):
 
 class LeaveNotification(models.Model):
     leave_application = models.ForeignKey('LeaveApplication', on_delete=models.CASCADE)
-    reviewer = models.ForeignKey('EmployeeCredentials', on_delete=models.CASCADE)
+    reviewer = models.ForeignKey('EmployeeManagement', on_delete=models.CASCADE)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     read_at = models.DateTimeField(null=True, blank=True)

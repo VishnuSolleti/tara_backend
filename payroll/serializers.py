@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import *
+from usermanagement.models import Users
 from datetime import date, datetime
 from calendar import monthrange
 from rest_framework.exceptions import ValidationError
@@ -450,10 +451,14 @@ class HolidayManagementSerializer(serializers.ModelSerializer):
 
 
 class EmployeeManagementSerializer(serializers.ModelSerializer):
+    user = serializers.PrimaryKeyRelatedField(queryset=Users.objects.all(), required=False, allow_null=True, default=None)
 
     class Meta:
         model = EmployeeManagement
         fields = '__all__'
+        extra_kwargs = {
+            'user': {'required': False, 'allow_null': True}
+        }
 
     def validate_unique_fields(self, validated_data, instance=None):
         payroll_id = validated_data.get('payroll')
@@ -492,7 +497,8 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         enable_portal_access = validated_data.get('enable_portal_access', False)
-        
+        self.validate_unique_fields(validated_data)
+
         if enable_portal_access:
             # Portal employee - ensure user exists
             user = validated_data.get('user')
@@ -503,9 +509,22 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
         else:
             # Non-portal employee - ensure user is None
             validated_data['user'] = None
-        
-        self.validate_unique_fields(validated_data)
-        return super().create(validated_data)
+
+        # Do not create here; return the already-created instance based on identifiers
+        lookup = {'payroll': validated_data.get('payroll')}
+        if validated_data.get('associate_id'):
+            lookup['associate_id'] = validated_data.get('associate_id')
+        elif validated_data.get('work_email'):
+            lookup['work_email'] = validated_data.get('work_email')
+        elif validated_data.get('mobile_number'):
+            lookup['mobile_number'] = validated_data.get('mobile_number')
+
+        employee = EmployeeManagement.objects.filter(**lookup).order_by('-id').first()
+        if not employee:
+            raise serializers.ValidationError({
+                'non_field_errors': ['Employee appears to be created externally but was not found with given identifiers.']
+            })
+        return employee
 
     def update(self, instance, validated_data):
         enable_portal_access = validated_data.get('enable_portal_access', instance.enable_portal_access)
@@ -535,8 +554,8 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
         
         try:
             # Extract required parameters for create_employee method
-            payroll = employee_data.get('payroll_org')
-            work_email = employee_data.get('email')
+            payroll = employee_data.get('payroll')
+            work_email = employee_data.get('work_email')
             first_name = employee_data.get('first_name', '')
             last_name = employee_data.get('last_name', '')
             
@@ -552,7 +571,7 @@ class EmployeeManagementSerializer(serializers.ModelSerializer):
                 last_name=last_name,
                 enable_portal_access=True,
                 added_by=payroll.business.client,
-                **{k: v for k, v in employee_data.items() if k not in ['payroll_org', 'email', 'first_name', 'last_name', 'enable_portal_access']}
+                **{k: v for k, v in employee_data.items() if k not in ['payroll', 'work_email', 'first_name', 'last_name', 'enable_portal_access']}
             )
             
             # Return the user that was created/updated
