@@ -15,6 +15,7 @@ from . import employee_salary_details
 from . import epf_reports
 from . import employee_dashboard
 from . import event_management
+from . import geo_location
 
 urlpatterns = [
     # URL for listing and creating PayrollOrg instances
@@ -236,8 +237,8 @@ urlpatterns = [
     path('manual-checkout/', attendance_controller.manual_check_out, name='manual-check-out'),
 
     #Geo Location check-in/check-out
-    path('geo-location-check-in/', attendance_controller.geo_location_check_in, name='geo-location-check-in'),
-    path('geo-location-check-out/', attendance_controller.geo_location_check_out, name='geo-location-check-out'),
+    path('geo-location-check-in/', geo_location.geo_location_check_in, name='geo-location-check-in'),
+    path('geo-location-check-out/', geo_location.geo_location_check_out, name='geo-location-check-out'),
 
     # Face recognition check-in/check-out
     # path('face-checkin/', attendance_controller.face_checkin_checkout, name='face-checkin'),
