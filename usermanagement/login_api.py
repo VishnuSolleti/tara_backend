@@ -208,7 +208,7 @@ def login_user(request):
             response.set_cookie(
                 'access_token',
                 access_token,
-                domain='.tarafirst.com',  # This makes it work across subdomains
+                domain='.dev-backend.tarafirst.com',  # This makes it work across subdomains
                 secure=True,
                 httponly=True,
                 max_age=43200  # 12 hours
