@@ -2,11 +2,9 @@ import boto3
 from uuid import uuid4
 from datetime import date, timedelta
 from django.db.models import Q
-from rest_framework.decorators import api_view, authentication_classes
-from rest_framework.response import Response
-from django.utils.timezone import localtime, now
 from calendar import monthrange
 from collections import defaultdict
+from rest_framework.permissions import IsAuthenticated
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
@@ -16,8 +14,12 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils.timezone import now, localtime
-from .models import EmployeeCredentials, EmployeeFaceRecognition, AttendanceLog, PaySchedule, HolidayManagement, LeaveManagement
+from usermanagement.models import Users
+from Tara.broadcast import broadcast_to_employee, broadcast_to_business
+from .models import (EmployeeCredentials, EmployeeFaceRecognition, AttendanceLog, PaySchedule, HolidayManagement,
+                     LeaveManagement, PayrollOrg, EmployeeManagement)
 from .serializers import EmployeeCredentialsSerializer, AttendanceLogSerializer, EmployeeFaceRecognitionSerializer
+from .attendance_controller import get_payroll_and_employee
 
 rekognition = boto3.client(
     'rekognition',
@@ -29,22 +31,23 @@ s3_bucket = settings.AWS_STORAGE_BUCKET_NAME
 
 @csrf_exempt
 @api_view(['POST'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def upload_employee_images(request):
     """
     Upload 4 directional employee images (front, back, left, right),
     analyze them using AWS Rekognition, store images and labels.
     """
-    name = request.data.get('username')
-    email = request.data.get('email')
+    user = request.user
+    if not isinstance(user, Users):
+        return Response({"error": "Invalid user"}, status=status.HTTP_401_UNAUTHORIZED)
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
+
     directions = ['front', 'upper_angle', 'left', 'right', 'lower_angle', 'back']
 
-    if not name:
-        return Response({"error": "Name and email are required."}, status=400)
-
     # Create or fetch employee
-    employee = EmployeeCredentials.objects.get(username=name)
 
     for direction in directions:
         image_file = request.FILES.get(direction)
@@ -67,6 +70,7 @@ def upload_employee_images(request):
                 MinConfidence=70
             )
             labels = rekog_response.get('Labels', [])
+            print(labels)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -74,16 +78,19 @@ def upload_employee_images(request):
         employee_image.labels = labels
         employee_image.save()
 
-    return Response(EmployeeCredentialsSerializer(employee).data, status=status.HTTP_201_CREATED)
+    return Response(
+        {"message": "Employee image uploaded successfully for face attendance"},
+        status=status.HTTP_201_CREATED
+    )
 
 
 @api_view(['POST'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def face_recognition_check_in(request):
-    employee = request.user
+    user = request.user
 
-    if not isinstance(employee, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
     image_file = request.FILES.get('image')
@@ -93,6 +100,10 @@ def face_recognition_check_in(request):
 
     if not image_file:
         return Response({'error': 'Image is required for face recognition check-in.'}, status=400)
+
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     # Prevent duplicate check-in
     last_log = AttendanceLog.objects.filter(
@@ -152,24 +163,44 @@ def face_recognition_check_in(request):
         device_info=device_info
     )
 
-    serializer = AttendanceLogSerializer(new_log)
+    # ✅ Send WebSocket notification
+    payload = {
+        "type": "attendance_update",
+        "action": "check_in",
+        "record": AttendanceLogSerializer(new_log).data,
+    }
+
+    # Push to this employee's devices AND to team viewers
+    # 🔔 Broadcast to employee (all their devices)
+    # NOTE: If your WS group uses employee_id, pass emp.id; if it uses user_id, pass emp.user_id.
+    broadcast_to_employee(employee.id, payload)  # <-- if your consumer uses f"user_{employee_id}"
+    # broadcast_to_employee(emp.user_id)   # <-- use this instead if your group is f"user_{user_id}"
+
+    # 📣 Broadcast to the whole business/team
+    # business_id = employee_credentials.employee.payroll.business_id
+    # broadcast_to_business(business_id, payload)
+
     return Response({
         "message": "Check-in successful via face recognition",
-        "data": serializer.data,
+        "data": payload["record"],
         "match_results": match_results
     }, status=200)
 
 
 @api_view(['POST'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 @parser_classes([MultiPartParser, FormParser])
 def face_recognition_check_out(request):
-    employee = request.user
+    user = request.user
     print(localtime(now()))
 
 
-    if not isinstance(employee, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     image_file = request.FILES.get('image')
     if not image_file:
@@ -229,19 +260,30 @@ def face_recognition_check_out(request):
     # If match successful → check out
     attendance.check_out = now()
     attendance.save()
+    payload = {
+        "type": "attendance_update",
+        "action": "check_out",
+        "record": AttendanceLogSerializer(attendance).data,
+    }
 
-    serializer = AttendanceLogSerializer(attendance)
+    broadcast_to_employee(employee.id, payload)
     return Response({
         "message": "Check-out successful via face recognition",
-        "data": serializer.data,
+        "data": payload["record"],
         "match_results": match_results
     }, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def attendance_summary_view(request):
-    employee = request.user
+    user = request.user
+    if not isinstance(user, Users):
+        return Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     try:
         month = int(request.query_params.get('month', now().month))
@@ -267,8 +309,6 @@ def attendance_summary_view(request):
     present_dates = set(log.date for log in logs)
 
     # Week-off and holidays
-    employee_obj = employee.employee
-    payroll = employee_obj.payroll
     pay_schedule = PaySchedule.objects.filter(payroll=payroll).first()
 
     week_off_dates = set()

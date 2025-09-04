@@ -1,4 +1,4 @@
-from payroll.models import HolidayManagement, EmployeeCredentials, PayrollOrg, EventManagement
+from payroll.models import HolidayManagement, EmployeeCredentials, PayrollOrg, EventManagement, EmployeeManagement
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from payroll.serializers import HolidayManagementSerializer
@@ -7,8 +7,12 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from datetime import datetime, timedelta, date
 from calendar import monthrange
 from rest_framework import status
+from usermanagement.models import Users
 from django.utils.timezone import now, localtime
 from collections import defaultdict
+from rest_framework.permissions import IsAuthenticated
+from .attendance_controller import get_payroll_and_employee
+
 
 
 def get_holidays_for_period(payroll, work_location, start_date, end_date):
@@ -158,7 +162,7 @@ def process_birthdays_to_list(birthdays, year, start_date, end_date):
 
 
 @api_view(['GET'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def get_month_wise_holiday_calendar(request):
     """
     Get monthly calendar with holidays, events, and birthdays for the authenticated employee.
@@ -167,13 +171,14 @@ def get_month_wise_holiday_calendar(request):
     Birthdays are recurring yearly, so they're calculated for the current year.
     Birthdays won't show for years before the employee's birth year.
     """
-    employee = request.user
+    user = request.user
 
-    if not isinstance(employee, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=401)
 
-    employee_obj = employee.employee
-    payroll = employee_obj.payroll
+    payroll, employee_obj, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     try:
         month = int(request.query_params.get('month', now().month))
@@ -206,7 +211,7 @@ def get_month_wise_holiday_calendar(request):
 
 
 @api_view(['GET'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def get_yearly_holiday_calendar(request):
     """
     Get yearly calendar with holidays, events, and birthdays for the authenticated employee.
@@ -215,13 +220,14 @@ def get_yearly_holiday_calendar(request):
     Birthdays are recurring yearly, so they're calculated for the current year.
     Birthdays won't show for years before the employee's birth year.
     """
-    employee = request.user
+    user = request.user
 
-    if not isinstance(employee, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=401)
 
-    employee_obj = employee.employee
-    payroll = employee_obj.payroll
+    payroll, employee_obj, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     try:
         year = int(request.query_params.get('year', now().year))
@@ -247,3 +253,5 @@ def get_yearly_holiday_calendar(request):
     calendar_list.sort(key=lambda x: datetime.strptime(x["date"], "%d-%m-%Y"))
 
     return Response(calendar_list)
+
+

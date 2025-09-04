@@ -1,11 +1,10 @@
 import base64
 import numpy as np
-from datetime import datetime
 from django.utils.timezone import now, localtime, localdate
-from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from .models import AttendanceLog, EmployeeCredentials, AttendanceGeoTag
+from .models import (AttendanceLog, AttendanceGeoTag, HolidayManagement, PaySchedule, EmployeeCredentials,
+                     PayrollOrg, EmployeeManagement)
 from .serializers import AttendanceLogSerializer, AttendanceGeoTagSerializer
 from payroll.authentication import EmployeeJWTAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -13,28 +12,56 @@ from datetime import datetime, timedelta, date
 from calendar import monthrange
 from rest_framework import status
 from collections import defaultdict
-from payroll.models import HolidayManagement
-from payroll.models import PaySchedule
+from usermanagement.models import Users
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from Tara.broadcast import broadcast_to_employee, broadcast_to_business
 
 
-@api_view(['POST'])
-@authentication_classes([EmployeeJWTAuthentication])
-def manual_check_in(request):
-    employee_credentials = request.user
 
-    if not isinstance(employee_credentials, EmployeeCredentials):
+def get_payroll_and_employee(request):
+    """Local helper to fetch payroll and employee for the authenticated user.
+
+    Returns (payroll, employee, error_response). If error_response is not None, caller should return it.
+    """
+    user = request.user
+    if not isinstance(user, Users):
+        return None, None, Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    try:
+        payroll = PayrollOrg.objects.get(business=user.active_context.business)
+    except PayrollOrg.DoesNotExist:
+        return None, None, Response({'error': 'Payroll not found for active business context'},
+                                    status=status.HTTP_404_NOT_FOUND)
+    try:
+        employee = user.employee_profiles.get(payroll=payroll)
+    except EmployeeManagement.DoesNotExist:
+        return None, None, Response({'error': 'Employee profile not found for the user in this payroll'},
+                                    status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return None, None, Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return payroll, employee, None
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def manual_check_in(request):
+    user = request.user
+
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
     today = localdate()
     location = request.data.get('location', '')
     device_info = request.data.get('device_info', '')
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     # Get the latest log for today
     last_log = AttendanceLog.objects.filter(
-        employee=employee_credentials,
+        employee=employee,
         date=today
     ).order_by('-check_in').first()
 
@@ -44,7 +71,7 @@ def manual_check_in(request):
 
     # Else allow new check-in
     new_log = AttendanceLog.objects.create(
-        employee=employee_credentials,
+        employee=employee,
         date=today,
         check_in=localtime(now()),
         check_in_type='manual',
@@ -62,7 +89,7 @@ def manual_check_in(request):
     # Push to this employee's devices AND to team viewers
     # 🔔 Broadcast to employee (all their devices)
     # NOTE: If your WS group uses employee_id, pass emp.id; if it uses user_id, pass emp.user_id.
-    broadcast_to_employee(employee_credentials.id, payload)  # <-- if your consumer uses f"user_{employee_id}"
+    broadcast_to_employee(employee.id, payload)  # <-- if your consumer uses f"user_{employee_id}"
     # broadcast_to_employee(emp.user_id)   # <-- use this instead if your group is f"user_{user_id}"
 
     # 📣 Broadcast to the whole business/team
@@ -73,18 +100,21 @@ def manual_check_in(request):
 
 
 @api_view(['POST'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def manual_check_out(request):
-    employee_credentials = request.user
+    user = request.user
 
-    if not isinstance(employee_credentials, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
     today = localtime(now()).date()
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     # Get the latest check-in with no checkout
     attendance = AttendanceLog.objects.filter(
-        employee=employee_credentials,
+        employee=employee,
         date=today,
         check_out__isnull=True
     ).order_by('-check_in').first()
@@ -101,24 +131,27 @@ def manual_check_out(request):
         "record": AttendanceLogSerializer(attendance).data,
     }
 
-    broadcast_to_employee(employee_credentials.id, payload)
+    broadcast_to_employee(employee.id, payload)
 
     return Response({'message': 'Check-out successful', 'data': payload["record"]}, status=200)
 
 
 @api_view(['GET'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def today_attendance_status(request):
-    employee_credentials = request.user
+    user = request.user
 
-    if not isinstance(employee_credentials, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
     today = localtime(now()).date()
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     # Get all logs for today
     attendance_logs = AttendanceLog.objects.filter(
-        employee=employee_credentials,
+        employee=employee,
         date=today
     ).order_by('check_in')
 
@@ -134,11 +167,11 @@ def today_attendance_status(request):
 
 
 @api_view(['GET'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def truetime_monthly_view(request):
-    employee = request.user
+    user = request.user
 
-    if not isinstance(employee, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=401)
 
     # Extract month & year
@@ -156,6 +189,9 @@ def truetime_monthly_view(request):
     last_day = today.day if is_current_month else monthrange(year, month)[1]
 
     all_dates = [date(year, month, day) for day in range(1, last_day + 1)]
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     # Fetch all logs once
     logs = AttendanceLog.objects.filter(
@@ -174,9 +210,6 @@ def truetime_monthly_view(request):
     total_present_days = 0
     total_duration = timedelta()
 
-    # 1. Get payroll and pay schedule
-    employee_obj = request.user.employee  # EmployeeCredentials -> EmployeeManagement
-    payroll = employee_obj.payroll
     pay_schedule = PaySchedule.objects.filter(payroll=payroll).first()
 
     # 2. Fetch holidays for the month
@@ -186,7 +219,7 @@ def truetime_monthly_view(request):
         payroll=payroll,
         start_date__lte=last_day_of_month,
         end_date__gte=first_day,
-        applicable_for=employee.employee.work_location
+        applicable_for=employee.work_location
     )
 
     # 3. Build set of holiday dates
@@ -275,11 +308,11 @@ def truetime_monthly_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def truetime_weekly_view(request):
-    employee = request.user
+    user = request.user
 
-    if not isinstance(employee, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=401)
 
     try:
@@ -313,6 +346,9 @@ def truetime_weekly_view(request):
         last_day_of_month + timedelta(days=i + 1)
         for i in range(pad_end)
     ]
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     # Fetch logs only for current month
     logs = AttendanceLog.objects.filter(
@@ -331,8 +367,6 @@ def truetime_weekly_view(request):
     current_week = []
 
     # Get payroll and pay schedule
-    employee_obj = request.user.employee
-    payroll = employee_obj.payroll
     pay_schedule = PaySchedule.objects.filter(payroll=payroll).first()
 
     # For the relevant month (month/year for weekly, target_date for datewise)
@@ -344,7 +378,7 @@ def truetime_weekly_view(request):
         payroll=payroll,
         start_date__lte=last_day,
         end_date__gte=first_day,
-        applicable_for=employee.employee.work_location
+        applicable_for=employee.work_location
     )
     holiday_dates = set()
     for holiday in holidays:
@@ -450,11 +484,11 @@ def truetime_weekly_view(request):
 
 
 @api_view(['GET'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def truetime_datewise_view(request):
-    employee = request.user
+    user = request.user
 
-    if not isinstance(employee, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=401)
 
     try:
@@ -474,9 +508,11 @@ def truetime_datewise_view(request):
             "status": "-"
         }, status=200)
 
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
+
     # Get payroll and pay schedule
-    employee_obj = employee.employee
-    payroll = employee_obj.payroll
     pay_schedule = PaySchedule.objects.filter(payroll=payroll).first()
 
     # Holiday dates
@@ -484,7 +520,7 @@ def truetime_datewise_view(request):
         payroll=payroll,
         start_date__lte=target_date,
         end_date__gte=target_date,
-        applicable_for=employee.employee.work_location
+        applicable_for=employee.work_location
     )
     is_holiday = holidays.exists()
 
@@ -549,127 +585,3 @@ def truetime_datewise_view(request):
         "sessions": sessions,
         "status": status
     }, status=200)
-
-
-@api_view(['GET', 'POST'])
-def geo_location_list_create(request):
-    if request.method == 'GET':
-        geos = AttendanceGeoTag.objects.all()
-        serializer = AttendanceGeoTagSerializer(geos, many=True)
-        return Response(serializer.data)
-
-    elif request.method == 'POST':
-        serializer = AttendanceGeoTagSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_200_OK)
-
-
-@api_view(['GET', 'PUT', 'DELETE'])
-def geo_location_detail(request, pk):
-    try:
-        geo = AttendanceGeoTag.objects.get(pk=pk)
-    except AttendanceGeoTag.DoesNotExist:
-        return Response({"error": "GeoLocation not found"}, status=status.HTTP_404_NOT_FOUND)
-
-    if request.method == 'GET':
-        serializer = AttendanceGeoTagSerializer(geo)
-        return Response(serializer.data)
-
-    elif request.method == 'PUT':
-        serializer = AttendanceGeoTagSerializer(geo, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_200_OK)
-
-    elif request.method == 'DELETE':
-        geo.delete()
-        return Response({"message": "GeoLocation deleted"}, status=status.HTTP_204_NO_CONTENT)
-
-
-@api_view(['GET'])
-def geo_locations_details_based_on_payroll_and_worklocation(request):
-    payroll_id = request.query_params.get("payroll")
-    branch = request.query_params.get("work_location")
-
-    if not payroll_id:
-        return Response({"error": "Payroll ID is missing"}, status=status.HTTP_200_OK)
-
-    try:
-        geo_locations = AttendanceGeoTag.objects.get(payroll=payroll_id, branch=branch)
-        if not geo_locations.exists():
-            return Response({"error": "No GeoLocations found for the provided payroll ID."},
-                            status=status.HTTP_404_NOT_FOUND)
-
-        serializer = AttendanceGeoTagSerializer(geo_locations)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    except Exception as e:
-        return Response({"error": f"Something went wrong: {str(e)}"}, status=status.HTTP_200_OK)
-
-
-@api_view(['POST'])
-@authentication_classes([EmployeeJWTAuthentication])
-def geo_location_check_in(request):
-    employee_credentials = request.user
-
-    if not isinstance(employee_credentials, EmployeeCredentials):
-        return Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
-    today = localtime(now()).date()
-    location = request.data.get('location', '')
-    device_info = request.data.get('device_info', '')
-
-    # Get the latest log for today
-    last_log = AttendanceLog.objects.filter(
-        employee=employee_credentials,
-        date=today
-    ).order_by('-check_in').first()
-
-    # If last entry exists and not checked out yet — block duplicate check-in
-    if last_log and last_log.check_in and not last_log.check_out:
-        return Response({'message': 'You must check out before checking in again.'},
-                        status=status.HTTP_400_BAD_REQUEST)
-
-    # Else allow new check-in
-    new_log = AttendanceLog.objects.create(
-        employee=employee_credentials,
-        date=today,
-        check_in=localtime(now()),
-        check_in_type='geo',
-        location=location,
-        device_info=device_info
-    )
-
-    serializer = AttendanceLogSerializer(new_log)
-    return Response({'message': 'Check-in successful', 'data': serializer.data}, status=status.HTTP_200_OK)
-
-
-@api_view(['POST'])
-@authentication_classes([EmployeeJWTAuthentication])
-def geo_location_check_out(request):
-    employee_credentials = request.user
-
-    if not isinstance(employee_credentials, EmployeeCredentials):
-        return Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
-
-    today = localtime(now()).date()
-
-    # Get the latest check-in with no checkout
-    attendance = AttendanceLog.objects.filter(
-        employee=employee_credentials,
-        date=today,
-        check_out__isnull=True
-    ).order_by('-check_in').first()
-
-    if not attendance:
-        return Response({'error': 'No active check-in record found for today'}, status=status.HTTP_404_NOT_FOUND)
-
-    # Check out now
-    attendance.check_out = localtime(now())
-    attendance.save()
-
-    serializer = AttendanceLogSerializer(attendance)
-    return Response({'message': 'Check-out successful', 'data': serializer.data}, status=status.HTTP_200_OK)
