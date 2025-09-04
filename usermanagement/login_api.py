@@ -185,18 +185,45 @@ def login_user(request):
             access_token = str(refresh.access_token)
             refresh_token = str(refresh)
 
-        return Response({
-            "message": "Login successful",
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "user": user_data,
-            "active_context": context_data,
-            "all_contexts": all_contexts,
-            "user_role": role_data,
-            "module_subscriptions": module_subscriptions,
-            "service_requests": service_requests,
-            "user_context_role": user_context_role_id
-        }, status=status.HTTP_200_OK)
+            # usermanagement/login_api.py - UPDATE YOUR EXISTING LOGIN FUNCTION
+
+            # Create the response with your existing data
+            response_data = {
+                "message": "Login successful",
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "user": user_data,
+                "active_context": context_data,
+                "all_contexts": all_contexts,
+                "user_role": role_data,
+                "module_subscriptions": module_subscriptions,
+                "service_requests": service_requests,
+                "user_context_role": user_context_role_id
+            }
+
+            # Create response
+            response = Response(response_data, status=status.HTTP_200_OK)
+
+            # Set cross-subdomain cookies for seamless navigation
+            response.set_cookie(
+                'access_token',
+                access_token,
+                domain='.tarafirst.com',  # This makes it work across subdomains
+                secure=True,
+                httponly=True,
+                max_age=43200  # 12 hours
+            )
+
+            response.set_cookie(
+                'refresh_token',
+                refresh_token,
+                domain='.dev-backend.tarafirst.com',  # This makes it work across subdomains
+                secure=True,
+                httponly=True,
+                max_age=86400  # 24 hours
+            )
+
+            return response
 
     except Exception as e:
         return Response(

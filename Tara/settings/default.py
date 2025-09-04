@@ -40,6 +40,19 @@ ALLOWED_HOSTS = [
     'dev-backend.tarafirst.com'
 ]
 
+# Tara/settings/default.py
+
+# Add these 3 lines anywhere in the file:
+
+# Cross-subdomain session cookies
+SESSION_COOKIE_DOMAIN = 'dev-backend.tarafirst.com'
+
+# Cross-subdomain CSRF cookies
+CSRF_COOKIE_DOMAIN = 'dev-backend.tarafirst.com'
+
+# Allow credentials in CORS
+CORS_ALLOW_CREDENTIALS = True
+
 CORS_ORIGIN_ALLOW_ALL =True
 
 # Define base directory and log path
@@ -86,6 +99,7 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'Tara.middleware.auth.CrossSubdomainAuthMiddleware',
 ]
 
 ROOT_URLCONF = 'Tara.urls'
