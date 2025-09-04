@@ -1168,7 +1168,7 @@ class EmployeeCredentialsSerializer(serializers.ModelSerializer):
 
 
 class AttendanceLogSerializer(serializers.ModelSerializer):
-    employee_id = serializers.CharField(source='employee.employee_credentials.associate_id', read_only=True)
+    employee_id = serializers.CharField(source='employee.associate_id', read_only=True)
 
     class Meta:
         model = AttendanceLog

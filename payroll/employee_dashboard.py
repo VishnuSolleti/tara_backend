@@ -23,15 +23,19 @@ import boto3
 from botocore.exceptions import ClientError, BotoCoreError
 from django.conf import settings
 from Tara.settings.default import *
+from .attendance_controller import get_payroll_and_employee
 
 
 @api_view(['GET'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def tds_summary_view(request):
-    employee = request.user
+    user = request.user
 
-    if not isinstance(employee, EmployeeCredentials):
+    if not isinstance(user, Users):
         return Response({'error': 'Invalid employee credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+    payroll, employee, error_response = get_payroll_and_employee(request)
+    if error_response:
+        return error_response
 
     financial_year = request.query_params.get('financial_year')
     selected_month = request.query_params.get('month')
@@ -48,7 +52,7 @@ def tds_summary_view(request):
     valid_months = get_valid_fy_months_upto(selected_month)
 
     salaries = EmployeeSalaryHistory.objects.filter(
-        employee_id=employee.employee,
+        employee_id=employee,
         financial_year=financial_year,
         month__in=valid_months,
     ).order_by("month")
