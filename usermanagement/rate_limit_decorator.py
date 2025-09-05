@@ -72,7 +72,7 @@ def rate_limit(key='ip', rate='5/h', message=None):
                     
             except ValueError:
                 # Invalid rate format, default to 5/h
-                limit = 100
+                limit = 5
                 window_hours = 1
             
             # Get identifier based on key type
@@ -137,7 +137,7 @@ def rate_limit_login(rate='5/h'):
                 limit = int(limit_str)
                 window_hours = 1 if period == 'h' else (1/60 if period == 'm' else 24)
             except ValueError:
-                limit = 100
+                limit = 5
                 window_hours = 1
             
             # Check IP rate limit (higher limit for login)
