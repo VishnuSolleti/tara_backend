@@ -17,7 +17,7 @@ User = get_user_model()
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@rate_limit_login(rate='5/h')
+@rate_limit_login(rate='100/h')
 def login_user(request):
     email = request.data.get('email')
     password = request.data.get('password')
