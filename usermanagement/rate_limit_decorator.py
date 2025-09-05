@@ -20,7 +20,7 @@ def get_client_ip(request):
     return ip
 
 
-def is_rate_limited(identifier, limit=100, window_hours=1):
+def is_rate_limited(identifier, limit=5, window_hours=1):
     """Check if an identifier has exceeded the rate limit."""
     cache_key = f"rate_limit_{hashlib.md5(identifier.encode()).hexdigest()}"
     current_count = cache.get(cache_key, 0)
@@ -32,7 +32,7 @@ def is_rate_limited(identifier, limit=100, window_hours=1):
     return False
 
 
-def rate_limit(key='ip', rate='100/h', message=None):
+def rate_limit(key='ip', rate='5/h', message=None):
     """
     Rate limiting decorator for Django views.
     
@@ -123,7 +123,7 @@ def rate_limit(key='ip', rate='100/h', message=None):
     return decorator
 
 
-def rate_limit_login(rate='100/h'):
+def rate_limit_login(rate='5/h'):
     """
     Special rate limiting decorator for login endpoints.
     Handles both IP and failed email attempts.
