@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.contrib.postgres.fields import ArrayField
 from django.db.models import JSONField
+from schedule import logger
 from .helpers import *
 from usermanagement.models import *
 from .permissions import PayrollPermissionManager
@@ -1610,29 +1611,66 @@ def current_financial_year():
     return f"{today.year}-{today.year+1}"
 
 
+# @receiver(post_save, sender=LeaveApplication)
+# def update_leave_balance_on_approval(sender, instance, created, **kwargs):
+#     if instance.status == 'approved':
+#         leave_days = (instance.end_date - instance.start_date).days + 1
+#
+#         try:
+#             leave_balance = EmployeeLeaveBalance.objects.get(
+#                 employee=instance.employee,
+#                 leave_type=instance.leave_type,
+#                 financial_year=current_financial_year()
+#             )
+#         except EmployeeLeaveBalance.DoesNotExist:
+#             return
+#
+#         if leave_balance.leave_remaining >= leave_days:
+#             leave_balance.leave_used += leave_days
+#             leave_balance.save()
+#         else:
+#             # Optionally handle rejection due to insufficient balance
+#             pass
+#
+#         # Prevent recursive signal call by using update() instead of save()
+#         LeaveApplication.objects.filter(id=instance.id).update(reviewed_on=now().date())
+
 @receiver(post_save, sender=LeaveApplication)
 def update_leave_balance_on_approval(sender, instance, created, **kwargs):
+    """Update leave balance when a leave is approved"""
     if instance.status == 'approved':
         leave_days = (instance.end_date - instance.start_date).days + 1
 
         try:
             leave_balance = EmployeeLeaveBalance.objects.get(
-                employee=instance.employee.employee,
+                employee=instance.employee,  # Changed from instance.employee.employee
                 leave_type=instance.leave_type,
                 financial_year=current_financial_year()
             )
+
+            # Check if enough balance is available
+            if leave_balance.leave_remaining < leave_days:
+                # Revert the approval if not enough balance
+                LeaveApplication.objects.filter(id=instance.id).update(
+                    status='rejected',
+                    reviewer_comment='Insufficient leave balance',
+                    reviewed_on=now()
+                )
+                return
+
+            # Update balance if sufficient
+            with transaction.atomic():
+                leave_balance.leave_used += leave_days
+                leave_balance.save()
+                
+                # Update reviewed_on date
+                LeaveApplication.objects.filter(id=instance.id).update(
+                    reviewed_on=now()
+                )
+
         except EmployeeLeaveBalance.DoesNotExist:
+            logger.error(f"No leave balance found for employee {instance.employee.id} and leave type {instance.leave_type.id}")
             return
-
-        if leave_balance.leave_remaining >= leave_days:
-            leave_balance.leave_used += leave_days
-            leave_balance.save()
-        else:
-            # Optionally handle rejection due to insufficient balance
-            pass
-
-        # Prevent recursive signal call by using update() instead of save()
-        LeaveApplication.objects.filter(id=instance.id).update(reviewed_on=now().date())
 
 
 class EventManagement(models.Model):

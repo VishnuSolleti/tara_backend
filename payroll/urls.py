@@ -275,8 +275,8 @@ urlpatterns = [
     path('summary/', leavemanagement.get_leave_summary, name='yearly-summary'),
     path('summary/<int:year>/', leavemanagement.get_leave_summary, name='yearly-summary'),
     path('leave/action/<int:leave_id>/', leavemanagement.handle_leave_action, name='leave-action'),
-    path('reject/<int:pk>/', leavemanagement.reject_leave, name='reject-leave'),
-    path('cancel/<int:pk>/', leavemanagement.cancel_leave, name='cancel-leave'),
+    path('reject/<int:leave_id>/', leavemanagement.reject_leave, name='reject-leave'),
+    path('cancel/<int:leave_id>/', leavemanagement.cancel_leave, name='cancel-leave'),
     # Employee Leave Balance
     path('my-leave-balances/', leavemanagement.get_my_leave_balances, name='my_leave_balances'),
 

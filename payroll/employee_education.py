@@ -10,15 +10,24 @@ from calendar import monthrange
 from rest_framework import status
 from django.utils.timezone import now, localtime
 from collections import defaultdict
+from usermanagement.models import Users
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 
 
 @api_view(['GET', 'POST'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def employee_education_list_create(request):
-    employee = request.user
-
-    if not isinstance(employee, EmployeeCredentials):
-        return Response({'error': 'Invalid employee credentials'}, status=401)
+    user = request.user
+    
+    # Get employee record from user
+    try:
+        # Get active context's payroll
+        payroll = PayrollOrg.objects.get(business=user.active_context.business)
+        # Get employee record
+        employee = EmployeeManagement.objects.get(payroll=payroll, user=user)
+    except (AttributeError, EmployeeManagement.DoesNotExist):
+        return Response({'error': 'Employee record not found'}, status=401)
 
     if request.method == 'GET':
         # List all education details for the employee
@@ -36,12 +45,17 @@ def employee_education_list_create(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def employee_education_detail(request, education_id):
-    employee = request.user
+    user = request.user
 
-    if not isinstance(employee, EmployeeCredentials):
-        return Response({'error': 'Invalid employee credentials'}, status=401)
+    # Get employee record from user
+    try:
+        # Get active context's payroll
+        payroll = PayrollOrg.objects.get(business=user.active_context.business)        # Get employee record
+        employee = EmployeeManagement.objects.get(payroll=payroll, user=user)
+    except (AttributeError, EmployeeManagement.DoesNotExist):
+        return Response({'error': 'Employee record not found'}, status=401)
 
     try:
         education_detail = EmployeeEducationDetails.objects.get(id=education_id, employee=employee)
@@ -72,12 +86,17 @@ def employee_education_detail(request, education_id):
 
 
 @api_view(['GET'])
-@authentication_classes([EmployeeJWTAuthentication])
+@permission_classes([IsAuthenticated])
 def employee_profile_details(request):
-    employee = request.user
+    user = request.user
 
-    if not isinstance(employee, EmployeeCredentials):
-        return Response({'error': 'Invalid employee credentials'}, status=401)
+    # Get employee record from user
+    try:
+        # Get active context's payroll
+        payroll = PayrollOrg.objects.get(business=user.active_context.business)        # Get employee record
+        employee = EmployeeManagement.objects.get(payroll=payroll, user=user)
+    except (AttributeError, EmployeeManagement.DoesNotExist):
+        return Response({'error': 'Employee record not found'}, status=401)
 
     full_name = f"{employee.employee.first_name} "
     if employee.employee.middle_name:
@@ -96,12 +115,12 @@ def employee_profile_details(request):
         personal = None
 
     data = {
-        "id": employee.pk,
-        "profile": EmployeeProfileSerializer(EmployeeManagement.objects.get(id=employee.employee.id)).data,
+        "id": user.pk,
+        "profile": EmployeeProfileSerializer(employee).data,
         "photo": employee_image,
         "personal_details": EmployeePersonalDetailsSerializer(personal).data if personal else None,
         "bank_details": EmployeeBankDetailsSerializer(
-            EmployeeBankDetails.objects.get(employee=employee.employee)).data,
+            EmployeeBankDetails.objects.get(employee=employee)).data,
         "education_details": EmployeeEducationDetailsSerializer(
             EmployeeEducationDetails.objects.filter(employee=employee), many=True).data,
     }
